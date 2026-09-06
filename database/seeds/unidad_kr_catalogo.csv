@@ -1,0 +1,51 @@
+﻿CODIGO,NOMBRE,DESCRIPCION,ORDEN,ESTADO
+BOOLEANO,1/0,Valor binario,1,ACTIVO
+NUMERO,Número,Cantidad sin unidad específica,2,ACTIVO
+PORCENTAJE,%,Porcentaje,3,ACTIVO
+PUNTOS_PORCENTUALES,pp,Puntos porcentuales,4,ACTIVO
+USD,USD,Dólares estadounidenses,5,ACTIVO
+MILES_USD,Miles USD,Miles de dólares estadounidenses,6,ACTIVO
+MILLONES_USD,Millones USD,Millones de dólares estadounidenses,7,ACTIVO
+USD_KG,USD/kg,Dólares por kilogramo,8,ACTIVO
+USD_KG_DW,USD/kg DW,Dólares por kilogramo de peso seco,9,ACTIVO
+USD_KG_MMPP,USD/kg MMPP,Dólares por kilogramo de materia prima,10,ACTIVO
+USD_HA,USD/ha,Dólares por hectárea,11,ACTIVO
+MILES_USD_HA,Miles USD/ha,Miles de dólares por hectárea,12,ACTIVO
+MILLONES_USD_HA,Millones USD/ha,Millones de dólares por hectárea,13,ACTIVO
+TONELADA,t,Toneladas,14,ACTIVO
+TONELADA_HA,t/ha,Toneladas por hectárea,15,ACTIVO
+TONELADA_SEMANA,t/semana,Toneladas por semana,16,ACTIVO
+TONELADA_DIA,t/día,Toneladas por día,17,ACTIVO
+TONELADA_EXPORTADA,t exportada,Toneladas exportadas,18,ACTIVO
+KILOGRAMO,kg,Kilogramos,19,ACTIVO
+KILOGRAMO_HA,kg/ha,Kilogramos por hectárea,20,ACTIVO
+KILOGRAMO_JORNAL,kg/jornal,Kilogramos por jornal,21,ACTIVO
+MILES_KILOGRAMOS,Miles kg,Miles de kilogramos,22,ACTIVO
+MILLONES_KILOGRAMOS,Millones kg,Millones de kilogramos,23,ACTIVO
+MILLONES_KG_MMPP,Millones kg MMPP,Millones de kilogramos de materia prima,24,ACTIVO
+MILLONES_KG_EXPORTADOS,Millones kg exportados,Millones de kilogramos exportados,25,ACTIVO
+GRAMO,g,Gramos,26,ACTIVO
+HECTAREA,ha,Hectáreas,27,ACTIVO
+METRO_CUADRADO,m²,Metros cuadrados,28,ACTIVO
+MILES_METROS_CUBICOS,Miles m³,Miles de metros cúbicos,29,ACTIVO
+FCL,FCL,Contenedores de carga completa,30,ACTIVO
+LITROS_SEGUNDO,L/s,Litros por segundo,31,ACTIVO
+UNIDAD,Unidad,Unidades,32,ACTIVO
+MILLAR,Millar,Millares,33,ACTIVO
+MILES,Miles,Miles sin magnitud especificada,34,ACTIVO
+MILLONES,Millones,Millones sin magnitud especificada,35,ACTIVO
+PERSONA,Persona,Cantidad de personas,36,ACTIVO
+SKU,SKU,Cantidad de SKU,37,ACTIVO
+INICIATIVA,Iniciativa,Cantidad de iniciativas,38,ACTIVO
+NIVEL,Nivel,Nivel ordinal,39,ACTIVO
+DIA,Día,Días,40,ACTIVO
+HORA,Hora,Horas,41,ACTIVO
+HORA_DIA,h/día,Horas por día,42,ACTIVO
+HORA_SEMANA,h/semana,Horas por semana,43,ACTIVO
+MINUTO,min,Minutos,44,ACTIVO
+MINUTO_COSECHADOR,min/cosechador,Minutos por cosechador,45,ACTIVO
+RACIMOS_PLANTA,Racimos/planta,Racimos por planta,46,ACTIVO
+CARGADORES_PLANTA,Cargadores/planta,Cargadores por planta,47,ACTIVO
+FRUTOS_PLANTA,Frutos/planta,Frutos por planta,48,ACTIVO
+OTRO,Otro,Unidad histórica sin clasificación,49,ACTIVO
+SIN_UNIDAD,Sin unidad,Registro sin unidad aplicable,50,ACTIVO

@@ -1,0 +1,6 @@
+codigo,nombre,orden,activo
+PLANIFICADO,Planificado,10,true
+AUTOEVALUACION,Autoevaluación abierta,20,true
+CALIBRACION,En calibración,30,true
+CERRADO,Cerrado,40,true
+CANCELADO,Cancelado,50,true

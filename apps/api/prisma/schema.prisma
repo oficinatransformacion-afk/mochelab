@@ -1,0 +1,743 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Catalog {
+  id          String         @id @default(uuid()) @db.Uuid
+  code        String         @unique @db.VarChar(80)
+  name        String         @db.VarChar(160)
+  description String?
+  active      Boolean        @default(true)
+  values      CatalogValue[]
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("catalog")
+}
+
+model CatalogValue {
+  id            String    @id @default(uuid()) @db.Uuid
+  catalogId     String    @map("catalog_id") @db.Uuid
+  code          String    @db.VarChar(100)
+  name          String    @db.VarChar(200)
+  description   String?
+  sortOrder     Int       @default(0) @map("sort_order")
+  active        Boolean   @default(true)
+  validFrom     DateTime? @map("valid_from") @db.Date
+  validUntil    DateTime? @map("valid_until") @db.Date
+  metadata      Json?
+  catalog       Catalog   @relation(fields: [catalogId], references: [id])
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  personOccupationLevels Person[]       @relation("PersonOccupationLevel")
+  personStatuses         Person[]       @relation("PersonStatus")
+  roleTypes              Role[]         @relation("RoleType")
+  roleStatuses           Role[]         @relation("RoleStatus")
+  teamStatuses           Team[]         @relation("TeamStatus")
+  assignmentStatuses     PersonRole[]   @relation("AssignmentStatus")
+  onboardingStatuses     PersonRole[]   @relation("OnboardingStatus")
+  courseModules          Course[]       @relation("CourseModule")
+  courseStatuses         Course[]       @relation("CourseStatus")
+  personCourseStatuses   PersonCourse[] @relation("PersonCourseStatus")
+  personCourseSources    PersonCourse[] @relation("PersonCourseSource")
+  personCourseGroups     PersonCourse[] @relation("PersonCourseGroup")
+  roleMaturityLevels     RoleMaturity[] @relation("RoleMaturityLevel")
+  teamMaturityLevels     TeamMaturity[] @relation("TeamMaturityLevel")
+  selfAssessmentStatuses RoleSelfAssessment[] @relation("SelfAssessmentStatus")
+  maturityPeriodStatuses Period[]       @relation("MaturityPeriodStatus")
+  objectiveLevels        Objective[]    @relation("ObjectiveLevel")
+  objectiveFocusAreas    Objective[]    @relation("ObjectiveFocusArea")
+  objectiveCycles        Objective[]    @relation("ObjectiveCycle")
+  objectiveDirections    Objective[]    @relation("ObjectiveDirection")
+  objectiveTypes         Objective[]    @relation("ObjectiveType")
+  objectiveUnits         Objective[]    @relation("ObjectiveUnit")
+  objectiveResultStates  Objective[]    @relation("ObjectiveResultState")
+  objectiveRecordStates  Objective[]    @relation("ObjectiveRecordState")
+  initiativeCycles       Initiative[]   @relation("InitiativeCycle")
+  initiativeFocusAreas   Initiative[]   @relation("InitiativeFocusArea")
+  initiativeLevels       Initiative[]   @relation("InitiativeLevel")
+  initiativeTypes        Initiative[]   @relation("InitiativeType")
+  initiativeSizes        Initiative[]   @relation("InitiativeSize")
+  initiativePriorities   Initiative[]   @relation("InitiativePriority")
+  initiativeMgmtTypes    Initiative[]   @relation("InitiativeManagementType")
+  initiativeStatuses     Initiative[]   @relation("InitiativeStatus")
+  initiativeEscalations  Initiative[]   @relation("InitiativeEscalation")
+  initiativeHorizons     Initiative[]   @relation("InitiativeReturnHorizon")
+  initiativeTiCapacities Initiative[]   @relation("InitiativeTiCapacity")
+  initiativeCategories   Initiative[]   @relation("InitiativeCategory")
+  initiativeImpacts      Initiative[]   @relation("InitiativeImpact")
+  targetIndicators       IndicatorTarget[] @relation("TargetIndicator")
+  targetScopes           IndicatorTarget[] @relation("TargetScope")
+  targetUnits            IndicatorTarget[] @relation("TargetUnit")
+  targetStatuses         IndicatorTarget[] @relation("TargetStatus")
+  userProfiles           User[]         @relation("UserProfile")
+  userStatuses           User[]         @relation("UserStatus")
+  profileModuleAccesses  ProfileModule[] @relation("ProfileModuleProfile")
+
+  @@unique([catalogId, code])
+  @@index([catalogId, active, sortOrder])
+  @@map("catalog_value")
+}
+
+model Company {
+  id             String       @id @default(uuid()) @db.Uuid
+  code           String       @unique @db.VarChar(60)
+  name           String       @db.VarChar(180)
+  sourceName     String?      @map("source_name") @db.VarChar(180)
+  active         Boolean      @default(true)
+  people         Person[]
+  initiatives    Initiative[]
+  orgUnits       OrganizationalUnit[]
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("company")
+}
+
+model OrganizationalUnit {
+  id          String               @id @default(uuid()) @db.Uuid
+  code        String               @db.VarChar(80)
+  name        String               @db.VarChar(200)
+  unitType    String               @map("unit_type") @db.VarChar(40)
+  parentId    String?              @map("parent_id") @db.Uuid
+  companyId   String?              @map("company_id") @db.Uuid
+  sortOrder   Int                  @default(0) @map("sort_order")
+  active      Boolean              @default(true)
+  parent      OrganizationalUnit?  @relation("OrgUnitHierarchy", fields: [parentId], references: [id])
+  children    OrganizationalUnit[] @relation("OrgUnitHierarchy")
+  company     Company?             @relation(fields: [companyId], references: [id])
+  people      Person[]
+  teams       Team[]
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([unitType, code, companyId])
+  @@index([parentId])
+  @@map("organizational_unit")
+}
+
+model BusinessPartner {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(80)
+  name      String   @db.VarChar(180)
+  email     String?  @db.VarChar(254)
+  active    Boolean  @default(true)
+  people    Person[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("business_partner")
+}
+
+model Person {
+  id                    String              @id @default(uuid()) @db.Uuid
+  dni                   String              @db.VarChar(20)
+  companyId             String              @map("company_id") @db.Uuid
+  names                 String              @db.VarChar(240)
+  email                 String?             @db.VarChar(254)
+  phone                 String?             @db.VarChar(40)
+  position              String?             @db.VarChar(240)
+  occupationLevelId     String?             @map("occupation_level_id") @db.Uuid
+  organizationalUnitId  String?             @map("organizational_unit_id") @db.Uuid
+  businessPartnerId     String?             @map("business_partner_id") @db.Uuid
+  statusId              String              @map("status_id") @db.Uuid
+  sourceRow             Int?                @map("source_row")
+  company               Company             @relation(fields: [companyId], references: [id])
+  occupationLevel       CatalogValue?       @relation("PersonOccupationLevel", fields: [occupationLevelId], references: [id])
+  organizationalUnit    OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id])
+  businessPartner       BusinessPartner?    @relation(fields: [businessPartnerId], references: [id])
+  status                CatalogValue        @relation("PersonStatus", fields: [statusId], references: [id])
+  assignments           PersonRole[]
+  user                  User?
+  masteryTrainingRecipient RoleMasteryQualification[] @relation("MasteryTrainingRecipient")
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([dni, companyId])
+  @@index([email])
+  @@index([companyId, statusId])
+  @@map("person")
+}
+
+model Role {
+  id        String        @id @default(uuid()) @db.Uuid
+  sourceId  String        @unique @map("source_id") @db.VarChar(40)
+  name      String        @db.VarChar(160)
+  typeId    String        @map("type_id") @db.Uuid
+  statusId  String        @map("status_id") @db.Uuid
+  type      CatalogValue  @relation("RoleType", fields: [typeId], references: [id])
+  status    CatalogValue  @relation("RoleStatus", fields: [statusId], references: [id])
+  assignments PersonRole[]
+  roleCourses RoleCourse[]
+  targets     IndicatorTarget[]
+  observableBehaviors ObservableBehaviorRole[]
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("role")
+}
+
+model Program {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(80)
+  name      String   @db.VarChar(200)
+  active    Boolean  @default(true)
+  teams     Team[]
+  initiatives Initiative[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("program")
+}
+
+model Team {
+  id         String              @id @default(uuid()) @db.Uuid
+  sourceId   String              @unique @map("source_id") @db.VarChar(40)
+  unitId     String?             @map("unit_id") @db.Uuid
+  programId  String              @map("program_id") @db.Uuid
+  statusId   String              @map("status_id") @db.Uuid
+  unit       OrganizationalUnit? @relation(fields: [unitId], references: [id])
+  program    Program             @relation(fields: [programId], references: [id])
+  status     CatalogValue        @relation("TeamStatus", fields: [statusId], references: [id])
+  assignments PersonRole[]
+  maturities TeamMaturity[]
+  objectives Objective[]
+  initiatives Initiative[]
+  targets     IndicatorTarget[]
+  allowedUsers UserTeam[]
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("team")
+}
+
+model PersonRole {
+  id                   String         @id @default(uuid()) @db.Uuid
+  personId             String         @map("person_id") @db.Uuid
+  roleId               String         @map("role_id") @db.Uuid
+  teamId               String         @map("team_id") @db.Uuid
+  statusId             String         @map("status_id") @db.Uuid
+  onboardingStatusId   String         @map("onboarding_status_id") @db.Uuid
+  startDate            DateTime?      @map("start_date") @db.Date
+  endDate              DateTime?      @map("end_date") @db.Date
+  sourceRow            Int?           @map("source_row")
+  person               Person         @relation(fields: [personId], references: [id])
+  role                 Role           @relation(fields: [roleId], references: [id])
+  team                 Team           @relation(fields: [teamId], references: [id])
+  status               CatalogValue   @relation("AssignmentStatus", fields: [statusId], references: [id])
+  onboardingStatus     CatalogValue   @relation("OnboardingStatus", fields: [onboardingStatusId], references: [id])
+  courses              PersonCourse[]
+  maturities           RoleMaturity[]
+  selfAssessments      RoleSelfAssessment[]
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([personId, roleId, teamId])
+  @@index([teamId, statusId])
+  @@map("person_role")
+}
+
+model Course {
+  id            String         @id @default(uuid()) @db.Uuid
+  sourceId      String         @unique @map("source_id") @db.VarChar(40)
+  name          String         @db.VarChar(240)
+  moduleId      String         @map("module_id") @db.Uuid
+  statusId      String         @map("status_id") @db.Uuid
+  module        CatalogValue   @relation("CourseModule", fields: [moduleId], references: [id])
+  status        CatalogValue   @relation("CourseStatus", fields: [statusId], references: [id])
+  roleCourses   RoleCourse[]
+  personCourses PersonCourse[]
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("course")
+}
+
+model RoleCourse {
+  roleId    String   @map("role_id") @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  active    Boolean  @default(true)
+  role      Role     @relation(fields: [roleId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([roleId, courseId])
+  @@map("role_course")
+}
+
+model PersonCourse {
+  id             String        @id @default(uuid()) @db.Uuid
+  personRoleId   String        @map("person_role_id") @db.Uuid
+  courseId       String        @map("course_id") @db.Uuid
+  statusId       String        @map("status_id") @db.Uuid
+  score          Decimal?      @db.Decimal(12, 4)
+  startDate      DateTime?     @map("start_date") @db.Date
+  endDate        DateTime?     @map("end_date") @db.Date
+  sourceId       String?       @map("source_catalog_id") @db.Uuid
+  groupId        String?       @map("group_catalog_id") @db.Uuid
+  loadedAt       DateTime?     @map("loaded_at") @db.Timestamptz(3)
+  loadedByLegacy String?       @map("loaded_by_legacy") @db.VarChar(254)
+  sourceRow      Int?          @map("source_row")
+  personRole     PersonRole    @relation(fields: [personRoleId], references: [id])
+  course         Course        @relation(fields: [courseId], references: [id])
+  status         CatalogValue  @relation("PersonCourseStatus", fields: [statusId], references: [id])
+  source         CatalogValue? @relation("PersonCourseSource", fields: [sourceId], references: [id])
+  group          CatalogValue? @relation("PersonCourseGroup", fields: [groupId], references: [id])
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([personRoleId, courseId])
+  @@index([statusId])
+  @@map("person_course")
+}
+
+model Period {
+  id             String         @id @default(uuid()) @db.Uuid
+  code           String         @unique @db.VarChar(20)
+  name           String         @db.VarChar(100)
+  startDate      DateTime       @map("start_date") @db.Date
+  endDate        DateTime       @map("end_date") @db.Date
+  selfAssessmentOpensAt DateTime? @map("self_assessment_opens_at") @db.Timestamptz(3)
+  selfAssessmentClosesAt DateTime? @map("self_assessment_closes_at") @db.Timestamptz(3)
+  calibrationClosesAt DateTime? @map("calibration_closes_at") @db.Timestamptz(3)
+  configurationVersion String?  @map("configuration_version") @db.VarChar(80)
+  statusId       String         @map("status_id") @db.Uuid
+  active         Boolean        @default(true)
+  status         CatalogValue   @relation("MaturityPeriodStatus", fields: [statusId], references: [id])
+  roleMaturities RoleMaturity[]
+  teamMaturities TeamMaturity[]
+  selfAssessments RoleSelfAssessment[]
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("period")
+}
+
+model RoleMaturity {
+  id           String       @id @default(uuid()) @db.Uuid
+  personRoleId String       @map("person_role_id") @db.Uuid
+  periodId     String       @map("period_id") @db.Uuid
+  selfAssessmentId String?  @unique @map("self_assessment_id") @db.Uuid
+  evaluatedAt  DateTime     @map("evaluated_at") @db.Date
+  score        Decimal      @db.Decimal(8, 4)
+  selfAssessmentScore Decimal? @map("self_assessment_score") @db.Decimal(8, 4)
+  calibratedScore Decimal?  @map("calibrated_score") @db.Decimal(8, 4)
+  levelId      String       @map("level_id") @db.Uuid
+  comments     String?
+  calibrationComments String? @map("calibration_comments")
+  calibratedById String?    @map("calibrated_by_id") @db.Uuid
+  calibratedAt DateTime?    @map("calibrated_at") @db.Timestamptz(3)
+  legacyRecord Boolean      @default(false) @map("legacy_record")
+  sourceRow    Int?         @map("source_row")
+  personRole   PersonRole   @relation(fields: [personRoleId], references: [id])
+  period       Period       @relation(fields: [periodId], references: [id])
+  level        CatalogValue @relation("RoleMaturityLevel", fields: [levelId], references: [id])
+  selfAssessment RoleSelfAssessment? @relation(fields: [selfAssessmentId], references: [id])
+  calibratedBy User?        @relation("MaturityCalibrator", fields: [calibratedById], references: [id])
+  masteryQualification RoleMasteryQualification?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([personRoleId, periodId])
+  @@map("role_maturity")
+}
+
+model MaturityDimension {
+  id          String               @id @default(uuid()) @db.Uuid
+  code        String               @unique @db.VarChar(80)
+  name        String               @db.VarChar(180)
+  description String?
+  weight      Decimal              @default(1) @db.Decimal(8, 4)
+  sortOrder   Int                  @default(0) @map("sort_order")
+  active      Boolean              @default(true)
+  behaviors   ObservableBehavior[]
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([active, sortOrder])
+  @@map("maturity_dimension")
+}
+
+model ObservableBehavior {
+  id          String                   @id @default(uuid()) @db.Uuid
+  dimensionId String                   @map("dimension_id") @db.Uuid
+  code        String                   @unique @db.VarChar(100)
+  statement   String
+  helpText    String?                  @map("help_text")
+  weight      Decimal                  @default(1) @db.Decimal(8, 4)
+  sortOrder   Int                      @default(0) @map("sort_order")
+  active      Boolean                  @default(true)
+  dimension   MaturityDimension        @relation(fields: [dimensionId], references: [id])
+  roles       ObservableBehaviorRole[]
+  responses   SelfAssessmentResponse[]
+  createdAt   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([dimensionId, active, sortOrder])
+  @@map("observable_behavior")
+}
+
+model ObservableBehaviorRole {
+  behaviorId String             @map("behavior_id") @db.Uuid
+  roleId     String             @map("role_id") @db.Uuid
+  active     Boolean            @default(true)
+  behavior   ObservableBehavior @relation(fields: [behaviorId], references: [id])
+  role       Role               @relation(fields: [roleId], references: [id])
+
+  @@id([behaviorId, roleId])
+  @@map("observable_behavior_role")
+}
+
+model RoleSelfAssessment {
+  id              String                   @id @default(uuid()) @db.Uuid
+  personRoleId    String                   @map("person_role_id") @db.Uuid
+  periodId        String                   @map("period_id") @db.Uuid
+  statusId        String                   @map("status_id") @db.Uuid
+  calculatedScore Decimal?                 @map("calculated_score") @db.Decimal(8, 4)
+  configurationVersion String              @map("configuration_version") @db.VarChar(80)
+  startedAt       DateTime                 @default(now()) @map("started_at") @db.Timestamptz(3)
+  submittedAt     DateTime?                @map("submitted_at") @db.Timestamptz(3)
+  personRole      PersonRole               @relation(fields: [personRoleId], references: [id])
+  period          Period                   @relation(fields: [periodId], references: [id])
+  status          CatalogValue             @relation("SelfAssessmentStatus", fields: [statusId], references: [id])
+  responses       SelfAssessmentResponse[]
+  maturity        RoleMaturity?
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([personRoleId, periodId])
+  @@index([periodId, statusId])
+  @@map("role_self_assessment")
+}
+
+model SelfAssessmentResponse {
+  selfAssessmentId String              @map("self_assessment_id") @db.Uuid
+  behaviorId       String              @map("behavior_id") @db.Uuid
+  score            Decimal             @db.Decimal(8, 4)
+  comments         String?
+  behaviorStatement String              @map("behavior_statement")
+  behaviorWeight   Decimal              @map("behavior_weight") @db.Decimal(8, 4)
+  dimensionCode    String               @map("dimension_code") @db.VarChar(80)
+  dimensionName    String               @map("dimension_name") @db.VarChar(180)
+  dimensionWeight  Decimal              @map("dimension_weight") @db.Decimal(8, 4)
+  assessment       RoleSelfAssessment  @relation(fields: [selfAssessmentId], references: [id])
+  behavior         ObservableBehavior  @relation(fields: [behaviorId], references: [id])
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([selfAssessmentId, behaviorId])
+  @@map("self_assessment_response")
+}
+
+model TeamMaturity {
+  id          String       @id @default(uuid()) @db.Uuid
+  teamId      String       @map("team_id") @db.Uuid
+  periodId    String       @map("period_id") @db.Uuid
+  evaluatedAt DateTime     @map("evaluated_at") @db.Date
+  score       Decimal      @db.Decimal(8, 4)
+  levelId     String       @map("level_id") @db.Uuid
+  comments    String?
+  sourceRow   Int?         @map("source_row")
+  team        Team         @relation(fields: [teamId], references: [id])
+  period      Period       @relation(fields: [periodId], references: [id])
+  level       CatalogValue @relation("TeamMaturityLevel", fields: [levelId], references: [id])
+  masteryQualifications RoleMasteryQualification[]
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([teamId, periodId])
+  @@map("team_maturity")
+}
+
+model RoleMasteryQualification {
+  id                    String       @id @default(uuid()) @db.Uuid
+  roleMaturityId        String       @unique @map("role_maturity_id") @db.Uuid
+  trainedPersonId       String?      @map("trained_person_id") @db.Uuid
+  trainingEvidence      String?      @map("training_evidence")
+  trainingVerified      Boolean      @default(false) @map("training_verified")
+  campName              String?      @map("camp_name") @db.VarChar(240)
+  campDate              DateTime?    @map("camp_date") @db.Date
+  campEvidence          String?      @map("camp_evidence")
+  campVerified          Boolean      @default(false) @map("camp_verified")
+  teamMaturityId        String?      @map("team_maturity_id") @db.Uuid
+  reviewedById          String?      @map("reviewed_by_id") @db.Uuid
+  reviewedAt            DateTime?    @map("reviewed_at") @db.Timestamptz(3)
+  comments              String?
+  roleMaturity          RoleMaturity @relation(fields: [roleMaturityId], references: [id])
+  trainedPerson         Person?      @relation("MasteryTrainingRecipient", fields: [trainedPersonId], references: [id])
+  teamMaturity          TeamMaturity? @relation(fields: [teamMaturityId], references: [id])
+  reviewedBy            User?        @relation("MasteryReviewer", fields: [reviewedById], references: [id])
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([trainedPersonId])
+  @@index([teamMaturityId])
+  @@map("role_mastery_qualification")
+}
+
+model Objective {
+  id                    String        @id @default(uuid()) @db.Uuid
+  sourceId              BigInt        @unique @map("source_id")
+  levelId               String        @map("level_id") @db.Uuid
+  parentId              String?       @map("parent_id") @db.Uuid
+  parentReferenceLegacy String?       @map("parent_reference_legacy") @db.VarChar(100)
+  teamId                String?       @map("team_id") @db.Uuid
+  focusAreaId           String        @map("focus_area_id") @db.Uuid
+  year                  Int           @db.SmallInt
+  cycleId               String        @map("cycle_id") @db.Uuid
+  objective             String
+  keyResult             String        @map("key_result")
+  directionId           String        @map("direction_id") @db.Uuid
+  typeId                String        @map("type_id") @db.Uuid
+  unitId                String?       @map("unit_id") @db.Uuid
+  baseline              Decimal?      @db.Decimal(20, 6)
+  baselineDate          DateTime?     @map("baseline_date") @db.Date
+  target                Decimal?      @db.Decimal(20, 6)
+  actual                Decimal?      @db.Decimal(20, 6)
+  cutoffDate            DateTime?     @map("cutoff_date") @db.Date
+  resultStatusId        String?       @map("result_status_id") @db.Uuid
+  recordStatusId        String        @map("record_status_id") @db.Uuid
+  achievement           Decimal?      @db.Decimal(8, 4)
+  legacyRecord          Boolean       @default(false) @map("legacy_record")
+  sourceRow             Int?          @map("source_row")
+  level                 CatalogValue  @relation("ObjectiveLevel", fields: [levelId], references: [id])
+  parent                Objective?    @relation("ObjectiveHierarchy", fields: [parentId], references: [id])
+  children              Objective[]   @relation("ObjectiveHierarchy")
+  team                  Team?         @relation(fields: [teamId], references: [id])
+  focusArea             CatalogValue  @relation("ObjectiveFocusArea", fields: [focusAreaId], references: [id])
+  cycle                 CatalogValue  @relation("ObjectiveCycle", fields: [cycleId], references: [id])
+  direction             CatalogValue  @relation("ObjectiveDirection", fields: [directionId], references: [id])
+  type                  CatalogValue  @relation("ObjectiveType", fields: [typeId], references: [id])
+  unit                  CatalogValue? @relation("ObjectiveUnit", fields: [unitId], references: [id])
+  resultStatus          CatalogValue? @relation("ObjectiveResultState", fields: [resultStatusId], references: [id])
+  recordStatus          CatalogValue  @relation("ObjectiveRecordState", fields: [recordStatusId], references: [id])
+  initiatives           Initiative[]
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([teamId, year, cycleId])
+  @@index([parentId])
+  @@map("objective")
+}
+
+model Initiative {
+  id                            String        @id @default(uuid()) @db.Uuid
+  sourceId                      BigInt        @unique @map("source_id")
+  teamId                        String?       @map("team_id") @db.Uuid
+  companyId                     String        @map("company_id") @db.Uuid
+  year                          Int           @db.SmallInt
+  cycleId                       String        @map("cycle_id") @db.Uuid
+  focusAreaId                   String        @map("focus_area_id") @db.Uuid
+  levelId                       String        @map("level_id") @db.Uuid
+  programId                     String        @map("program_id") @db.Uuid
+  objectiveLegacy              String?       @map("objective_legacy")
+  keyResultLegacy              String?       @map("key_result_legacy")
+  typeId                        String        @map("type_id") @db.Uuid
+  sizeId                        String        @map("size_id") @db.Uuid
+  name                          String
+  release                       String?       @db.VarChar(200)
+  executionStart               DateTime?     @map("execution_start") @db.Date
+  executionEnd                 DateTime?     @map("execution_end") @db.Date
+  priorityId                    String?       @map("priority_id") @db.Uuid
+  productOwner                  String?       @map("product_owner") @db.VarChar(240)
+  manager                       String?       @db.VarChar(240)
+  technicalLead                 String?       @map("technical_lead") @db.VarChar(240)
+  managementTypeId              String        @map("management_type_id") @db.Uuid
+  statusId                      String        @map("status_id") @db.Uuid
+  accompanimentMilestone        String?       @map("accompaniment_milestone")
+  escalationId                  String?       @map("escalation_id") @db.Uuid
+  returnHorizonId               String?       @map("return_horizon_id") @db.Uuid
+  tiCapacityId                  String?       @map("ti_capacity_id") @db.Uuid
+  categoryId                    String?       @map("category_id") @db.Uuid
+  impactId                      String        @map("impact_id") @db.Uuid
+  impactDescription             String?       @map("impact_description")
+  projectedEconomicBenefit      Decimal?      @map("projected_economic_benefit") @db.Decimal(20, 4)
+  actualEconomicBenefit         Decimal?      @map("actual_economic_benefit") @db.Decimal(20, 4)
+  projectedMitigationBenefit    Decimal?      @map("projected_mitigation_benefit") @db.Decimal(20, 4)
+  actualMitigationBenefit       Decimal?      @map("actual_mitigation_benefit") @db.Decimal(20, 4)
+  annualPotentialBenefit        Decimal?      @map("annual_potential_benefit") @db.Decimal(20, 4)
+  observations                  String?
+  documentationUrl              String?       @map("documentation_url")
+  sourceCreatedAt               DateTime?     @map("source_created_at") @db.Timestamptz(3)
+  objectiveId                   String?       @map("objective_id") @db.Uuid
+  sourceRow                     Int?          @map("source_row")
+  team                          Team?         @relation(fields: [teamId], references: [id])
+  company                       Company       @relation(fields: [companyId], references: [id])
+  cycle                         CatalogValue  @relation("InitiativeCycle", fields: [cycleId], references: [id])
+  focusArea                     CatalogValue  @relation("InitiativeFocusArea", fields: [focusAreaId], references: [id])
+  level                         CatalogValue  @relation("InitiativeLevel", fields: [levelId], references: [id])
+  program                       Program       @relation(fields: [programId], references: [id])
+  type                          CatalogValue  @relation("InitiativeType", fields: [typeId], references: [id])
+  size                          CatalogValue  @relation("InitiativeSize", fields: [sizeId], references: [id])
+  priority                      CatalogValue? @relation("InitiativePriority", fields: [priorityId], references: [id])
+  managementType                CatalogValue  @relation("InitiativeManagementType", fields: [managementTypeId], references: [id])
+  status                        CatalogValue  @relation("InitiativeStatus", fields: [statusId], references: [id])
+  escalation                    CatalogValue? @relation("InitiativeEscalation", fields: [escalationId], references: [id])
+  returnHorizon                 CatalogValue? @relation("InitiativeReturnHorizon", fields: [returnHorizonId], references: [id])
+  tiCapacity                    CatalogValue? @relation("InitiativeTiCapacity", fields: [tiCapacityId], references: [id])
+  category                      CatalogValue? @relation("InitiativeCategory", fields: [categoryId], references: [id])
+  impact                        CatalogValue  @relation("InitiativeImpact", fields: [impactId], references: [id])
+  objectiveLink                 Objective?    @relation(fields: [objectiveId], references: [id])
+  createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([teamId, year, cycleId])
+  @@index([objectiveId])
+  @@map("initiative")
+}
+
+model IndicatorTarget {
+  id         String        @id @default(uuid()) @db.Uuid
+  sourceId   String        @unique @map("source_id") @db.VarChar(60)
+  indicatorId String       @map("indicator_id") @db.Uuid
+  scopeId    String        @map("scope_id") @db.Uuid
+  teamId     String?       @map("team_id") @db.Uuid
+  roleId     String?       @map("role_id") @db.Uuid
+  validFrom  DateTime      @map("valid_from") @db.Date
+  validUntil DateTime?     @map("valid_until") @db.Date
+  target     Decimal       @db.Decimal(20, 6)
+  unitId     String        @map("unit_id") @db.Uuid
+  statusId   String        @map("status_id") @db.Uuid
+  indicator  CatalogValue  @relation("TargetIndicator", fields: [indicatorId], references: [id])
+  scope      CatalogValue  @relation("TargetScope", fields: [scopeId], references: [id])
+  team       Team?         @relation(fields: [teamId], references: [id])
+  role       Role?         @relation(fields: [roleId], references: [id])
+  unit       CatalogValue  @relation("TargetUnit", fields: [unitId], references: [id])
+  status     CatalogValue  @relation("TargetStatus", fields: [statusId], references: [id])
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([indicatorId, scopeId, validFrom, validUntil])
+  @@map("indicator_target")
+}
+
+model User {
+  id          String       @id @default(uuid()) @db.Uuid
+  email       String       @unique @db.VarChar(254)
+  name        String?      @db.VarChar(240)
+  profileId   String       @map("profile_id") @db.Uuid
+  statusId    String       @map("status_id") @db.Uuid
+  personId    String?      @unique @map("person_id") @db.Uuid
+  lastLoginAt DateTime?    @map("last_login_at") @db.Timestamptz(3)
+  profile     CatalogValue @relation("UserProfile", fields: [profileId], references: [id])
+  status      CatalogValue @relation("UserStatus", fields: [statusId], references: [id])
+  person      Person?      @relation(fields: [personId], references: [id])
+  teams       UserTeam[]
+  audits      Audit[]
+  imports     ImportBatch[]
+  calibratedMaturities RoleMaturity[] @relation("MaturityCalibrator")
+  masteryReviews RoleMasteryQualification[] @relation("MasteryReviewer")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("app_user")
+}
+
+model UserTeam {
+  userId String @map("user_id") @db.Uuid
+  teamId String @map("team_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@id([userId, teamId])
+  @@map("user_team")
+}
+
+model SystemModule {
+  id          String          @id @default(uuid()) @db.Uuid
+  code        String          @unique @db.VarChar(80)
+  name        String          @db.VarChar(160)
+  description String?
+  route       String?         @db.VarChar(200)
+  icon        String?         @db.VarChar(80)
+  sortOrder   Int             @default(0) @map("sort_order")
+  active      Boolean         @default(true)
+  profiles    ProfileModule[]
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([active, sortOrder])
+  @@map("system_module")
+}
+
+model ProfileModule {
+  profileId String       @map("profile_id") @db.Uuid
+  moduleId  String       @map("module_id") @db.Uuid
+  canView   Boolean      @default(false) @map("can_view")
+  canCreate Boolean      @default(false) @map("can_create")
+  canEdit   Boolean      @default(false) @map("can_edit")
+  canDelete Boolean      @default(false) @map("can_delete")
+  profile   CatalogValue @relation("ProfileModuleProfile", fields: [profileId], references: [id])
+  module    SystemModule @relation(fields: [moduleId], references: [id])
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([profileId, moduleId])
+  @@index([moduleId])
+  @@map("profile_module")
+}
+
+model Audit {
+  id            String    @id @default(uuid()) @db.Uuid
+  sourceId      String?   @unique @map("source_id") @db.VarChar(80)
+  occurredAt    DateTime  @map("occurred_at") @db.Timestamptz(3)
+  userId        String?   @map("user_id") @db.Uuid
+  actorLegacy   String?   @map("actor_legacy") @db.VarChar(254)
+  action        String    @db.VarChar(100)
+  entity        String    @db.VarChar(100)
+  recordId      String?   @map("record_id") @db.VarChar(100)
+  oldValue      Json?     @map("old_value")
+  newValue      Json?     @map("new_value")
+  result        String?   @db.VarChar(40)
+  errorType     String?   @map("error_type") @db.VarChar(100)
+  origin        String?   @db.VarChar(80)
+  correlationId String?   @map("correlation_id") @db.Uuid
+  legacyDetail  String?   @map("legacy_detail")
+  user          User?     @relation(fields: [userId], references: [id])
+
+  @@index([entity, recordId, occurredAt])
+  @@index([userId, occurredAt])
+  @@map("audit")
+}
+
+model ImportBatch {
+  id              String            @id @default(uuid()) @db.Uuid
+  fileName        String            @map("file_name") @db.VarChar(255)
+  fileHash        String            @map("file_hash") @db.VarChar(128)
+  importerVersion String            @map("importer_version") @db.VarChar(40)
+  status          String            @db.VarChar(40)
+  totals          Json?
+  startedAt       DateTime          @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt     DateTime?         @map("completed_at") @db.Timestamptz(3)
+  createdById     String?           @map("created_by_id") @db.Uuid
+  createdBy       User?             @relation(fields: [createdById], references: [id])
+  issues          ImportIssue[]
+
+  @@unique([fileHash, importerVersion])
+  @@map("import_batch")
+}
+
+model ImportIssue {
+  id            String      @id @default(uuid()) @db.Uuid
+  importBatchId String      @map("import_batch_id") @db.Uuid
+  sheet         String      @db.VarChar(100)
+  sourceRow     Int?        @map("source_row")
+  entity        String      @db.VarChar(100)
+  field         String?     @db.VarChar(100)
+  severity      String      @db.VarChar(30)
+  code          String      @db.VarChar(100)
+  description   String
+  originalValue String?     @map("original_value")
+  resolution    String?
+  resolvedAt    DateTime?   @map("resolved_at") @db.Timestamptz(3)
+  batch         ImportBatch @relation(fields: [importBatchId], references: [id])
+
+  @@index([importBatchId, severity])
+  @@map("import_issue")
+}

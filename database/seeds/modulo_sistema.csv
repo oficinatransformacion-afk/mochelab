@@ -1,0 +1,12 @@
+codigo,nombre,ruta,icono,orden,activo
+INICIO,Inicio,/,home,10,true
+PERSONAS,Personas,/personas,users,20,true
+EQUIPOS,Equipos,/equipos,users-round,30,true
+CURSOS,Cursos,/cursos,book-open,40,true
+MADUREZ,Madurez,/madurez,gauge,50,true
+OBJETIVOS,Objetivos,/objetivos,target,60,true
+PORTAFOLIO,Portafolio,/portafolio,briefcase-business,70,true
+CATALOGOS,Catálogos,/configuracion/catalogos,list,80,true
+USUARIOS,Usuarios,/configuracion/usuarios,user-cog,90,true
+MIGRACIONES,Migraciones,/configuracion/migraciones,database,100,true
+AUDITORIA,Auditoría,/configuracion/auditoria,history,110,true

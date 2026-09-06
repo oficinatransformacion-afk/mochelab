@@ -1,0 +1,18 @@
+{
+  "name": "mochelab-2",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "pnpm --filter @mochelab/shared build && pnpm --parallel --filter @mochelab/api --filter @mochelab/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm --filter @mochelab/shared build && pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:validate": "pnpm --filter @mochelab/api db:validate",
+    "db:generate": "pnpm --filter @mochelab/api db:generate",
+    "db:seed": "pnpm --filter @mochelab/api db:seed"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

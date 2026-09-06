@@ -1,0 +1,6 @@
+import { BadRequestException,Body,Controller,Get,Headers,Param,Patch,Post,Query } from "@nestjs/common";
+import { AdminOnly,RequirePermission } from "../access/access.decorators";
+import { UsersRepository } from "./users.repository";
+import { AccessService } from "../access/access.service";
+@AdminOnly() @RequirePermission("USUARIOS","view") @Controller("users/admin")
+export class UsersController{constructor(private readonly repository:UsersRepository,private readonly access:AccessService){}@Get() list(@Query("search") search?:string){return this.repository.list(search)}@Get("options") options(){return this.repository.options()}@Post() @RequirePermission("USUARIOS","create") async create(@Body() body:unknown,@Headers("x-mochelab-demo-user-email") email?:string){if(!body||typeof body!=="object")throw new BadRequestException("Datos inválidos");return this.repository.create(body as Record<string,unknown>,await this.access.getUserId("ADMINISTRADOR",email))}@Patch(":id") @RequirePermission("USUARIOS","edit") async update(@Param("id") id:string,@Body() body:unknown,@Headers("x-mochelab-demo-user-email") email?:string){if(!body||typeof body!=="object")throw new BadRequestException("Datos inválidos");return this.repository.update(id,body as Record<string,unknown>,await this.access.getUserId("ADMINISTRADOR",email))}}

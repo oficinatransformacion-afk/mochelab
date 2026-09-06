@@ -1,0 +1,5 @@
+codigo,nombre,orden,activo
+BORRADOR,Borrador,10,true
+ENVIADA,Enviada,20,true
+CALIBRADA,Calibrada,30,true
+ANULADA,Anulada,40,true

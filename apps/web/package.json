@@ -1,0 +1,27 @@
+{
+  "name": "@mochelab/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@mochelab/shared": "workspace:*",
+    "@tailwindcss/vite": "4.1.14",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwindcss": "4.1.14"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "5.2.0",
+    "typescript": "~5.9.3",
+    "vite": "7.3.6",
+    "vitest": "5.0.0"
+  }
+}

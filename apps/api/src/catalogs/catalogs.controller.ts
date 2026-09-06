@@ -1,0 +1,6 @@
+import { BadRequestException,Body,Controller,Get,Headers,Param,Patch,Post,Query } from "@nestjs/common";
+import { AdminOnly,RequirePermission } from "../access/access.decorators";
+import { AccessService } from "../access/access.service";
+import { CatalogsRepository } from "./catalogs.repository";
+@AdminOnly() @RequirePermission("CATALOGOS","view") @Controller("catalogs/admin")
+export class CatalogsController{constructor(private readonly repository:CatalogsRepository,private readonly access:AccessService){}@Get() list(@Query("code") code?:string){return this.repository.list(code)}@Post(":catalogId/values") @RequirePermission("CATALOGOS","create") async create(@Param("catalogId") id:string,@Body() body:unknown,@Headers("x-mochelab-demo-user-email") email?:string){if(!body||typeof body!=="object")throw new BadRequestException("Datos inválidos");return this.repository.create(id,body as Record<string,unknown>,await this.access.getUserId("ADMINISTRADOR",email))}@Patch("values/:id") @RequirePermission("CATALOGOS","edit") async update(@Param("id") id:string,@Body() body:unknown,@Headers("x-mochelab-demo-user-email") email?:string){if(!body||typeof body!=="object")throw new BadRequestException("Datos inválidos");return this.repository.update(id,body as Record<string,unknown>,await this.access.getUserId("ADMINISTRADOR",email))}}

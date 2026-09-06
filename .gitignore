@@ -1,0 +1,11 @@
+node_modules/
+.pnpm-store/
+dist/
+*.tsbuildinfo
+.tmp-export/
+outputs/
+database/staging/
+.certs/
+.env
+.env.*
+!.env.example
