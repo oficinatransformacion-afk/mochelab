@@ -12,7 +12,7 @@ export function PeoplePage() {
   const [companyFilter,setCompanyFilter]=useState<string[]>([]);
   const [unitFilter,setUnitFilter]=useState<string[]>([]);
   const [statusFilter,setStatusFilter]=useState<string[]>(["ACTIVO"]);
-  const [assignmentFilter,setAssignmentFilter]=useState<string[]>([]);
+  const [assignmentFilter,setAssignmentFilter]=useState<string[]>(["CON_ROL"]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 

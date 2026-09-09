@@ -105,7 +105,10 @@ export class DirectoryRepository {
         program: true,
         unit: { include: { company: true } },
         status: true,
-        assignments: { include: { person: true, role: true } },
+        assignments: {
+          where: { status: { code: "ACTIVO" }, role: { status: { code: "ACTIVO" } } },
+          include: { person: true, role: true },
+        },
       },
       orderBy: { sourceId: "asc" },
       take: 100,
