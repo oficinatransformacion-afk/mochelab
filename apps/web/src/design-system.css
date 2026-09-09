@@ -1,0 +1,76 @@
+/* Mochelab Design System — foundations and reusable UI primitives. */
+:root {
+  --ml-color-ink: #2d1414;
+  --ml-color-ink-soft: #5b3b3b;
+  --ml-color-brand: #d71920;
+  --ml-color-brand-hover: #b80f18;
+  --ml-color-accent: #7fe8f7;
+  --ml-color-page: #f5f7fa;
+  --ml-color-surface: #ffffff;
+  --ml-color-muted: #64748b;
+  --ml-color-border: #d9e0e8;
+  --ml-color-success: #008f68;
+  --ml-color-warning: #a85b00;
+  --ml-color-danger: #c51b26;
+  --ml-color-info: #079bb3;
+  --ml-color-subtle: #94a3b8;
+  --ml-color-brand-soft: #fff1f2;
+  --ml-color-accent-soft: #ecfeff;
+  --ml-color-success-soft: #e7f8f0;
+  --ml-color-warning-soft: #fff4db;
+  --ml-color-danger-soft: #ffeaeb;
+
+  --ml-font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --ml-text-xs: .75rem;
+  --ml-text-sm: .875rem;
+  --ml-text-base: 1rem;
+  --ml-text-lg: 1.125rem;
+  --ml-text-xl: 1.25rem;
+  --ml-text-2xl: 1.5rem;
+  --ml-text-3xl: 2rem;
+  --ml-leading-tight: 1.2;
+  --ml-leading-normal: 1.55;
+
+  --ml-space-1: .25rem;
+  --ml-space-2: .5rem;
+  --ml-space-3: .75rem;
+  --ml-space-4: 1rem;
+  --ml-space-5: 1.25rem;
+  --ml-space-6: 1.5rem;
+  --ml-space-8: 2rem;
+  --ml-radius-sm: .5rem;
+  --ml-radius-md: .75rem;
+  --ml-radius-lg: 1rem;
+  --ml-shadow-card: 0 8px 24px rgb(45 20 20 / .045);
+  --ml-shadow-raised: 0 18px 42px rgb(45 20 20 / .12);
+  --ml-control-height: 2.75rem;
+  --ml-button-height: 2.75rem;
+}
+
+body { font-family: var(--ml-font-family); color: var(--ml-color-ink); font-size: var(--ml-text-base); line-height: var(--ml-leading-normal); }
+h1, h2, h3, h4 { color: var(--ml-color-ink); font-weight: 700; letter-spacing: -.02em; line-height: var(--ml-leading-tight); }
+h1 { font-size: clamp(1.75rem, 2vw + 1rem, var(--ml-text-3xl)); }
+h2 { font-size: var(--ml-text-xl); }
+h3 { font-size: var(--ml-text-lg); }
+p, td, input, select, textarea { font-size: var(--ml-text-sm); }
+small { font-size: var(--ml-text-xs); }
+
+.ds-page { min-height: 100vh; background: var(--ml-color-page); color: var(--ml-color-ink); }
+.ds-page-content { width: min(100% - 2.5rem, 80rem); margin-inline: auto; padding-block: var(--ml-space-8); }
+.ds-eyebrow { color: var(--ml-color-brand); font-size: var(--ml-text-xs); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.ds-page-title { margin-top: var(--ml-space-2); font-size: var(--ml-text-3xl); }
+.ds-page-description { max-width: 50rem; margin-top: var(--ml-space-3); color: var(--ml-color-muted); font-size: var(--ml-text-base); }
+.ds-card { border: 1px solid #e9edf2; border-radius: var(--ml-radius-lg); background: var(--ml-color-surface); box-shadow: 0 2px 8px rgb(15 23 42 / .025); }
+.ds-card-header { padding: var(--ml-space-5) var(--ml-space-6); border-bottom: 1px solid var(--ml-color-border); }
+.ds-card-body { padding: var(--ml-space-5) var(--ml-space-6); }
+.ds-control { width: 100%; min-height: var(--ml-control-height); border: 1px solid var(--ml-color-border); border-radius: var(--ml-radius-md); background: var(--ml-color-surface); color: var(--ml-color-ink); padding: .625rem .875rem; }
+.ds-control::placeholder { color: #94a3b8; }
+.ds-control:focus { border-color: var(--ml-color-brand); box-shadow: 0 0 0 3px rgb(215 25 32 / .12); outline: 0; }
+.ds-button { display: inline-flex; min-height: var(--ml-button-height); align-items: center; justify-content: center; gap: var(--ml-space-2); border: 1px solid transparent; border-radius: var(--ml-radius-md); padding: .625rem 1rem; font-size: var(--ml-text-sm); font-weight: 800; }
+.ds-button-primary { background: var(--ml-color-brand); color: #fff; box-shadow: 0 8px 18px rgb(215 25 32 / .18); }
+.ds-button-primary:hover { background: var(--ml-color-brand-hover); }
+.ds-button-secondary { border-color: var(--ml-color-border); background: #fff; color: var(--ml-color-ink); }
+.ds-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: .25rem .625rem; font-size: var(--ml-text-xs); font-weight: 800; line-height: 1.2; }
+.ds-badge-success { background: var(--ml-color-success-soft); color: var(--ml-color-success); }.ds-badge-warning { background: var(--ml-color-warning-soft); color: var(--ml-color-warning); }.ds-badge-danger { background: var(--ml-color-danger-soft); color: var(--ml-color-danger); }
+
+@media (max-width: 640px) { .ds-page-content { width: min(100% - 1.5rem, 80rem); padding-block: var(--ml-space-6); } h1, .ds-page-title { font-size: var(--ml-text-2xl); } }

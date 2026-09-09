@@ -1,46 +1,69 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense } from "react";
 import {
   UserCapabilitiesSchema,
   type UserCapabilities,
 } from "@mochelab/shared";
-import { SelfAssessmentPage } from "./maturity/SelfAssessmentPage";
-import { CalibrationPage } from "./maturity/CalibrationPage";
-import { CalibrationQueuePage } from "./maturity/CalibrationQueuePage";
-import { MaturityConfigurationPage } from "./maturity/MaturityConfigurationPage";
-import { MaturityPeriodsPage } from "./maturity/MaturityPeriodsPage";
-import { PeoplePage } from "./directory/PeoplePage";
-import { TeamsPage } from "./directory/TeamsPage";
-import { AcademyPage } from "./academy/AcademyPage";
-import { CourseProgressPage } from "./academy/CourseProgressPage";
-import { ObjectivesPage } from "./objectives/ObjectivesPage";
-import { InitiativesPage } from "./initiatives/InitiativesPage";
-import { PermissionsPage } from "./access/PermissionsPage";
-import { CatalogsPage } from "./catalogs/CatalogsPage";
-import { UsersPage } from "./access/UsersPage";
-import { AuditPage } from "./audit/AuditPage";
-import { TargetsPage } from "./objectives/TargetsPage";
-import { MasterDataPage } from "./directory/MasterDataPage";
+const SelfAssessmentPage = lazy(() => import("./maturity/SelfAssessmentPage").then(module => ({ default: module.SelfAssessmentPage })));
+const CalibrationPage = lazy(() => import("./maturity/CalibrationPage").then(module => ({ default: module.CalibrationPage })));
+const CalibrationQueuePage = lazy(() => import("./maturity/CalibrationQueuePage").then(module => ({ default: module.CalibrationQueuePage })));
+const MaturityConfigurationPage = lazy(() => import("./maturity/MaturityConfigurationPage").then(module => ({ default: module.MaturityConfigurationPage })));
+const MaturityPeriodsPage = lazy(() => import("./maturity/MaturityPeriodsPage").then(module => ({ default: module.MaturityPeriodsPage })));
+const PeoplePage = lazy(() => import("./directory/PeoplePage").then(module => ({ default: module.PeoplePage })));
+const TeamsPage = lazy(() => import("./directory/TeamsPage").then(module => ({ default: module.TeamsPage })));
+const AcademyPage = lazy(() => import("./academy/AcademyPage").then(module => ({ default: module.AcademyPage })));
+const ObjectivesPage = lazy(() => import("./objectives/ObjectivesPage").then(module => ({ default: module.ObjectivesPage })));
+const InitiativesPage = lazy(() => import("./initiatives/InitiativesPage").then(module => ({ default: module.InitiativesPage })));
+const PermissionsPage = lazy(() => import("./access/PermissionsPage").then(module => ({ default: module.PermissionsPage })));
+const CatalogsPage = lazy(() => import("./catalogs/CatalogsPage").then(module => ({ default: module.CatalogsPage })));
+const UsersPage = lazy(() => import("./access/UsersPage").then(module => ({ default: module.UsersPage })));
+const AuditPage = lazy(() => import("./audit/AuditPage").then(module => ({ default: module.AuditPage })));
+const TargetsPage = lazy(() => import("./objectives/TargetsPage").then(module => ({ default: module.TargetsPage })));
+const MasterDataPage = lazy(() => import("./directory/MasterDataPage").then(module => ({ default: module.MasterDataPage })));
+const AssignmentsPage = lazy(() => import("./directory/AssignmentsPage").then(module => ({ default: module.AssignmentsPage })));
+const PersonProfilePage = lazy(() => import("./directory/PersonProfilePage").then(module => ({ default: module.PersonProfilePage })));
+const LearningRoutesPage = lazy(() => import("./academy/LearningRoutesPage").then(module => ({ default: module.LearningRoutesPage })));
+const TeamMaturityPage = lazy(() => import("./maturity/TeamMaturityPage").then(module => ({ default: module.TeamMaturityPage })));
+const DashboardPage = lazy(() => import("./dashboard/DashboardPage").then(module => ({ default: module.DashboardPage })));
+const JobsPage = lazy(() => import("./jobs/JobsPage").then(module => ({ default: module.JobsPage })));
+const CommunicationTemplatesPage = lazy(() => import("./communications/CommunicationTemplatesPage").then(module => ({ default: module.CommunicationTemplatesPage })));
+const CommunicationsPage = lazy(() => import("./communications/CommunicationsPage").then(module => ({ default: module.CommunicationsPage })));
+const DataQualityPage = lazy(() => import("./dashboard/DataQualityPage").then(module => ({ default: module.DataQualityPage })));
+const LoginPage = lazy(() => import("./access/LoginPage").then(module => ({ default: module.LoginPage })));
+const ChangePasswordPage = lazy(() => import("./access/ChangePasswordPage").then(module => ({ default: module.ChangePasswordPage })));
+import { hasDemoSession } from "./access/demoSession";
+import { demoHeaders } from "./directory/DirectoryShell";
 
 const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 async function loadCapabilities(): Promise<UserCapabilities> {
   const response = await fetch(`${apiUrl}/api/me/capabilities`, {
-    headers: {
-      "x-mochelab-demo-profile": import.meta.env.VITE_DEMO_PROFILE ?? "USUARIO",
-    },
+    headers: demoHeaders,
   });
 
   if (!response.ok) throw new Error("No se pudieron cargar los accesos");
   return UserCapabilitiesSchema.parse(await response.json());
 }
 
-export function App() {
+function AppContent() {
+  if (window.location.pathname === "/login") return <LoginPage />;
+  if (!hasDemoSession()) {
+    window.location.replace("/login");
+    return null;
+  }
+  const profileMatch=window.location.pathname.match(/^\/personas\/([^/]+)$/);
+  if(profileMatch)return <PersonProfilePage personId={profileMatch[1]} />;
   if (window.location.pathname === "/personas") return <PeoplePage />;
+  if (window.location.pathname === "/cuenta/contrasena") return <ChangePasswordPage />;
+  if (window.location.pathname === "/asignaciones") return <AssignmentsPage />;
   if (window.location.pathname === "/equipos") return <TeamsPage />;
   if (window.location.pathname === "/roles") return <AcademyPage view="roles" />;
+  if (window.location.pathname === "/configuracion/mallas") return <AcademyPage view="mallas" />;
   if (window.location.pathname === "/cursos/catalogo") return <AcademyPage view="courses" />;
-  if (window.location.pathname === "/cursos") return <CourseProgressPage />;
-  if (window.location.pathname === "/cursos/avance") return <CourseProgressPage />;
+  if (window.location.pathname === "/cursos" || window.location.pathname === "/cursos/avance") {
+    window.location.replace("/rutas");
+    return null;
+  }
+  if (window.location.pathname === "/rutas") return <LearningRoutesPage />;
   if (window.location.pathname === "/objetivos") return <ObjectivesPage />;
   if (window.location.pathname === "/portafolio") return <InitiativesPage />;
   if (window.location.pathname === "/configuracion/usuarios") return <PermissionsPage />;
@@ -49,6 +72,10 @@ export function App() {
   if (window.location.pathname === "/configuracion/auditoria") return <AuditPage />;
   if (window.location.pathname === "/objetivos/metas") return <TargetsPage />;
   if (window.location.pathname === "/configuracion/maestros") return <MasterDataPage />;
+  if (window.location.pathname === "/configuracion/comunicaciones") return <CommunicationTemplatesPage />;
+  if (window.location.pathname === "/comunicaciones") return <CommunicationsPage />;
+  if (window.location.pathname === "/calidad-datos") return <DataQualityPage />;
+  if (window.location.pathname === "/configuracion/jobs" || window.location.pathname === "/configuracion/migraciones") return <JobsPage />;
   if (window.location.pathname === "/madurez/periodos") {
     return <MaturityPeriodsPage />;
   }
@@ -56,6 +83,7 @@ export function App() {
   if (window.location.pathname === "/madurez/configuracion") {
     return <MaturityConfigurationPage />;
   }
+  if (window.location.pathname === "/madurez/equipos") return <TeamMaturityPage />;
 
   if (window.location.pathname === "/madurez/calibraciones") {
     return <CalibrationQueuePage />;
@@ -69,60 +97,8 @@ export function App() {
     return <SelfAssessmentPage />;
   }
 
-  const [capabilities, setCapabilities] = useState<UserCapabilities>();
-  const [error, setError] = useState<string>();
-
-  useEffect(() => {
-    void loadCapabilities().then(setCapabilities).catch((reason: unknown) => {
-      setError(reason instanceof Error ? reason.message : "Error inesperado");
-    });
-  }, []);
-
-  const visibleModules = capabilities?.modules.filter((module) => module.canView) ?? [];
-
-  return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-16">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-emerald-400">
-          Plataforma de gestión
-        </p>
-        <h1 className="max-w-3xl text-5xl font-bold tracking-tight sm:text-7xl">
-          Mochelab <span className="text-emerald-400">2.0</span>
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-          La nueva base para gestionar personas, equipos, madurez y objetivos con
-          información consistente y catálogos configurables.
-        </p>
-
-        {capabilities && (
-          <p className="mt-8 text-sm text-slate-400">
-            Perfil de prueba: <span className="font-semibold text-slate-200">{capabilities.profile}</span>
-          </p>
-        )}
-
-        <nav className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {visibleModules.map((module) => (
-            <a
-              key={module.name}
-              href={module.code === "MADUREZ" && capabilities?.profile === "ADMINISTRADOR" ? "/madurez/calibraciones" : module.code === "USUARIOS" ? "/configuracion/cuentas" : module.route}
-              className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl shadow-black/10"
-            >
-              <h2 className="text-lg font-semibold">{module.name}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {module.canCreate || module.canEdit ? "Consulta y mantenimiento" : "Solo consulta"}
-              </p>
-            </a>
-          ))}
-        </nav>
-
-        {!capabilities && !error && <p className="mt-8 text-slate-400">Cargando accesos…</p>}
-        {error && <p className="mt-8 text-rose-400">{error}</p>}
-
-        <div className="mt-10 flex items-center gap-3 text-sm text-slate-400">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-          Base técnica lista para continuar el desarrollo
-        </div>
-      </section>
-    </main>
-  );
+  return <DashboardPage loadCapabilities={loadCapabilities}/>;
+}
+export function App() {
+  return <Suspense fallback={<main className="min-h-screen bg-slate-50 p-8 text-slate-600">Cargando módulo…</main>}><AppContent /></Suspense>;
 }

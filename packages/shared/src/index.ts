@@ -18,6 +18,7 @@ export type PersonaBusinessKey = z.infer<typeof PersonaBusinessKeySchema>;
 export const ModuleCodeSchema = z.enum([
   "INICIO",
   "PERSONAS",
+  "ASIGNACIONES",
   "EQUIPOS",
   "CURSOS",
   "MADUREZ",
@@ -46,7 +47,7 @@ export const ModuleCapabilitySchema = z.object({
 export type ModuleCapability = z.infer<typeof ModuleCapabilitySchema>;
 
 export const UserCapabilitiesSchema = z.object({
-  profile: z.enum(["ADMINISTRADOR", "USUARIO"]),
+  profile: z.enum(["USUARIO", "ADMIN", "SYSTEM"]),
   modules: z.array(ModuleCapabilitySchema),
 });
 

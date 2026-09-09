@@ -8,9 +8,11 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter @mochelab/shared build && pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:smoke": "node scripts/smoke-e2e.mjs",
     "db:validate": "pnpm --filter @mochelab/api db:validate",
     "db:generate": "pnpm --filter @mochelab/api db:generate",
-    "db:seed": "pnpm --filter @mochelab/api db:seed"
+    "db:seed": "pnpm --filter @mochelab/api db:seed",
+    "migration:import": "pnpm --filter @mochelab/api migration:import"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

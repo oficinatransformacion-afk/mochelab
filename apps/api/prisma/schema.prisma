@@ -71,6 +71,7 @@ model CatalogValue {
   initiativeTiCapacities Initiative[]   @relation("InitiativeTiCapacity")
   initiativeCategories   Initiative[]   @relation("InitiativeCategory")
   initiativeImpacts      Initiative[]   @relation("InitiativeImpact")
+  initiativeExecutionAreas Initiative[] @relation("InitiativeExecutionArea")
   targetIndicators       IndicatorTarget[] @relation("TargetIndicator")
   targetScopes           IndicatorTarget[] @relation("TargetScope")
   targetUnits            IndicatorTarget[] @relation("TargetUnit")
@@ -234,6 +235,7 @@ model PersonRole {
   courses              PersonCourse[]
   maturities           RoleMaturity[]
   selfAssessments      RoleSelfAssessment[]
+  communications       Communication[]
   createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -313,6 +315,7 @@ model Period {
   roleMaturities RoleMaturity[]
   teamMaturities TeamMaturity[]
   selfAssessments RoleSelfAssessment[]
+  communications Communication[]
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -505,6 +508,8 @@ model Objective {
   recordStatusId        String        @map("record_status_id") @db.Uuid
   achievement           Decimal?      @db.Decimal(8, 4)
   legacyRecord          Boolean       @default(false) @map("legacy_record")
+  isSystemPlaceholder   Boolean       @default(false) @map("is_system_placeholder")
+  systemKey             String?       @unique @map("system_key") @db.VarChar(100)
   sourceRow             Int?          @map("source_row")
   level                 CatalogValue  @relation("ObjectiveLevel", fields: [levelId], references: [id])
   parent                Objective?    @relation("ObjectiveHierarchy", fields: [parentId], references: [id])
@@ -556,16 +561,19 @@ model Initiative {
   tiCapacityId                  String?       @map("ti_capacity_id") @db.Uuid
   categoryId                    String?       @map("category_id") @db.Uuid
   impactId                      String        @map("impact_id") @db.Uuid
+  executionAreaId               String?       @map("execution_area_id") @db.Uuid
   impactDescription             String?       @map("impact_description")
   projectedEconomicBenefit      Decimal?      @map("projected_economic_benefit") @db.Decimal(20, 4)
   actualEconomicBenefit         Decimal?      @map("actual_economic_benefit") @db.Decimal(20, 4)
   projectedMitigationBenefit    Decimal?      @map("projected_mitigation_benefit") @db.Decimal(20, 4)
   actualMitigationBenefit       Decimal?      @map("actual_mitigation_benefit") @db.Decimal(20, 4)
   annualPotentialBenefit        Decimal?      @map("annual_potential_benefit") @db.Decimal(20, 4)
+  projectedInvestment           Decimal?      @map("projected_investment") @db.Decimal(20, 4)
+  actualInvestment              Decimal?      @map("actual_investment") @db.Decimal(20, 4)
   observations                  String?
   documentationUrl              String?       @map("documentation_url")
   sourceCreatedAt               DateTime?     @map("source_created_at") @db.Timestamptz(3)
-  objectiveId                   String?       @map("objective_id") @db.Uuid
+  objectiveId                   String        @map("objective_id") @db.Uuid
   sourceRow                     Int?          @map("source_row")
   team                          Team?         @relation(fields: [teamId], references: [id])
   company                       Company       @relation(fields: [companyId], references: [id])
@@ -583,12 +591,14 @@ model Initiative {
   tiCapacity                    CatalogValue? @relation("InitiativeTiCapacity", fields: [tiCapacityId], references: [id])
   category                      CatalogValue? @relation("InitiativeCategory", fields: [categoryId], references: [id])
   impact                        CatalogValue  @relation("InitiativeImpact", fields: [impactId], references: [id])
-  objectiveLink                 Objective?    @relation(fields: [objectiveId], references: [id])
+  executionArea                 CatalogValue? @relation("InitiativeExecutionArea", fields: [executionAreaId], references: [id])
+  objectiveLink                 Objective     @relation(fields: [objectiveId], references: [id])
   createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([teamId, year, cycleId])
   @@index([objectiveId])
+  @@index([executionAreaId])
   @@map("initiative")
 }
 
@@ -625,6 +635,8 @@ model User {
   statusId    String       @map("status_id") @db.Uuid
   personId    String?      @unique @map("person_id") @db.Uuid
   lastLoginAt DateTime?    @map("last_login_at") @db.Timestamptz(3)
+  passwordHash String?     @map("password_hash") @db.VarChar(255)
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
   profile     CatalogValue @relation("UserProfile", fields: [profileId], references: [id])
   status      CatalogValue @relation("UserStatus", fields: [statusId], references: [id])
   person      Person?      @relation(fields: [personId], references: [id])
@@ -633,6 +645,7 @@ model User {
   imports     ImportBatch[]
   calibratedMaturities RoleMaturity[] @relation("MaturityCalibrator")
   masteryReviews RoleMasteryQualification[] @relation("MasteryReviewer")
+  requestedCommunications Communication[] @relation("CommunicationRequester")
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -704,6 +717,51 @@ model Audit {
   @@index([entity, recordId, occurredAt])
   @@index([userId, occurredAt])
   @@map("audit")
+}
+
+/// Registro liviano para comunicaciones transaccionales y de autoevaluación.
+/// Los recordatorios masivos de cursos se ejecutan fuera de Mochelab.
+model Communication {
+  id             String      @id @default(uuid()) @db.Uuid
+  eventType      String      @map("event_type") @db.VarChar(80)
+  channel        String      @default("EMAIL") @db.VarChar(30)
+  recipient      String?     @db.VarChar(254)
+  subject        String      @db.VarChar(240)
+  templateCode   String      @map("template_code") @db.VarChar(100)
+  variables      Json
+  status         String      @default("PENDIENTE") @db.VarChar(40)
+  source         String      @db.VarChar(30)
+  dedupeKey      String      @unique @map("dedupe_key") @db.VarChar(220)
+  personRoleId   String?     @map("person_role_id") @db.Uuid
+  periodId       String?     @map("period_id") @db.Uuid
+  requestedById  String?     @map("requested_by_id") @db.Uuid
+  sentAt         DateTime?   @map("sent_at") @db.Timestamptz(3)
+  errorSummary   String?     @map("error_summary") @db.VarChar(500)
+  personRole     PersonRole? @relation(fields: [personRoleId], references: [id])
+  period         Period?     @relation(fields: [periodId], references: [id])
+  requestedBy    User?       @relation("CommunicationRequester", fields: [requestedById], references: [id])
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@index([eventType, periodId])
+  @@index([personRoleId, createdAt])
+  @@map("communication")
+}
+
+model CommunicationTemplate {
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(180)
+  subjectTemplate String   @map("subject_template") @db.VarChar(240)
+  bodyTemplate    String   @map("body_template")
+  senderName      String   @default("Oficina Transformación") @map("sender_name") @db.VarChar(160)
+  senderEmail     String   @default("oficinatransformacion@danper.com") @map("sender_email") @db.VarChar(254)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("communication_template")
 }
 
 model ImportBatch {

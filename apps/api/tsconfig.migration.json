@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "incremental": false,
+    "outDir": "./dist-migration",
+    "sourceMap": false
+  },
+  "include": [
+    "prisma/import-legacy.ts",
+    "src/database/postgres-options.ts"
+  ]
+}

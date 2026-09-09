@@ -15,7 +15,13 @@ async function bootstrap(): Promise<void> {
     allowedOrigins.add("http://127.0.0.1:5173");
   }
 
-  app.enableCors({ origin: [...allowedOrigins] });
+  app.enableCors({
+    origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+      const localDevelopmentOrigin = process.env.NODE_ENV !== "production"
+        && Boolean(origin?.match(/^http:\/\/(localhost|127\.0\.0\.1):\d+$/));
+      callback(null, !origin || allowedOrigins.has(origin) || localDevelopmentOrigin);
+    },
+  });
   app.setGlobalPrefix("api");
 
   const port = Number(process.env.PORT ?? 3000);

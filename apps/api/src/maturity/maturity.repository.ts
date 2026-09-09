@@ -166,6 +166,28 @@ export class MaturityRepository {
     return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:{evaluatedAt:"desc"},include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
   }
 
+  async teamMaturityOptions(){
+    const[teams,periods]=await Promise.all([this.prisma.team.findMany({where:{status:{code:"ACTIVO"}},include:{program:true},orderBy:{sourceId:"asc"}}),this.prisma.period.findMany({where:{status:{code:{not:"CANCELADO"}}},include:{status:true},orderBy:{startDate:"desc"}})]);
+    return{teams:teams.map(x=>({id:x.id,label:`${x.sourceId} · ${x.program.name}`})),periods:periods.map(x=>({id:x.id,label:x.name,status:x.status.code}))};
+  }
+
+  async listTeamMaturities(filters:{periodId?:string;teamId?:string}){
+    return this.prisma.teamMaturity.findMany({where:{periodId:filters.periodId||undefined,teamId:filters.teamId||undefined},include:{team:{include:{program:true}},period:true,level:true},orderBy:[{period:{startDate:"desc"}},{team:{sourceId:"asc"}}]});
+  }
+
+  async saveTeamMaturity(input:{teamId:string;periodId:string;score:number;comments?:string},administratorId:string){
+    if(!Number.isFinite(input.score)||input.score<0||input.score>2)throw new BadRequestException("El puntaje del equipo debe estar entre 0 y 2");
+    const[team,period]=await Promise.all([this.prisma.team.findUnique({where:{id:input.teamId}}),this.prisma.period.findUnique({where:{id:input.periodId},include:{status:true}})]);if(!team||!period)throw new NotFoundException("No se encontró el equipo o período");if(period.status.code==="CANCELADO")throw new BadRequestException("No se puede evaluar un período cancelado");
+    const level=this.scoring.levelFor(input.score,{trainedPerson:false,facilitatedCamp:false,teamIsOfficial:false});
+    const levelId=await this.catalogValueId("NIVEL_MADUREZ",level);
+    return this.prisma.$transaction(async tx=>{const current=await tx.teamMaturity.findUnique({where:{teamId_periodId:{teamId:input.teamId,periodId:input.periodId}}});const row=await tx.teamMaturity.upsert({where:{teamId_periodId:{teamId:input.teamId,periodId:input.periodId}},create:{teamId:input.teamId,periodId:input.periodId,evaluatedAt:new Date(),score:input.score,levelId,comments:input.comments?.trim()||null},update:{evaluatedAt:new Date(),score:input.score,levelId,comments:input.comments?.trim()||null},include:{team:true,period:true,level:true}});await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:current?"UPDATE":"CREATE",entity:"TEAM_MATURITY",recordId:row.id,oldValue:current?this.snapshot(current):undefined,newValue:this.snapshot(row),result:"OK",origin:"WEB"}});return row});
+  }
+
+  async maturityHistory(filters:{periodId?:string;teamId?:string}){
+    const[teams,roles]=await Promise.all([this.listTeamMaturities(filters),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId:filters.teamId||undefined}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:{evaluatedAt:"desc"}})]);
+    return{teams:teams.map(x=>({id:x.id,team:x.team.sourceId,program:x.team.program.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles:roles.map(x=>({id:x.id,person:x.personRole.person.names,role:x.personRole.role.name,team:x.personRole.team.sourceId,period:x.period.name,periodId:x.periodId,score:Number(x.score),selfAssessmentScore:x.selfAssessmentScore===null?null:Number(x.selfAssessmentScore),calibratedScore:x.calibratedScore===null?null:Number(x.calibratedScore),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10)}))};
+  }
+
   async getCalibration(id: string) {
     const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: true, selfAssessment: { include: { responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] } } }, personRole: { include: { person: true, role: true, team: true } } } });
     if (!maturity) throw new NotFoundException("No se encontró la calibración");
@@ -295,7 +317,7 @@ export class MaturityRepository {
     this.prisma.requireConnection();
     const maturity = await this.prisma.roleMaturity.findUnique({
       where: { id: input.roleMaturityId },
-      include: { personRole: { select: { teamId: true,personId:true } },period:{include:{status:true}} },
+      include: { personRole: { include: {person:true,role:true,team:true} },period:{include:{status:true}} },
     });
     if (!maturity) throw new NotFoundException("No se encontró el resultado de madurez");
     if(maturity.period.status.code!=="CALIBRACION")throw new BadRequestException("El período no se encuentra en etapa de calibración");
@@ -380,6 +402,8 @@ export class MaturityRepository {
         });
       }
       await transaction.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CALIBRATE",entity:"ROLE_MATURITY",recordId:updated.id,oldValue:this.snapshot(maturity),newValue:this.snapshot(updated),result:"OK",origin:"WEB"}});
+      const template=await transaction.communicationTemplate.findFirst({where:{code:"MATURITY_RESULT_AVAILABLE",active:true}});
+      if(template){const variables={personName:maturity.personRole.person.names,roleName:maturity.personRole.role.name,teamCode:maturity.personRole.team.sourceId,periodName:maturity.period.name,score:input.calibratedScore.toFixed(2),levelName:level};const subject=template.subjectTemplate.replace(/\{\{(\w+)\}\}/g,(_,key)=>String(variables[key as keyof typeof variables]??""));await transaction.communication.create({data:{eventType:"MATURITY_RESULT_AVAILABLE",recipient:maturity.personRole.person.email,subject,templateCode:template.code,variables,status:maturity.personRole.person.email?"PENDIENTE":"OMITIDA_SIN_CORREO",source:"AUTOMATICA",dedupeKey:`MATURITY_RESULT_AVAILABLE:${updated.id}`,personRoleId:maturity.personRoleId,periodId:maturity.periodId,requestedById:administratorId}})}
       return { id: updated.id, score: Number(updated.score), level, masteryQualified };
     });
   }

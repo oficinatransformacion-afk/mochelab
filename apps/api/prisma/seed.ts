@@ -17,8 +17,9 @@ const catalogs = [
     code: "PERFIL_USUARIO",
     name: "Perfil de usuario",
     values: [
-      ["ADMINISTRADOR", "Administrador"],
       ["USUARIO", "Usuario"],
+      ["ADMIN", "Admin"],
+      ["SYSTEM", "System"],
     ],
   },
   {
@@ -57,11 +58,32 @@ const catalogs = [
       ["MAESTRO", "Maestro"],
     ],
   },
+  {
+    code: "AREA_EJECUCION_INICIATIVA",
+    name: "Área de ejecución de iniciativa",
+    values: [
+      ["AGRICOLA", "Agrícola"],
+      ["OPC", "OPC"],
+      ["ACOPIO_TRUJILLO", "Acopio Trujillo"],
+      ["NAVE_01", "Nave 01"],
+      ["NAVE_02", "Nave 02"],
+      ["NAVE_03", "Nave 03"],
+      ["NAVE_04", "Nave 04"],
+      ["NAVE_05", "Nave 05"],
+      ["NAVE_06", "Nave 06"],
+      ["NAVE_09", "NAVE 09"],
+      ["NAVE_10", "Nave 10"],
+      ["NAVE_12", "Nave 12"],
+      ["APT_TRUJILLO", "APT Trujillo"],
+      ["APT_AREQUIPA", "APT Arequipa"],
+    ],
+  },
 ] as const;
 
 const modules = [
   ["INICIO", "Inicio", "/", "home", 10],
   ["PERSONAS", "Personas", "/personas", "users", 20],
+  ["ASIGNACIONES", "Asignaciones", "/asignaciones", "clipboard-list", 25],
   ["EQUIPOS", "Equipos", "/equipos", "users-round", 30],
   ["CURSOS", "Cursos", "/cursos", "book-open", 40],
   ["MADUREZ", "Madurez", "/madurez", "gauge", 50],
@@ -166,7 +188,7 @@ async function seedPreparedCatalogs() {
 
 async function seedModules() {
   const profiles = await prisma.catalogValue.findMany({
-    where: { catalog: { code: "PERFIL_USUARIO" }, code: { in: ["ADMINISTRADOR", "USUARIO"] } },
+    where: { catalog: { code: "PERFIL_USUARIO" }, code: { in: ["USUARIO", "ADMIN", "SYSTEM"] } },
   });
   for (const [code, name, route, icon, sortOrder] of modules) {
     const module = await prisma.systemModule.upsert({
@@ -175,8 +197,8 @@ async function seedModules() {
       update: { name, route, icon, sortOrder, active: true },
     });
     for (const profile of profiles) {
-      const administrator = profile.code === "ADMINISTRADOR";
-      const writable = ["MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code);
+      const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM";
+      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code);
       const visible = administrator || !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code);
       await prisma.profileModule.upsert({
         where: { profileId_moduleId: { profileId: profile.id, moduleId: module.id } },
@@ -208,7 +230,7 @@ async function catalogValue(catalogCode: string, valueCode: string) {
 async function seedRepresentativeData() {
   const [activePerson, roleType, activeRole, activeTeam, activeAssignment, onboardingDone,
     courseModule, activeCourse, courseDone, periodStatus, submittedStatus, officialLevel,
-    adminProfile, userProfile, activeUser] = await Promise.all([
+    adminProfile, userProfile, systemProfile, activeUser] = await Promise.all([
     catalogValue("ESTADO_PERSONA", "ACTIVO"),
     catalogValue("TIPO_ROL", "3_OPERATIVO"),
     catalogValue("ESTADO_ROL", "ACTIVO"),
@@ -221,8 +243,9 @@ async function seedRepresentativeData() {
     catalogValue("ESTADO_PERIODO_MADUREZ", "CALIBRACION"),
     catalogValue("ESTADO_AUTOEVALUACION", "ENVIADA"),
     catalogValue("NIVEL_MADUREZ", "OFICIAL"),
-    catalogValue("PERFIL_USUARIO", "ADMINISTRADOR"),
+    catalogValue("PERFIL_USUARIO", "ADMIN"),
     catalogValue("PERFIL_USUARIO", "USUARIO"),
+    catalogValue("PERFIL_USUARIO", "SYSTEM"),
     catalogValue("ESTADO_USUARIO", "ACTIVO"),
   ]);
 
@@ -312,8 +335,13 @@ async function seedRepresentativeData() {
   });
   const admin = await prisma.user.upsert({
     where: { email: "admin.prueba@example.invalid" },
-    create: { email: "admin.prueba@example.invalid", name: "Administrador de prueba", profileId: adminProfile.id, statusId: activeUser.id },
+    create: { email: "admin.prueba@example.invalid", name: "Admin de prueba", profileId: adminProfile.id, statusId: activeUser.id },
     update: { profileId: adminProfile.id, statusId: activeUser.id },
+  });
+  await prisma.user.upsert({
+    where: { email: "system.prueba@example.invalid" },
+    create: { email: "system.prueba@example.invalid", name: "System de prueba", profileId: systemProfile.id, statusId: activeUser.id },
+    update: { profileId: systemProfile.id, statusId: activeUser.id },
   });
   await prisma.userTeam.upsert({
     where: { userId_teamId: { userId: admin.id, teamId: team.id } },

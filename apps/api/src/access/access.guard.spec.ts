@@ -14,12 +14,12 @@ function context(profile?: string): ExecutionContext {
 }
 
 describe("AccessGuard", () => {
-  const reflector = { getAllAndOverride: vi.fn(() => "ADMINISTRADOR") };
+  const reflector = { getAllAndOverride: vi.fn(() => "ADMIN") };
   const access={getCapabilities:(profile:string)=>({profile,modules:[]})};
   const guard = new AccessGuard(reflector as never,access as never);
 
   it("allows the administrator in development", async () => {
-    await expect(guard.canActivate(context("ADMINISTRADOR"))).resolves.toBe(true);
+    await expect(guard.canActivate(context("ADMIN"))).resolves.toBe(true);
   });
 
   it("rejects a regular user", async () => {

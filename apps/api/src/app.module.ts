@@ -25,10 +25,23 @@ import { AuditController } from "./audit/audit.controller";
 import { AuditRepository } from "./audit/audit.repository";
 import { TargetsController } from "./targets/targets.controller";
 import { TargetsRepository } from "./targets/targets.repository";
+import { DashboardController } from "./dashboard/dashboard.controller";
+import { DashboardRepository } from "./dashboard/dashboard.repository";
+import { JobsController } from "./jobs/jobs.controller";
+import { JobsRepository } from "./jobs/jobs.repository";
+import { CommunicationsController } from "./communications/communications.controller";
+import { CommunicationsRepository } from "./communications/communications.repository";
+import { GmailService } from "./communications/gmail.service";
+import { DataQualityController } from "./dashboard/data-quality.controller";
+import { DataQualityRepository } from "./dashboard/data-quality.repository";
+import { AuthController } from "./auth/auth.controller";
+import { LocalAuthService } from "./auth/local-auth.service";
+import { GoogleFormsIntegrationController } from "./integrations/google-forms.controller";
+import { GoogleFormsIntegrationService } from "./integrations/google-forms.service";
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [HealthController, AccessController, PermissionsController, MaturityController, SelfAssessmentController, DirectoryController, AcademyController, ObjectivesController, InitiativesController, CatalogsController, UsersController, AuditController, TargetsController],
+  controllers: [HealthController, AuthController, GoogleFormsIntegrationController, AccessController, PermissionsController, MaturityController, SelfAssessmentController, DirectoryController, AcademyController, ObjectivesController, InitiativesController, CatalogsController, UsersController, AuditController, TargetsController, DashboardController, JobsController, CommunicationsController, DataQualityController],
   providers: [
     AccessService,
     MaturityScoringService,
@@ -42,6 +55,13 @@ import { TargetsRepository } from "./targets/targets.repository";
     UsersRepository,
     AuditRepository,
     TargetsRepository,
+    DashboardRepository,
+    JobsRepository,
+    CommunicationsRepository,
+    GmailService,
+    DataQualityRepository,
+    LocalAuthService,
+    GoogleFormsIntegrationService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })

@@ -5,7 +5,7 @@ import { TargetsRepository } from "./targets.repository";
 @RequirePermission("OBJETIVOS","view") @Controller("targets")
 export class TargetsController{
  constructor(private readonly repository:TargetsRepository,private readonly access:AccessService){}
- private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="ADMINISTRADOR"?"ADMINISTRADOR":"USUARIO"}
+ private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO"}
  private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(this.profile(profile),email)}
  @Get() async list(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.list(await this.scope(profile,email))}
  @Get("options") async options(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.options(await this.scope(profile,email))}

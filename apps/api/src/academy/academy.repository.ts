@@ -25,6 +25,11 @@ export class AcademyRepository {
     return courses.map((course) => ({ id: course.id, sourceId: course.sourceId, name: course.name,moduleId:course.moduleId,statusId:course.statusId, module: course.module.name, status: course.status.name, roles: course.roleCourses.filter((item) => item.active).map((item) => ({id:item.role.id,name:item.role.name})), progress: course.personCourses.map((item) => ({ personRoleId: item.personRoleId, courseId: item.courseId, person: item.personRole.person.names, status: item.status.code, statusName: item.status.name, score: item.score === null ? null : Number(item.score), startDate: item.startDate?.toISOString().slice(0, 10) ?? null, endDate: item.endDate?.toISOString().slice(0, 10) ?? null })) }));
   }
 
+  async learningRoutes(teamIds:string[]|null=null){
+    const assignments=await this.prisma.personRole.findMany({where:{teamId:teamIds===null?undefined:{in:teamIds},status:{code:"ACTIVO"}},include:{person:{include:{company:true}},role:true,team:{include:{program:true}},courses:{include:{course:{include:{module:true}},status:true},orderBy:{course:{name:"asc"}}}},orderBy:{person:{names:"asc"}}});
+    return assignments.map(item=>{const total=item.courses.length,completed=item.courses.filter(c=>["TERMINADO","APROBADO","COMPLETADO"].includes(c.status.code)).length,pending=total-completed,progress=total?Math.round(completed*10000/total)/100:0;return{personRoleId:item.id,personId:item.personId,person:item.person.names,dni:item.person.dni,company:item.person.company.name,role:item.role.name,team:item.team.sourceId,program:item.team.program.name,total,completed,pending,progress,situation:total===0?"SIN_RUTA":progress===100?"COMPLETA":completed===0?"SIN_INICIAR":"EN_PROGRESO",priority:pending===0?"BAJA":progress===0?"ALTA":"MEDIA",courses:item.courses.map(c=>({id:c.id,name:c.course.name,module:c.course.module.name,status:c.status.name,statusCode:c.status.code,score:c.score===null?null:Number(c.score)}))}});
+  }
+
   async assignCourse(roleId: string, courseId: string,administratorId:string) {
     const [role, course] = await Promise.all([this.prisma.role.findUnique({ where: { id: roleId } }), this.prisma.course.findUnique({ where: { id: courseId } })]);
     if (!role || !course) throw new NotFoundException("No se encontró el rol o curso seleccionado");

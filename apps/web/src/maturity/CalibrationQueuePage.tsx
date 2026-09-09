@@ -53,6 +53,7 @@ export function CalibrationQueuePage() {
           <div className="flex items-center gap-4">
             <a href="/madurez/periodos" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-slate-500">Períodos</a>
             <a href="/madurez/configuracion" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-slate-500">Configurar formulario</a>
+            <a href="/madurez/equipos" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-slate-500">Madurez de equipos</a>
             <div className="rounded-2xl bg-slate-950 px-5 py-4 text-white shadow-lg">
               <span className="text-sm text-slate-400">Pendientes</span>
               <strong className="ml-4 text-3xl text-emerald-400">{pending}</strong>
@@ -87,12 +88,12 @@ export function CalibrationQueuePage() {
             </label>
           </div>
 
-          <div className="hidden grid-cols-[1.5fr_1fr_0.8fr_0.6fr_0.8fr_auto] gap-4 bg-slate-50 px-6 py-3 text-sm font-semibold text-slate-500 lg:grid">
+          <div className="hidden grid-cols-[1.5fr_1fr_0.8fr_0.6fr_0.8fr_auto] gap-4 bg-slate-50 px-6 py-3 text-sm font-semibold text-slate-500 2xl:grid">
             <span>Persona y rol</span><span>Equipo</span><span>Período</span><span>Puntaje</span><span>Estado</span><span>Acción</span>
           </div>
           <div className="divide-y divide-slate-200">
             {filtered.map((assessment) => (
-              <article key={assessment.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[1.5fr_1fr_0.8fr_0.6fr_0.8fr_auto] lg:items-center lg:px-6">
+              <article key={assessment.id} className="grid gap-4 px-5 py-5 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,.6fr)_minmax(0,.8fr)_auto] 2xl:items-center 2xl:px-6">
                 <div><h2 className="font-bold">{assessment.person}</h2><p className="mt-1 text-sm text-slate-500">{assessment.role} · Enviada {assessment.submittedAt}</p></div>
                 <p className="text-sm font-medium text-slate-700">{assessment.team}</p>
                 <p className="text-sm font-medium text-slate-700">{assessment.period}</p>

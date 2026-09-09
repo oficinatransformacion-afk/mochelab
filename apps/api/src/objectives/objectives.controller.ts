@@ -7,7 +7,7 @@ import { AccessService, type ProfileCode } from "../access/access.service";
 @Controller("objectives")
 export class ObjectivesController {
   constructor(private readonly repository: ObjectivesRepository,private readonly access:AccessService) {}
-  private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="ADMINISTRADOR"?"ADMINISTRADOR":"USUARIO"}
+  private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO"}
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(this.profile(profile),email)}
 
   @Get()
@@ -23,7 +23,7 @@ export class ObjectivesController {
   async create(@Body() body: unknown,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (!body || typeof body !== "object") throw new BadRequestException("Datos del objetivo inválidos");
     const identity=this.profile(profile);const [scope,userId]=await Promise.all([this.access.getTeamScope(identity,email),this.access.getUserId(identity,email)]);
-    return this.repository.create(body as Record<string, unknown>,scope,userId);
+    return this.repository.create(body as Record<string, unknown>,scope,userId,identity==="ADMIN"||identity==="SYSTEM");
   }
 
   @Patch(":id")
@@ -31,6 +31,6 @@ export class ObjectivesController {
   async update(@Param("id") id: string, @Body() body: unknown,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (!body || typeof body !== "object") throw new BadRequestException("Datos del objetivo inválidos");
     const identity=this.profile(profile);const [scope,userId]=await Promise.all([this.access.getTeamScope(identity,email),this.access.getUserId(identity,email)]);
-    return this.repository.update(id, body as Record<string, unknown>,scope,userId);
+    return this.repository.update(id, body as Record<string, unknown>,scope,userId,identity==="ADMIN"||identity==="SYSTEM");
   }
 }

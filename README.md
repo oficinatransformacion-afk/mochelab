@@ -38,6 +38,34 @@ Para el corte definitivo se usará el mismo comando con `--mode final` y el
 nuevo archivo generado al cerrar el sistema anterior. Ver
 `docs/estrategia-migracion.md`.
 
+## Ejecutar la migración
+
+El importador trabaja sobre un lote de staging y, por defecto, solo genera un
+reporte sin conectarse ni escribir en PostgreSQL:
+
+```powershell
+pnpm migration:import database/staging/test-e97d887c2518
+```
+
+La carga real se habilita de forma explícita. Se ejecuta dentro de una
+transacción y se rechaza si la base ya contiene Personas, Asignaciones, OKR o
+Portafolio:
+
+```powershell
+pnpm migration:import database/staging/test-e97d887c2518 --apply
+```
+
+`--allow-non-empty` queda reservado para una carga incremental controlada. El
+resultado se registra en `ImportBatch`, las incidencias en `ImportIssue` y se
+genera `import-report-apply.json` dentro del lote.
+
+Después de la carga, la conciliación es de solo lectura y falla si cualquier
+cantidad no coincide con el plan:
+
+```powershell
+pnpm migration:import database/staging/test-e97d887c2518 --verify
+```
+
 ## Despliegue
 
 El proyecto incluye un Blueprint gratuito de Render en `render.yaml`. La guía,

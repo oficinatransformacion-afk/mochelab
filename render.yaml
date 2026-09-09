@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/api db:generate && pnpm --filter @mochelab/api build
-    startCommand: pnpm --filter @mochelab/api start
+    startCommand: pnpm --filter @mochelab/api db:deploy && pnpm --filter @mochelab/api start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
@@ -14,6 +14,22 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      - key: AUTH_SESSION_SECRET
+        generateValue: true
+      - key: GOOGLE_FORMS_INTEGRATION_KEY
+        generateValue: true
+      - key: GOOGLE_GMAIL_ENABLED
+        value: "false"
+      - key: GOOGLE_GMAIL_CLIENT_ID
+        sync: false
+      - key: GOOGLE_GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GOOGLE_GMAIL_SENDER_NAME
+        value: Oficina Transformación
+      - key: GOOGLE_GMAIL_SENDER_EMAIL
+        value: oficinatransformacion@danper.com
 
   - type: web
     name: mochelab-web

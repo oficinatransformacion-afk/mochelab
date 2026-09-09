@@ -8,6 +8,7 @@ type ModuleDefinition = Pick<
 export const MODULES: ModuleDefinition[] = [
   { code: "INICIO", name: "Inicio", route: "/", icon: "home", sortOrder: 10 },
   { code: "PERSONAS", name: "Personas", route: "/personas", icon: "users", sortOrder: 20 },
+  { code: "ASIGNACIONES", name: "Asignaciones", route: "/asignaciones", icon: "clipboard-list", sortOrder: 25 },
   { code: "EQUIPOS", name: "Equipos", route: "/equipos", icon: "users-round", sortOrder: 30 },
   { code: "CURSOS", name: "Cursos", route: "/cursos", icon: "book-open", sortOrder: 40 },
   { code: "MADUREZ", name: "Madurez", route: "/madurez", icon: "gauge", sortOrder: 50 },
@@ -19,4 +20,4 @@ export const MODULES: ModuleDefinition[] = [
   { code: "AUDITORIA", name: "Auditoría", route: "/configuracion/auditoria", icon: "history", sortOrder: 110 },
 ];
 
-export const USER_WRITABLE_MODULES = new Set(["MADUREZ", "OBJETIVOS", "PORTAFOLIO"]);
+export const USER_WRITABLE_MODULES = new Set(["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"]);

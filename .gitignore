@@ -1,8 +1,10 @@
 node_modules/
 .pnpm-store/
 dist/
+dist-migration/
 *.tsbuildinfo
 .tmp-export/
+.artifact-work/
 outputs/
 database/staging/
 .certs/
