@@ -5,6 +5,7 @@ import { config } from "dotenv";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { postgresOptions } from "../src/database/postgres-options";
+import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
 config({ path: resolve(process.cwd(), "../../.env"), quiet: true });
 
@@ -197,6 +198,7 @@ async function main() {
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL no configurada");
+  if (APPLY) assertSafeDatabaseWrite(databaseUrl, "legacy-import");
   const migrationSchema = process.env.MIGRATION_SCHEMA?.trim();
   if (migrationSchema) throw new Error("MIGRATION_SCHEMA no está soportado por Prisma; use una base de datos aislada.");
   const prisma = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });

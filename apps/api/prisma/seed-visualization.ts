@@ -1,5 +1,5 @@
-import{config}from"dotenv";import{resolve}from"node:path";import{PrismaPg}from"@prisma/adapter-pg";import{PrismaClient}from"@prisma/client";import{postgresOptions}from"../src/database/postgres-options";
-config({path:resolve(process.cwd(),"../../.env"),quiet:true});const url=process.env.DATABASE_URL;if(!url)throw new Error("DATABASE_URL no configurada");const db=new PrismaClient({adapter:new PrismaPg(postgresOptions(url))});
+import{config}from"dotenv";import{resolve}from"node:path";import{PrismaPg}from"@prisma/adapter-pg";import{PrismaClient}from"@prisma/client";import{postgresOptions}from"../src/database/postgres-options";import{assertSafeDatabaseWrite}from"../src/database/environment-guard";
+config({path:resolve(process.cwd(),"../../.env"),quiet:true});const url=process.env.DATABASE_URL;if(!url)throw new Error("DATABASE_URL no configurada");assertSafeDatabaseWrite(url,"visualization-seed");const db=new PrismaClient({adapter:new PrismaPg(postgresOptions(url))});
 const N=50,day=(n:number)=>new Date(Date.UTC(2026,n%12,1+(n%27))),code=(n:number)=>String(n+1).padStart(3,"0");
 async function cv(catalog:string,preferred?:string){const value=await db.catalogValue.findFirst({where:{catalog:{code:catalog},active:true,...(preferred?{code:preferred}:{})},orderBy:{sortOrder:"asc"}});if(!value)throw new Error(`Falta ${catalog}${preferred?`.`+preferred:""}`);return value}
 async function main(){

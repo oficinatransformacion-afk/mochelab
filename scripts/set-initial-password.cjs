@@ -16,6 +16,13 @@ if (!args.database || !args.email || !args.password) {
 }
 if (args.password.length < 10) throw new Error("La contraseña debe tener al menos 10 caracteres");
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL no configurada");
+const allowedDatabase = args.database === "mochelab_dev" || /^mochelab_migration_test_[a-z0-9_]+$/i.test(args.database);
+const confirmedProduction = args.database === "mochelab_prod"
+  && args["confirm-production"] === "MOCHELAB_PROD"
+  && process.env.MOCHELAB_PRODUCTION_WRITE_CONFIRMATION === "MOCHELAB_PROD";
+if (!allowedDatabase && !confirmedProduction) {
+  throw new Error("BLOQUEADO: use mochelab_dev o confirme explícitamente una escritura en mochelab_prod.");
+}
 
 const url = new URL(process.env.DATABASE_URL);
 url.pathname = `/${args.database}`;
