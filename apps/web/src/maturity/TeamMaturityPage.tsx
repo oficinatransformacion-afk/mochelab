@@ -29,10 +29,9 @@ export function TeamMaturityPage(){
  const[message,setMessage]=useState(""),[showForm,setShowForm]=useState(false),[teamId,setTeamId]=useState(""),[score,setScore]=useState(""),[comments,setComments]=useState("");
 
  async function load(){
-  const[h,o,a,r,t]=await Promise.all([
+  const[h,o,r,t]=await Promise.all([
    fetch(`${apiUrl}/api/maturity/admin/history`,{headers:demoHeaders}),
    fetch(`${apiUrl}/api/maturity/admin/team-maturities/options`,{headers:demoHeaders}),
-   fetch(`${apiUrl}/api/person-role-assignments`,{headers:demoHeaders}),
    fetch(`${apiUrl}/api/academy/roles`,{headers:demoHeaders}),
    fetch(`${apiUrl}/api/targets`,{headers:demoHeaders}),
   ]);
@@ -40,12 +39,12 @@ export function TeamMaturityPage(){
   const history=await h.json() as {teams:TeamRow[];roles:RoleRow[]};
   const nextOptions=await o.json() as {teams:Option[];periods:Option[]};
   setTeams(history.teams);setRoles(history.roles);setOptions(nextOptions);
-  if(a.ok)setAssignments((await a.json() as Assignment[]).filter(item=>norm(item.status.code||item.status.name)==="ACTIVO"));
   if(r.ok)setAcademyRoles(await r.json());
   if(t.ok)setTargets(await t.json());
   setPeriodIds(current=>current.length?current:(nextOptions.periods[0]?[nextOptions.periods[0].id]:[]));
  }
  useEffect(()=>{void load()},[]);
+ useEffect(()=>{const controller=new AbortController(),q=new URLSearchParams({statusCodes:"ACTIVO"});if(teamIds.length)q.set("teamIds",teamIds.join(","));if(roleIds.length)q.set("roleIds",roleIds.join(","));const timer=setTimeout(()=>{fetch(`${apiUrl}/api/person-role-assignments?${q}`,{headers:demoHeaders,signal:controller.signal}).then(async response=>{if(!response.ok)throw new Error("No se pudieron cargar las asignaciones de madurez");return response.json() as Promise<Assignment[]>}).then(setAssignments).catch((reason:Error)=>{if(reason.name!=="AbortError")setMessage(reason.message)})},250);return()=>{clearTimeout(timer);controller.abort()}},[teamIds,roleIds]);
  useEffect(()=>{const next=new URLSearchParams();if(search)next.set("q",search);if(periodIds.length)next.set("periods",periodIds.join(","));if(teamIds.length)next.set("teams",teamIds.join(","));if(roleIds.length)next.set("roles",roleIds.join(","));if(tab!=="summary")next.set("tab",tab);history.replaceState(null,"",`${location.pathname}${next.size?`?${next}`:""}`)},[search,periodIds,teamIds,roleIds,tab]);
 
  const selectedPeriods=periodIds.length?periodIds:options.periods.map(item=>item.id);
