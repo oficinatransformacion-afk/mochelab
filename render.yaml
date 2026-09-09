@@ -1,5 +1,48 @@
 services:
   - type: web
+    name: mochelab-api-dev
+    runtime: node
+    plan: free
+    region: oregon
+    branch: develop
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/api db:generate && pnpm --filter @mochelab/api build
+    startCommand: pnpm --filter @mochelab/api db:deploy && pnpm --filter @mochelab/api start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://mochelab-web-dev.onrender.com
+      - key: AUTH_SESSION_SECRET
+        generateValue: true
+      - key: GOOGLE_FORMS_INTEGRATION_KEY
+        generateValue: true
+      - key: GOOGLE_GMAIL_ENABLED
+        value: "false"
+      - key: GOOGLE_GMAIL_SENDER_NAME
+        value: Oficina Transformación
+      - key: GOOGLE_GMAIL_SENDER_EMAIL
+        value: oficinatransformacion@danper.com
+
+  - type: web
+    name: mochelab-web-dev
+    runtime: static
+    branch: develop
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/web build
+    staticPublishPath: ./apps/web/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://mochelab-api-dev.onrender.com
+      - key: VITE_APP_ENV
+        value: development
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
     name: mochelab-api
     runtime: node
     plan: free
@@ -13,7 +56,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGIN
-        sync: false
+        value: https://mochelab-web.onrender.com
       - key: AUTH_SESSION_SECRET
         generateValue: true
       - key: GOOGLE_FORMS_INTEGRATION_KEY
@@ -32,7 +75,9 @@ services:
     staticPublishPath: ./apps/web/dist
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://mochelab-api.onrender.com
+      - key: VITE_APP_ENV
+        value: production
     routes:
       - type: rewrite
         source: /*
