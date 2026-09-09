@@ -8,6 +8,7 @@ export class DirectoryController {
   constructor(private readonly repository: DirectoryRepository,private readonly access:AccessService) {}
 
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode,email)}
+  private ids(value?:string){return value?.split(",").map(item=>item.trim()).filter(Boolean)??[]}
 
   @Get("people")
   @RequirePermission("PERSONAS","view")
@@ -66,7 +67,7 @@ export class DirectoryController {
   async updateAssignment(@Param("id") id:string,@Body() body:Record<string,unknown>,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;return this.repository.updateAssignment(id,body,await this.access.getUserId(identity,email),await this.access.getTeamScope(identity,email))}
 
   @RequirePermission("ASIGNACIONES","view") @Get("person-role-assignments")
-  async listAssignments(@Query("search") search?:string,@Query("teamId") teamId?:string,@Query("roleId") roleId?:string,@Query("statusId") statusId?:string,@Query("onboardingStatusId") onboardingStatusId?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.listAssignments({search,teamId,roleId,statusId,onboardingStatusId},await this.scope(profile,email))}
+  async listAssignments(@Query("search") search?:string,@Query("teamIds") teamIds?:string,@Query("roleIds") roleIds?:string,@Query("statusIds") statusIds?:string,@Query("onboardingStatusIds") onboardingStatusIds?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.listAssignments({search,teamIds:this.ids(teamIds),roleIds:this.ids(roleIds),statusIds:this.ids(statusIds),onboardingStatusIds:this.ids(onboardingStatusIds)},await this.scope(profile,email))}
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments")
   async bulkUpdateAssignments(@Body() body:{ids?:string[];statusId?:string;onboardingStatusId?:string;endDate?:string},@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){
