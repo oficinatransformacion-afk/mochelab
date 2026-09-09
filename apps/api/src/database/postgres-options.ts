@@ -6,7 +6,7 @@ export function postgresOptions(databaseUrl: string): PoolConfig {
   const configuredPath = process.env.AIVEN_CA_CERT_PATH;
   const certificatePath = configuredPath
     ? resolve(process.cwd(), configuredPath)
-    : resolve(process.cwd(), "../../.certs/ca.pem");
+    : resolve(process.cwd(), "certs/aiven-ca.pem");
 
   if (!existsSync(certificatePath)) {
     throw new Error(`Falta el certificado CA de Aiven en ${certificatePath}`);
