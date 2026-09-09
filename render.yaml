@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     branch: develop
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/api db:generate && pnpm --filter @mochelab/api build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/api db:generate && pnpm --filter @mochelab/api build
     startCommand: pnpm --filter @mochelab/api db:deploy && pnpm --filter @mochelab/api start
     healthCheckPath: /api/health
     envVars:
@@ -30,7 +30,7 @@ services:
     name: mochelab-web-dev
     runtime: static
     branch: develop
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/web build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/web build
     staticPublishPath: ./apps/web/dist
     envVars:
       - key: VITE_API_URL
@@ -47,7 +47,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/api db:generate && pnpm --filter @mochelab/api build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/api db:generate && pnpm --filter @mochelab/api build
     startCommand: pnpm --filter @mochelab/api db:deploy && pnpm --filter @mochelab/api start
     healthCheckPath: /api/health
     envVars:
@@ -71,7 +71,7 @@ services:
   - type: web
     name: mochelab-web
     runtime: static
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/web build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @mochelab/shared build && pnpm --filter @mochelab/web build
     staticPublishPath: ./apps/web/dist
     envVars:
       - key: VITE_API_URL
