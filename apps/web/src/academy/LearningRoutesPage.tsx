@@ -5,6 +5,7 @@ import { downloadCsv } from "../utils/csv";
 import { MultiSelect } from "../components/MultiSelect";
 import { useModuleCapability } from "../access/useModuleCapability";
 import { defaultRoleFilterIds } from "../utils/defaultRoleFilters";
+import { compareRoleThenPerson } from "../utils/ordering";
 
 type Course = { id:string; name:string; module:string; status:string; statusCode:string; score:number|null };
 type Row = { personRoleId:string; personId:string; person:string; dni:string; company:string; role:string; team:string; program:string; total:number; completed:number; pending:number; progress:number; situation:string; priority:string; courses:Course[] };
@@ -25,7 +26,7 @@ export function LearningRoutesPage(){
  useEffect(()=>{const next=new URLSearchParams();if(search)next.set("q",search);if(team.length)next.set("teams",team.join(","));if(role.length)next.set("roles",role.join(","));if(situation.length)next.set("situations",situation.join(","));if(tab!=="summary")next.set("tab",tab);history.replaceState(null,"",`${location.pathname}${next.size?`?${next}`:""}`)},[search,team,role,situation,tab]);
  const teams=teamOptions,roles=useMemo(()=>[...new Set(rows.map(row=>row.role))].sort(),[rows]);
  useEffect(()=>{if(roleDefaultsInitialized.current||roles.length===0)return;roleDefaultsInitialized.current=true;setRole(defaultRoleFilterIds(roles,value=>value,value=>value))},[roles]);
- const filtered=useMemo(()=>rows.filter(row=>{const term=`${row.person} ${row.dni} ${row.role} ${row.team} ${row.program}`.toLowerCase();return(!search||term.includes(search.toLowerCase()))&&(!team.length||team.includes(row.team))&&(!role.length||role.includes(row.role))&&(!situation.length||situation.includes(row.situation))}),[rows,search,team,role,situation]);
+ const filtered=useMemo(()=>rows.filter(row=>{const term=`${row.person} ${row.dni} ${row.role} ${row.team} ${row.program}`.toLowerCase();return(!search||term.includes(search.toLowerCase()))&&(!team.length||team.includes(row.team))&&(!role.length||role.includes(row.role))&&(!situation.length||situation.includes(row.situation))}).sort(compareRoleThenPerson(row=>row.role,row=>row.person)),[rows,search,team,role,situation]);
  const pendingRows=useMemo(()=>filtered.filter(row=>row.pending>0),[filtered]),displayRows=tab==="pending"?pendingRows:filtered,visible=displayRows.slice((page-1)*pageSize,page*pageSize),pages=Math.max(1,Math.ceil(displayRows.length/pageSize));useEffect(()=>setPage(1),[tab,search,team,role,situation]);
  const totals=useMemo(()=>({routes:filtered.length,completed:filtered.filter(row=>row.progress===100).length,attention:filtered.filter(row=>row.priority==="ALTA"||row.situation==="SIN_RUTA").length,pending:filtered.reduce((sum,row)=>sum+row.pending,0)}),[filtered]);
  const modules=useMemo(()=>{const values=new Map<string,{total:number;completed:number}>();filtered.forEach(row=>row.courses.forEach(course=>{const value=values.get(course.module)??{total:0,completed:0};value.total++;if(done.has(course.statusCode))value.completed++;values.set(course.module,value)}));return[...values.entries()].map(([name,value])=>({name,...value,progress:value.total?Math.round(value.completed*100/value.total):0})).sort((a,b)=>a.name.localeCompare(b.name))},[filtered]);

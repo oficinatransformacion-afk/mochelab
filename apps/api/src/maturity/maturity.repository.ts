@@ -146,7 +146,7 @@ export class MaturityRepository {
     this.prisma.requireConnection();
     return this.prisma.roleMaturity.findMany({
       where: { calibratedAt: null, selfAssessmentId: { not: null } },
-      orderBy: { evaluatedAt: "desc" },
+      orderBy: [{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],
       include: {
         level: { select: { code: true, name: true } },
         period: { select: { id: true, code: true, name: true } },
@@ -163,7 +163,7 @@ export class MaturityRepository {
 
   async listCalibrations(){
     this.prisma.requireConnection();
-    return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:{evaluatedAt:"desc"},include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
+    return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
   }
 
   async teamMaturityOptions(){
@@ -184,7 +184,7 @@ export class MaturityRepository {
   }
 
   async maturityHistory(filters:{periodId?:string;teamId?:string}){
-    const[teams,roles]=await Promise.all([this.listTeamMaturities(filters),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId:filters.teamId||undefined}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:{evaluatedAt:"desc"}})]);
+    const[teams,roles]=await Promise.all([this.listTeamMaturities(filters),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId:filters.teamId||undefined}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}]})]);
     return{teams:teams.map(x=>({id:x.id,teamId:x.teamId,team:x.team.sourceId,program:x.team.program.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles:roles.map(x=>({id:x.id,person:x.personRole.person.names,roleId:x.personRole.roleId,role:x.personRole.role.name,teamId:x.personRole.teamId,team:x.personRole.team.sourceId,period:x.period.name,periodId:x.periodId,score:Number(x.score),selfAssessmentScore:x.selfAssessmentScore===null?null:Number(x.selfAssessmentScore),calibratedScore:x.calibratedScore===null?null:Number(x.calibratedScore),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10)}))};
   }
 

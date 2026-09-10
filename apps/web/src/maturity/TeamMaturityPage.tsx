@@ -4,6 +4,7 @@ import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
 import { MultiSelect } from "../components/MultiSelect";
 import { downloadCsv } from "../utils/csv";
 import { defaultRoleFilterIds } from "../utils/defaultRoleFilters";
+import { compareRoleThenPerson } from "../utils/ordering";
 
 type Option={id:string;label:string;status?:string};
 type TeamRow={id:string;teamId:string;team:string;program:string;period:string;periodId:string;score:number;level:string;evaluatedAt:string;comments:string|null};
@@ -51,8 +52,8 @@ export function TeamMaturityPage(){
  const roleOptions=useMemo(()=>academyRoles.map(item=>({id:item.id,label:item.name})).sort((a,b)=>a.label.localeCompare(b.label,"es")),[academyRoles]);
  useEffect(()=>{if(roleDefaultsInitialized.current||roleOptions.length===0)return;roleDefaultsInitialized.current=true;setRoleIds(defaultRoleFilterIds(roleOptions,item=>item.id,item=>item.label))},[roleOptions]);
  const filteredTeams=useMemo(()=>teams.filter(item=>selectedPeriods.includes(item.periodId)&&(teamIds.length===0||teamIds.includes(item.teamId))&&(!search||norm(`${item.team} ${item.program}`).includes(norm(search)))),[teams,selectedPeriods,teamIds,search]);
- const filteredRoles=useMemo(()=>roles.filter(item=>selectedPeriods.includes(item.periodId)&&(teamIds.length===0||teamIds.includes(item.teamId))&&(roleIds.length===0||roleIds.includes(item.roleId))&&(!search||norm(`${item.person} ${item.role} ${item.team}`).includes(norm(search)))),[roles,selectedPeriods,teamIds,roleIds,search]);
- const visibleAssignments=useMemo(()=>assignments.filter(item=>(teamIds.length===0||teamIds.includes(item.team.id))&&(roleIds.length===0||roleIds.includes(item.role.id))&&(!search||norm(`${item.person.names} ${item.person.dni} ${item.role.name} ${item.team.sourceId} ${item.team.program.name}`).includes(norm(search)))),[assignments,teamIds,roleIds,search]);
+ const filteredRoles=useMemo(()=>roles.filter(item=>selectedPeriods.includes(item.periodId)&&(teamIds.length===0||teamIds.includes(item.teamId))&&(roleIds.length===0||roleIds.includes(item.roleId))&&(!search||norm(`${item.person} ${item.role} ${item.team}`).includes(norm(search)))).sort(compareRoleThenPerson(item=>item.role,item=>item.person)),[roles,selectedPeriods,teamIds,roleIds,search]);
+ const visibleAssignments=useMemo(()=>assignments.filter(item=>(teamIds.length===0||teamIds.includes(item.team.id))&&(roleIds.length===0||roleIds.includes(item.role.id))&&(!search||norm(`${item.person.names} ${item.person.dni} ${item.role.name} ${item.team.sourceId} ${item.team.program.name}`).includes(norm(search)))).sort(compareRoleThenPerson(item=>item.role.name,item=>item.person.names)),[assignments,teamIds,roleIds,search]);
  const visibleTeamOptions=useMemo(()=>options.teams.filter(item=>teamIds.length===0||teamIds.includes(item.id)).filter(item=>!search||norm(item.label).includes(norm(search))),[options.teams,teamIds,search]);
  const currentPeriod=options.periods.find(item=>item.id===periodIds[0]);
  const currentRoleRows=filteredRoles.filter(item=>item.periodId===periodIds[0]);

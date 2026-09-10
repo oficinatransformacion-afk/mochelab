@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { compareRoleThenPerson } from "../utils/ordering";
 import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
 
 type ReviewStatus = "PENDIENTE" | "CALIBRADA";
@@ -29,7 +30,7 @@ export function CalibrationQueuePage() {
       const matchesSearch = !term || [assessment.person, assessment.role, assessment.team]
         .some((value) => value.toLocaleLowerCase("es").includes(term));
       return matchesStatus && matchesSearch&&(period==="TODOS"||assessment.period===period)&&(team==="TODOS"||assessment.team===team);
-    });
+    }).sort(compareRoleThenPerson(assessment=>assessment.role,assessment=>assessment.person));
   }, [search,status,period,team,assessments]);
 
   const pending = assessments.filter((assessment) => assessment.status === "PENDIENTE").length;
