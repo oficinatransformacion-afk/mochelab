@@ -17,10 +17,9 @@ export class DashboardController {
   @Get()
   async summary(
     @Query("teamIds") teamIds?: string,
-    @Query("periodIds") periodIds?: string,
     @Headers("x-mochelab-demo-profile") profile?: string,
     @Headers("x-mochelab-demo-user-email") email?: string,
   ) {
-    return this.repository.summary({ teamIds: list(teamIds), periodIds: list(periodIds) }, await this.scope(profile, email));
+    return this.repository.summary({ teamIds: list(teamIds) }, await this.scope(profile, email));
   }
 }

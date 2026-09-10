@@ -1,7 +1,16 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 
-type DashboardFilters = { teamIds: string[]; periodIds: string[] };
+type DashboardFilters = { teamIds: string[] };
+
+const dashboardRoles = [
+  "SPONSOR",
+  "LIDER AE",
+  "LIDER EAD",
+  "DUEÑO DE PROGRAMA",
+  "DUEÑO DE PRODUCTO",
+  "ATF",
+];
 
 @Injectable()
 export class DashboardRepository {
@@ -12,20 +21,33 @@ export class DashboardRepository {
     if (deniedTeam) throw new BadRequestException("El equipo no está permitido para esta cuenta");
 
     const teamIds = filters.teamIds.length ? filters.teamIds : allowedTeams;
-    const periodIds = filters.periodIds.length ? filters.periodIds : null;
-    const assignmentWhere = { teamId: teamIds === null ? undefined : { in: teamIds }, status: { code: "ACTIVO" } };
+    const currentYear = Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "America/Lima" }).format(new Date()));
+    const now = new Date();
+    const currentPeriod = await this.prisma.period.findFirst({
+      where: { active: true, status: { code: { not: "CANCELADO" } }, startDate: { lte: now }, endDate: { gte: now } },
+      orderBy: { startDate: "desc" },
+      select: { id: true, name: true, status: { select: { code: true } } },
+    }) ?? await this.prisma.period.findFirst({
+      where: { active: true, status: { code: { not: "CANCELADO" } } },
+      orderBy: { startDate: "desc" },
+      select: { id: true, name: true, status: { select: { code: true } } },
+    });
+    const assignmentWhere = {
+      teamId: teamIds === null ? undefined : { in: teamIds },
+      role: { name: { in: dashboardRoles } },
+      status: { code: "ACTIVO" },
+    };
 
-    const [teams, periods, people, assignments, courses, completed, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
-      this.prisma.team.findMany({ where: { id: allowedTeams === null ? undefined : { in: allowedTeams } }, include: { program: true }, orderBy: { sourceId: "asc" } }),
-      this.prisma.period.findMany({ orderBy: { startDate: "desc" }, select: { id: true, name: true, status: { select: { code: true } } } }),
+    const [teams, people, assignments, courses, completed, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
+      this.prisma.team.findMany({ where: { status: { code: "ACTIVO" }, id: allowedTeams === null ? undefined : { in: allowedTeams } }, include: { program: true }, orderBy: { sourceId: "asc" } }),
       this.prisma.person.count({ where: { assignments: { some: assignmentWhere } } }),
       this.prisma.personRole.count({ where: assignmentWhere }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere } }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere, status: { code: { in: ["TERMINADO", "APROBADO", "COMPLETADO"] } } } }),
-      this.prisma.roleMaturity.findMany({ where: { periodId: periodIds ? { in: periodIds } : undefined, personRole: { teamId: teamIds === null ? undefined : { in: teamIds } } }, select: { score: true, level: { select: { name: true } } } }),
-      this.prisma.teamMaturity.findMany({ where: { periodId: periodIds ? { in: periodIds } : undefined, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { score: true, level: { select: { name: true } } } }),
-      this.prisma.objective.findMany({ where: { isSystemPlaceholder: false, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { achievement: true, resultStatus: { select: { name: true } } } }),
-      this.prisma.initiative.findMany({ where: { teamId: teamIds === null ? undefined : { in: teamIds } }, select: { status: { select: { name: true } }, projectedEconomicBenefit: true, actualEconomicBenefit: true } }),
+      currentPeriod ? this.prisma.roleMaturity.findMany({ where: { periodId: currentPeriod.id, personRole: { teamId: teamIds === null ? undefined : { in: teamIds }, role: { name: { in: dashboardRoles } } } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
+      currentPeriod ? this.prisma.teamMaturity.findMany({ where: { periodId: currentPeriod.id, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
+      this.prisma.objective.findMany({ where: { isSystemPlaceholder: false, year: currentYear, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { achievement: true, resultStatus: { select: { name: true } } } }),
+      this.prisma.initiative.findMany({ where: { year: currentYear, type: { code: "ESTRATEGICA", catalog: { code: "TIPO_INICIATIVA" } }, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { status: { select: { name: true } }, projectedEconomicBenefit: true, actualEconomicBenefit: true } }),
     ]);
 
     const average = (values: number[]) => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) * 100 / values.length) / 100 : 0;
@@ -36,8 +58,11 @@ export class DashboardRepository {
 
     return {
       filters: {
-        teams: teams.map(team => ({ id: team.id, label: `${team.sourceId} · ${team.program.name}` })),
-        periods: periods.map(period => ({ id: period.id, label: period.name, status: period.status.code })),
+        teams: teams.map(team => ({ id: team.id, sourceId: team.sourceId, label: `${team.sourceId} · ${team.program.name}` })),
+      },
+      context: {
+        year: currentYear,
+        maturityPeriod: currentPeriod ? { id: currentPeriod.id, label: currentPeriod.name, status: currentPeriod.status.code } : null,
       },
       capabilities: {
         people, assignments, courses, completedCourses: completed,

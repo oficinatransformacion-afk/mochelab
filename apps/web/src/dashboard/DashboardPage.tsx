@@ -6,7 +6,8 @@ import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
 
 type Group = { name: string; value: number };
 type Data = {
-  filters: { teams: { id: string; label: string }[]; periods: { id: string; label: string; status: string }[] };
+  filters: { teams: { id: string; sourceId: string; label: string }[] };
+  context: { year: number; maturityPeriod: { id: string; label: string; status: string } | null };
   capabilities: { people: number; assignments: number; courses: number; completedCourses: number; pendingCourses: number; learningCompletion: number; roleMaturityAverage: number; teamMaturityAverage: number; roleLevels: Group[]; teamLevels: Group[] };
   strategy: { objectives: number; objectiveAverage: number; objectiveStatuses: Group[]; initiatives: number; initiativeStatuses: Group[]; projectedBenefit: number; actualBenefit: number };
 };
@@ -20,7 +21,6 @@ export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Pr
   const [, setAccess] = useState<UserCapabilities | null>(null);
   const [tab, setTab] = useState<"capabilities" | "strategy">("capabilities");
   const [teamIds, setTeamIds] = useState<string[]>([]);
-  const [periodIds, setPeriodIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
 
@@ -28,17 +28,19 @@ export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Pr
   useEffect(() => {
     const query = new URLSearchParams();
     if (teamIds.length) query.set("teamIds", teamIds.join(","));
-    if (periodIds.length) query.set("periodIds", periodIds.join(","));
     setError("");
     fetch(`${apiUrl}/api/dashboard?${query}`, { headers: demoHeaders })
       .then(async response => { if (!response.ok) throw new Error("No se pudo cargar el resumen ejecutivo"); return response.json() as Promise<Data>; })
       .then(setData)
       .catch(reason => setError(reason instanceof Error ? reason.message : "Error inesperado"));
-  }, [teamIds, periodIds, reload]);
+  }, [teamIds, reload]);
 
   const roleEvaluations = data ? total(data.capabilities.roleLevels) : 0;
   const pendingMaturity = data ? Math.max(0, data.capabilities.assignments - roleEvaluations) : 0;
   const strategyAlerts = useMemo(() => data ? attention(data.strategy.objectiveStatuses) + attention(data.strategy.initiativeStatuses) : 0, [data]);
+  const assignmentParams=new URLSearchParams(),routeParams=new URLSearchParams();
+  if(teamIds.length){assignmentParams.set("teams",teamIds.join(","));const sources=(data?.filters.teams??[]).filter(team=>teamIds.includes(team.id)).map(team=>team.sourceId);if(sources.length)routeParams.set("teams",sources.join(","))}
+  const assignmentsHref=`/asignaciones${assignmentParams.size?`?${assignmentParams}`:""}`,routesHref=`/rutas${routeParams.size?`?${routeParams}`:""}`,objectivesHref=`/objetivos?year=${data?.context.year??new Date().getFullYear()}`,portfolioHref=`/portafolio?year=${data?.context.year??new Date().getFullYear()}`;
 
   return <main className="min-h-screen bg-slate-50 text-slate-950">
     <div className="mx-auto max-w-7xl px-5 py-8">
@@ -47,9 +49,9 @@ export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Pr
         <button type="button" onClick={() => setReload(value => value + 1)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:border-slate-300" title="Volver a consultar los indicadores con los filtros actuales"><RefreshCw size={16}/>Actualizar datos</button>
       </header>
 
-      <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2">
+      <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <MultiSelect label="Equipos" options={data?.filters.teams ?? []} value={teamIds} onChange={setTeamIds} emptyLabel="Todos los equipos"/>
-        <MultiSelect label="Períodos" options={(data?.filters.periods ?? []).map(({ id, label }) => ({ id, label }))} value={periodIds} onChange={setPeriodIds} emptyLabel="Todos los períodos"/>
+        <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Madurez: {data?.context.maturityPeriod?.label??"Sin período vigente"}</span>
       </section>
 
       <nav className="mt-6 flex gap-2 border-b border-slate-200" aria-label="Perspectiva del resumen">
@@ -62,22 +64,22 @@ export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Pr
         <SectionTitle title="Estado general" subtitle="Lectura rápida de personas, asignaciones, aprendizaje y madurez."/>
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi icon={<Users size={19}/>} label="Personas activas" value={data.capabilities.people} href="/personas" action="Ver personas"/>
-          <Kpi icon={<BriefcaseBusiness size={19}/>} label="Roles asignados" value={data.capabilities.assignments} href="/asignaciones" action="Gestionar asignaciones"/>
-          <Kpi icon={<GraduationCap size={19}/>} label="Avance formativo" value={`${data.capabilities.learningCompletion}%`} href="/rutas" action="Revisar rutas"/>
+          <Kpi icon={<BriefcaseBusiness size={19}/>} label="Roles asignados" value={data.capabilities.assignments} href={assignmentsHref} action="Gestionar asignaciones"/>
+          <Kpi icon={<GraduationCap size={19}/>} label="Avance formativo" value={`${data.capabilities.learningCompletion}%`} href={routesHref} action="Revisar rutas"/>
           <Kpi icon={<Target size={19}/>} label="Madurez promedio de roles" value={data.capabilities.roleMaturityAverage.toFixed(2)} href="/madurez/equipos" action="Analizar madurez"/>
         </section>
 
         <SectionTitle title="Requiere atención" subtitle="Pendientes que ameritan intervención operativa."/>
         <section className="grid gap-4 lg:grid-cols-2">
-          <AlertCard value={data.capabilities.pendingCourses} title="Cursos pendientes" detail={`De ${data.capabilities.courses} cursos asignados`} href="/rutas" action="Revisar rutas de aprendizaje"/>
+          <AlertCard value={data.capabilities.pendingCourses} title="Cursos pendientes" detail={`De ${data.capabilities.courses} cursos asignados`} href={routesHref} action="Revisar rutas de aprendizaje"/>
           <AlertCard value={pendingMaturity} title="Asignaciones sin evaluación de madurez" detail={`${roleEvaluations} evaluaciones registradas para los filtros actuales`} href="/madurez/equipos" action="Revisar pendientes de madurez"/>
         </section>
 
         <SectionTitle title="Prioridades para hoy" subtitle="Accesos directos a las intervenciones con mayor impacto operativo."/>
         <ActionQueue items={[
-          { value: data.capabilities.pendingCourses, title: "Acompañar rutas con cursos pendientes", detail: "Revisa el avance y actualiza los cursos de las personas con menor progreso.", href: "/rutas", action: "Ir a rutas" },
+          { value: data.capabilities.pendingCourses, title: "Acompañar rutas con cursos pendientes", detail: "Revisa el avance y actualiza los cursos de las personas con menor progreso.", href: routesHref, action: "Ir a rutas" },
           { value: pendingMaturity, title: "Completar evaluaciones de madurez", detail: "Consolida resultados faltantes de roles y equipos para el período seleccionado.", href: "/madurez/equipos", action: "Ir a madurez" },
-          { value: data.capabilities.assignments, title: "Validar asignaciones activas", detail: "Confirma que las personas tengan el rol y equipo correctos antes de medir su avance.", href: "/asignaciones", action: "Ir a asignaciones" }
+          { value: data.capabilities.assignments, title: "Validar asignaciones activas", detail: "Confirma que las personas tengan el rol y equipo correctos antes de medir su avance.", href: assignmentsHref, action: "Ir a asignaciones" }
         ]}/>
 
         <SectionTitle title="Distribución y contexto" subtitle="Composición de los resultados actuales; no representa una tendencia histórica."/>
@@ -90,22 +92,22 @@ export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Pr
       {data && tab === "strategy" && <>
         <SectionTitle title="Estado general" subtitle="Resultados clave del ciclo estratégico y su portafolio."/>
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi icon={<Target size={19}/>} label="Objetivos" value={data.strategy.objectives} href="/objetivos" action="Ver objetivos"/>
-          <Kpi icon={<Target size={19}/>} label="Cumplimiento OKR" value={`${data.strategy.objectiveAverage}%`} href="/objetivos" action="Analizar cumplimiento"/>
-          <Kpi icon={<BriefcaseBusiness size={19}/>} label="Iniciativas" value={data.strategy.initiatives} href="/portafolio" action="Ver portafolio"/>
-          <Kpi icon={<BriefcaseBusiness size={19}/>} label="Beneficio real" value={money.format(data.strategy.actualBenefit)} href="/portafolio" action="Revisar beneficios"/>
+          <Kpi icon={<Target size={19}/>} label="Objetivos" value={data.strategy.objectives} href={objectivesHref} action="Ver objetivos"/>
+          <Kpi icon={<Target size={19}/>} label="Cumplimiento OKR" value={`${data.strategy.objectiveAverage}%`} href={objectivesHref} action="Analizar cumplimiento"/>
+          <Kpi icon={<BriefcaseBusiness size={19}/>} label="Iniciativas estratégicas" value={data.strategy.initiatives} href={portfolioHref} action="Ver portafolio"/>
+          <Kpi icon={<BriefcaseBusiness size={19}/>} label="Beneficio real estratégico" value={money.format(data.strategy.actualBenefit)} href={portfolioHref} action="Revisar beneficios"/>
         </section>
 
         <SectionTitle title="Requiere atención" subtitle="Objetivos e iniciativas en estados que demandan seguimiento."/>
         <section className="grid gap-4 lg:grid-cols-2">
-          <AlertCard value={attention(data.strategy.objectiveStatuses)} title="Objetivos con alerta" detail={`${data.strategy.objectives} objetivos en el alcance actual`} href="/objetivos" action="Revisar objetivos"/>
-          <AlertCard value={attention(data.strategy.initiativeStatuses)} title="Iniciativas con alerta" detail={`${strategyAlerts} alertas estratégicas en total`} href="/portafolio" action="Revisar portafolio"/>
+          <AlertCard value={attention(data.strategy.objectiveStatuses)} title="Objetivos con alerta" detail={`${data.strategy.objectives} objetivos de ${data.context.year} en el alcance actual`} href={objectivesHref} action="Revisar objetivos"/>
+          <AlertCard value={attention(data.strategy.initiativeStatuses)} title="Iniciativas con alerta" detail={`${strategyAlerts} alertas estratégicas en total`} href={portfolioHref} action="Revisar portafolio"/>
         </section>
 
         <SectionTitle title="Distribución y contexto" subtitle="Cómo se distribuyen los estados del alcance seleccionado."/>
         <section className="grid gap-5 lg:grid-cols-2">
-          <Distribution title="Estado de objetivos" value={`${data.strategy.objectiveAverage}%`} groups={data.strategy.objectiveStatuses} href="/objetivos"/>
-          <Distribution title="Estado del portafolio" value={`${data.strategy.initiatives}`} groups={data.strategy.initiativeStatuses} href="/portafolio"/>
+          <Distribution title={`Estado de objetivos ${data.context.year}`} value={`${data.strategy.objectiveAverage}%`} groups={data.strategy.objectiveStatuses} href={objectivesHref}/>
+          <Distribution title={`Estado de iniciativas estratégicas ${data.context.year}`} value={`${data.strategy.initiatives}`} groups={data.strategy.initiativeStatuses} href={portfolioHref}/>
         </section>
       </>}
     </div>
