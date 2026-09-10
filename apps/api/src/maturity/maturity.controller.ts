@@ -88,6 +88,16 @@ export class SelfAssessmentController {
   constructor(private readonly repository: MaturityRepository,@Optional() private readonly access?:AccessService) {}
   private scope(profile:string|undefined,email:string|undefined){return this.access?this.access.getTeamScope(profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode,email):Promise.resolve(null)}
 
+  @Get("overview/options")
+  async overviewOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    return this.repository.teamMaturityOptions(await this.scope(profile,email));
+  }
+
+  @Get("overview/history")
+  async overviewHistory(@Query("periodId") periodId?:string,@Query("teamId") teamId?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    return this.repository.maturityHistory({periodId,teamId},await this.scope(profile,email));
+  }
+
   @Get("self-assessment-form")
   async form(@Query("personRoleId") currentPersonRoleId?: string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (process.env.NODE_ENV === "production") throw new UnauthorizedException("La autenticación corporativa aún no está configurada");

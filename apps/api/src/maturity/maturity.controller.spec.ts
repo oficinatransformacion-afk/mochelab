@@ -28,4 +28,21 @@ describe("maturity controllers", () => {
     await expect(controller.calibrate(firstId, undefined, { calibratedScore: 2 })).rejects.toThrow(UnauthorizedException);
     expect(repository.calibrate).not.toHaveBeenCalled();
   });
+
+  it("scopes the maturity overview to the user's teams", async () => {
+    const scopedTeams=[firstId,secondId];
+    const scopedRepository={
+      teamMaturityOptions:vi.fn().mockResolvedValue({teams:[],periods:[]}),
+      maturityHistory:vi.fn().mockResolvedValue({teams:[],roles:[]}),
+    };
+    const access={getTeamScope:vi.fn().mockResolvedValue(scopedTeams)};
+    const controller=new SelfAssessmentController(scopedRepository as never,access as never);
+
+    await controller.overviewOptions("USUARIO","persona@danper.com");
+    await controller.overviewHistory(firstId,secondId,"USUARIO","persona@danper.com");
+
+    expect(access.getTeamScope).toHaveBeenCalledTimes(2);
+    expect(scopedRepository.teamMaturityOptions).toHaveBeenCalledWith(scopedTeams);
+    expect(scopedRepository.maturityHistory).toHaveBeenCalledWith({periodId:firstId,teamId:secondId},scopedTeams);
+  });
 });

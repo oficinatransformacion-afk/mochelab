@@ -31,7 +31,7 @@ const DataQualityPage = lazy(() => import("./dashboard/DataQualityPage").then(mo
 const LoginPage = lazy(() => import("./access/LoginPage").then(module => ({ default: module.LoginPage })));
 const ChangePasswordPage = lazy(() => import("./access/ChangePasswordPage").then(module => ({ default: module.ChangePasswordPage })));
 import { hasDemoSession } from "./access/demoSession";
-import { demoHeaders } from "./directory/DirectoryShell";
+import { demoHeaders, demoProfile } from "./directory/DirectoryShell";
 
 const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -50,6 +50,9 @@ function AppContent() {
     window.location.replace("/login");
     return null;
   }
+  const administrator=demoProfile==="ADMIN"||demoProfile==="SYSTEM";
+  const administratorRoute=window.location.pathname.startsWith("/configuracion/")||window.location.pathname==="/calidad-datos"||window.location.pathname.startsWith("/madurez/calibracion")||window.location.pathname==="/madurez/periodos"||window.location.pathname==="/madurez/configuracion";
+  if(!administrator&&administratorRoute){window.location.replace("/");return null}
   const profileMatch=window.location.pathname.match(/^\/personas\/([^/]+)$/);
   if(profileMatch)return <PersonProfilePage personId={profileMatch[1]} />;
   if (window.location.pathname === "/personas") return <PeoplePage />;

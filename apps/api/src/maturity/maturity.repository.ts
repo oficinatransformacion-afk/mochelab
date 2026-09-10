@@ -166,13 +166,14 @@ export class MaturityRepository {
     return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
   }
 
-  async teamMaturityOptions(){
-    const[teams,periods]=await Promise.all([this.prisma.team.findMany({where:{status:{code:"ACTIVO"}},include:{program:true},orderBy:{sourceId:"asc"}}),this.prisma.period.findMany({where:{status:{code:{not:"CANCELADO"}}},include:{status:true},orderBy:{startDate:"desc"}})]);
+  async teamMaturityOptions(teamIds:string[]|null=null){
+    const[teams,periods]=await Promise.all([this.prisma.team.findMany({where:{status:{code:"ACTIVO"},id:teamIds===null?undefined:{in:teamIds}},include:{program:true},orderBy:{sourceId:"asc"}}),this.prisma.period.findMany({where:{status:{code:{not:"CANCELADO"}}},include:{status:true},orderBy:{startDate:"desc"}})]);
     return{teams:teams.map(x=>({id:x.id,label:`${x.sourceId} · ${x.program.name}`})),periods:periods.map(x=>({id:x.id,label:x.name,status:x.status.code}))};
   }
 
-  async listTeamMaturities(filters:{periodId?:string;teamId?:string}){
-    return this.prisma.teamMaturity.findMany({where:{periodId:filters.periodId||undefined,teamId:filters.teamId||undefined},include:{team:{include:{program:true}},period:true,level:true},orderBy:[{period:{startDate:"desc"}},{team:{sourceId:"asc"}}]});
+  async listTeamMaturities(filters:{periodId?:string;teamId?:string},teamIds:string[]|null=null){
+    const teamId=teamIds===null?filters.teamId||undefined:{in:teamIds,...(filters.teamId?{equals:filters.teamId}:{})};
+    return this.prisma.teamMaturity.findMany({where:{periodId:filters.periodId||undefined,teamId},include:{team:{include:{program:true}},period:true,level:true},orderBy:[{period:{startDate:"desc"}},{team:{sourceId:"asc"}}]});
   }
 
   async saveTeamMaturity(input:{teamId:string;periodId:string;score:number;comments?:string},administratorId:string){
@@ -183,8 +184,9 @@ export class MaturityRepository {
     return this.prisma.$transaction(async tx=>{const current=await tx.teamMaturity.findUnique({where:{teamId_periodId:{teamId:input.teamId,periodId:input.periodId}}});const row=await tx.teamMaturity.upsert({where:{teamId_periodId:{teamId:input.teamId,periodId:input.periodId}},create:{teamId:input.teamId,periodId:input.periodId,evaluatedAt:new Date(),score:input.score,levelId,comments:input.comments?.trim()||null},update:{evaluatedAt:new Date(),score:input.score,levelId,comments:input.comments?.trim()||null},include:{team:true,period:true,level:true}});await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:current?"UPDATE":"CREATE",entity:"TEAM_MATURITY",recordId:row.id,oldValue:current?this.snapshot(current):undefined,newValue:this.snapshot(row),result:"OK",origin:"WEB"}});return row});
   }
 
-  async maturityHistory(filters:{periodId?:string;teamId?:string}){
-    const[teams,roles]=await Promise.all([this.listTeamMaturities(filters),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId:filters.teamId||undefined}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}]})]);
+  async maturityHistory(filters:{periodId?:string;teamId?:string},teamIds:string[]|null=null){
+    const teamId=teamIds===null?filters.teamId||undefined:{in:teamIds,...(filters.teamId?{equals:filters.teamId}:{})};
+    const[teams,roles]=await Promise.all([this.listTeamMaturities(filters,teamIds),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}]})]);
     return{teams:teams.map(x=>({id:x.id,teamId:x.teamId,team:x.team.sourceId,program:x.team.program.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles:roles.map(x=>({id:x.id,person:x.personRole.person.names,roleId:x.personRole.roleId,role:x.personRole.role.name,teamId:x.personRole.teamId,team:x.personRole.team.sourceId,period:x.period.name,periodId:x.periodId,score:Number(x.score),selfAssessmentScore:x.selfAssessmentScore===null?null:Number(x.selfAssessmentScore),calibratedScore:x.calibratedScore===null?null:Number(x.calibratedScore),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10)}))};
   }
 

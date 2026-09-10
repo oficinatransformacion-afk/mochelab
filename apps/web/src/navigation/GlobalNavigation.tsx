@@ -9,8 +9,9 @@ import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
 import { endDemoSession } from "../access/demoSession";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
-type Link = { label: string; href: string; icon: Icon; module: string };
-const groups: { label: string; links: Link[] }[] = [
+type Profile = "USUARIO" | "ADMIN" | "SYSTEM";
+type Link = { label: string; href: string; icon: Icon; module: string; profiles?: Profile[] };
+const groups: { label: string; links: Link[]; profiles?: Profile[] }[] = [
   { label: "Principal", links: [
     { label: "Inicio", href: "/", icon: Home, module: "INICIO" }, { label: "Personas", href: "/personas", icon: Users, module: "PERSONAS" },
     { label: "Equipos", href: "/equipos", icon: UsersRound, module: "EQUIPOS" },
@@ -19,12 +20,12 @@ const groups: { label: string; links: Link[] }[] = [
     { label: "Rutas de aprendizaje", href: "/rutas", icon: GraduationCap, module: "CURSOS" },
   ] },
   { label: "Madurez", links: [
-    { label: "Autoevaluación", href: "/madurez", icon: ListChecks, module: "MADUREZ" }, { label: "Calibraciones", href: "/madurez/calibraciones", icon: Award, module: "MADUREZ" }, { label: "Madurez", href: "/madurez/equipos", icon: Gauge, module: "MADUREZ" },
+    { label: "Autoevaluación", href: "/madurez", icon: ListChecks, module: "MADUREZ" }, { label: "Calibraciones", href: "/madurez/calibraciones", icon: Award, module: "MADUREZ", profiles: ["ADMIN","SYSTEM"] }, { label: "Madurez", href: "/madurez/equipos", icon: Gauge, module: "MADUREZ" },
   ] },
   { label: "Estrategia", links: [
     { label: "Objetivos y KR", href: "/objetivos", icon: Target, module: "OBJETIVOS" }, { label: "Portafolio", href: "/portafolio", icon: BriefcaseBusiness, module: "PORTAFOLIO" }, { label: "Metas", href: "/objetivos/metas", icon: BarChart3, module: "OBJETIVOS" },
   ] },
-  { label: "Administración", links: [
+  { label: "Administración", profiles: ["ADMIN","SYSTEM"], links: [
     { label: "Maestros", href: "/configuracion/maestros", icon: Database, module: "CATALOGOS" }, { label: "Mallas por rol", href: "/configuracion/mallas", icon: Map, module: "CURSOS" }, { label: "Catálogos", href: "/configuracion/catalogos", icon: Settings2, module: "CATALOGOS" },
     { label: "Permisos por perfil", href: "/configuracion/usuarios", icon: ShieldCheck, module: "USUARIOS" }, { label: "Cuentas y equipos", href: "/configuracion/cuentas", icon: Building2, module: "USUARIOS" }, { label: "Comunicaciones", href: "/configuracion/comunicaciones", icon: Mail, module: "USUARIOS" },
     { label: "Auditoría", href: "/configuracion/auditoria", icon: FileCog, module: "AUDITORIA" }, { label: "Calidad de datos", href: "/calidad-datos", icon: Network, module: "AUDITORIA" }, { label: "Procesos", href: "/configuracion/jobs", icon: CalendarRange, module: "MIGRACIONES" },
@@ -62,7 +63,8 @@ export function GlobalNavigation() {
         {!access && !error && <p className="px-3 py-4 text-sm text-slate-400">Cargando opciones…</p>}
         {error && <p className="rounded-lg bg-red-950/60 px-3 py-3 text-sm text-red-200">No se pudieron consultar tus permisos.</p>}
         {groups.map(group => {
-          const links = group.links.filter(link => visible(link.module));
+          const groupAllowed = !group.profiles || Boolean(access&&group.profiles.includes(access.profile));
+          const links = groupAllowed ? group.links.filter(link => visible(link.module)&&(!link.profiles||Boolean(access&&link.profiles.includes(access.profile)))) : [];
           const sectionOpen = expanded[group.label] ?? false;
           return links.length ? <section key={group.label} className="app-nav-group">
             <button type="button" className="app-nav-heading" aria-expanded={sectionOpen} aria-controls={`nav-${group.label}`} onClick={() => toggle(group.label)}><span>{group.label}</span><span className={`app-nav-chevron ${sectionOpen ? "open" : ""}`}>⌄</span></button>
