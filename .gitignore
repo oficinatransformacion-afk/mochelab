@@ -4,6 +4,7 @@ dist/
 dist-migration/
 *.tsbuildinfo
 .tmp-export/
+.local-logs/
 .artifact-work/
 outputs/
 database/staging/

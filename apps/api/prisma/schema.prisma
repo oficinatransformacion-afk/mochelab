@@ -236,6 +236,9 @@ model PersonRole {
   maturities           RoleMaturity[]
   selfAssessments      RoleSelfAssessment[]
   communications       Communication[]
+  initiativesAsProductOwner Initiative[] @relation("InitiativeProductOwner")
+  initiativesAsManager      Initiative[] @relation("InitiativeManager")
+  initiativesAsTechnicalLead Initiative[] @relation("InitiativeTechnicalLead")
   createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -551,8 +554,11 @@ model Initiative {
   executionEnd                 DateTime?     @map("execution_end") @db.Date
   priorityId                    String?       @map("priority_id") @db.Uuid
   productOwner                  String?       @map("product_owner") @db.VarChar(240)
+  productOwnerPersonRoleId      String?       @map("product_owner_person_role_id") @db.Uuid
   manager                       String?       @db.VarChar(240)
+  managerPersonRoleId           String?       @map("manager_person_role_id") @db.Uuid
   technicalLead                 String?       @map("technical_lead") @db.VarChar(240)
+  technicalLeadPersonRoleId     String?       @map("technical_lead_person_role_id") @db.Uuid
   managementTypeId              String        @map("management_type_id") @db.Uuid
   statusId                      String        @map("status_id") @db.Uuid
   accompanimentMilestone        String?       @map("accompaniment_milestone")
@@ -593,12 +599,18 @@ model Initiative {
   impact                        CatalogValue  @relation("InitiativeImpact", fields: [impactId], references: [id])
   executionArea                 CatalogValue? @relation("InitiativeExecutionArea", fields: [executionAreaId], references: [id])
   objectiveLink                 Objective     @relation(fields: [objectiveId], references: [id])
+  productOwnerAssignment        PersonRole?   @relation("InitiativeProductOwner", fields: [productOwnerPersonRoleId], references: [id])
+  managerAssignment             PersonRole?   @relation("InitiativeManager", fields: [managerPersonRoleId], references: [id])
+  technicalLeadAssignment       PersonRole?   @relation("InitiativeTechnicalLead", fields: [technicalLeadPersonRoleId], references: [id])
   createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([teamId, year, cycleId])
   @@index([objectiveId])
   @@index([executionAreaId])
+  @@index([productOwnerPersonRoleId])
+  @@index([managerPersonRoleId])
+  @@index([technicalLeadPersonRoleId])
   @@map("initiative")
 }
 

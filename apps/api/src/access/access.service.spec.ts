@@ -21,6 +21,7 @@ describe("AccessService", () => {
     const result = await service.getCapabilities("USUARIO");
     const catalogs = result.modules.find((module) => module.code === "CATALOGOS");
     const objectives = result.modules.find((module) => module.code === "OBJETIVOS");
+    const targets = result.modules.find((module) => module.code === "METAS");
     const assignments = result.modules.find((module) => module.code === "ASIGNACIONES");
 
     expect(catalogs?.canView).toBe(false);
@@ -30,12 +31,30 @@ describe("AccessService", () => {
       canEdit: true,
       canDelete: false,
     });
+    expect(targets).toMatchObject({
+      canView: false,
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+    });
     expect(assignments).toMatchObject({
       canView: true,
       canCreate: true,
       canEdit: true,
       canDelete: false,
     });
+  });
+
+  it("keeps targets available to Admin and System", async () => {
+    for (const profile of ["ADMIN", "SYSTEM"] as const) {
+      const result = await service.getCapabilities(profile);
+      expect(result.modules.find((module) => module.code === "METAS")).toMatchObject({
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      });
+    }
   });
 
   it("limits a regular user to the active teams associated through the linked DNI", async () => {

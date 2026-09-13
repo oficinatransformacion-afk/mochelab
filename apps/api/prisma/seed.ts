@@ -80,6 +80,19 @@ const catalogs = [
       ["APT_AREQUIPA", "APT Arequipa"],
     ],
   },
+  {
+    code: "ESTADO_INICIATIVA",
+    name: "Estado de iniciativa",
+    values: [
+      ["0_POR_HACER", "0. Por Hacer"],
+      ["1_DESCUBRIMIENTO", "1. Descubrimiento"],
+      ["2_LISTO_PARA_IMPLEMENTAR", "2. Listo para Implementar"],
+      ["3_EN_IMPLEMENTACION", "3. En Implementación"],
+      ["4_MIDIENDO_RESULTADOS", "4. Midiendo Resultados"],
+      ["5_TERMINADO", "5. Terminado"],
+      ["DESPRIORIZADO", "Despriorizado"],
+    ],
+  },
 ] as const;
 
 const modules = [
@@ -90,6 +103,7 @@ const modules = [
   ["CURSOS", "Cursos", "/cursos", "book-open", 40],
   ["MADUREZ", "Madurez", "/madurez", "gauge", 50],
   ["OBJETIVOS", "Objetivos", "/objetivos", "target", 60],
+  ["METAS", "Metas", "/objetivos/metas", "bar-chart-3", 65],
   ["PORTAFOLIO", "Portafolio", "/portafolio", "briefcase-business", 70],
   ["CATALOGOS", "Catálogos", "/configuracion/catalogos", "list", 80],
   ["USUARIOS", "Usuarios", "/configuracion/usuarios", "user-cog", 90],
@@ -201,7 +215,7 @@ async function seedModules() {
     for (const profile of profiles) {
       const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM";
       const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code);
-      const visible = administrator || !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code);
+      const visible = administrator || !["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code);
       await prisma.profileModule.upsert({
         where: { profileId_moduleId: { profileId: profile.id, moduleId: module.id } },
         create: {

@@ -13,6 +13,7 @@ export const MODULES: ModuleDefinition[] = [
   { code: "CURSOS", name: "Cursos", route: "/cursos", icon: "book-open", sortOrder: 40 },
   { code: "MADUREZ", name: "Madurez", route: "/madurez", icon: "gauge", sortOrder: 50 },
   { code: "OBJETIVOS", name: "Objetivos", route: "/objetivos", icon: "target", sortOrder: 60 },
+  { code: "METAS", name: "Metas", route: "/objetivos/metas", icon: "bar-chart-3", sortOrder: 65 },
   { code: "PORTAFOLIO", name: "Portafolio", route: "/portafolio", icon: "briefcase-business", sortOrder: 70 },
   { code: "CATALOGOS", name: "Catálogos", route: "/configuracion/catalogos", icon: "list", sortOrder: 80 },
   { code: "USUARIOS", name: "Usuarios", route: "/configuracion/usuarios", icon: "user-cog", sortOrder: 90 },

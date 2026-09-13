@@ -16,7 +16,7 @@ export class AccessService {
   private defaults(profile:ProfileCode):UserCapabilities {
     const modules: ModuleCapability[] = MODULES.map((module) => {
       const isAdministrator = profile === "ADMIN" || profile === "SYSTEM";
-      const canView = isAdministrator || !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(module.code);
+      const canView = isAdministrator || !["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(module.code);
       const canWrite = isAdministrator || USER_WRITABLE_MODULES.has(module.code);
 
       return {

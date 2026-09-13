@@ -8,7 +8,7 @@ const menuOptions = [
   ["Principal","Inicio","INICIO"],["Principal","Personas","PERSONAS"],["Principal","Asignaciones","ASIGNACIONES"],["Principal","Equipos","EQUIPOS"],
   ["Academia","Rutas de aprendizaje","CURSOS"],
   ["Madurez","Autoevaluación","MADUREZ"],["Madurez","Calibraciones","MADUREZ"],["Madurez","Madurez","MADUREZ"],
-  ["Estrategia","Objetivos y KR","OBJETIVOS"],["Estrategia","Portafolio","PORTAFOLIO"],["Estrategia","Metas","OBJETIVOS"],
+  ["Estrategia","Objetivos y KR","OBJETIVOS"],["Estrategia","Portafolio","PORTAFOLIO"],["Estrategia","Metas","METAS"],
   ["Administración","Maestros","CATALOGOS"],["Administración","Mallas por rol","CURSOS"],["Administración","Catálogos","CATALOGOS"],
   ["Administración","Permisos por perfil","USUARIOS"],["Administración","Cuentas y equipos","USUARIOS"],["Administración","Comunicaciones","USUARIOS"],
   ["Administración","Auditoría","AUDITORIA"],["Administración","Calidad de datos","AUDITORIA"],["Administración","Procesos","MIGRACIONES"],

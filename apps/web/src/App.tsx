@@ -51,6 +51,7 @@ function AppContent() {
     return null;
   }
   const administrator=demoProfile==="ADMIN"||demoProfile==="SYSTEM";
+  if(demoProfile==="USUARIO"&&window.location.pathname==="/objetivos/metas"){window.location.replace("/");return null}
   const administratorRoute=window.location.pathname.startsWith("/configuracion/")||window.location.pathname==="/calidad-datos"||window.location.pathname.startsWith("/madurez/calibracion")||window.location.pathname==="/madurez/periodos"||window.location.pathname==="/madurez/configuracion";
   if(!administrator&&administratorRoute){window.location.replace("/");return null}
   const profileMatch=window.location.pathname.match(/^\/personas\/([^/]+)$/);
