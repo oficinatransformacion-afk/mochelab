@@ -2,6 +2,14 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum InitiativeResponsibilityType {
+  PRODUCT_OWNER
+  ATF
+  MANAGER
+  TECHNICAL_LEAD
+  DEVELOPER
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -239,6 +247,7 @@ model PersonRole {
   initiativesAsProductOwner Initiative[] @relation("InitiativeProductOwner")
   initiativesAsManager      Initiative[] @relation("InitiativeManager")
   initiativesAsTechnicalLead Initiative[] @relation("InitiativeTechnicalLead")
+  initiativeResponsibilities InitiativeResponsible[]
   createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -602,6 +611,7 @@ model Initiative {
   productOwnerAssignment        PersonRole?   @relation("InitiativeProductOwner", fields: [productOwnerPersonRoleId], references: [id])
   managerAssignment             PersonRole?   @relation("InitiativeManager", fields: [managerPersonRoleId], references: [id])
   technicalLeadAssignment       PersonRole?   @relation("InitiativeTechnicalLead", fields: [technicalLeadPersonRoleId], references: [id])
+  responsibilities               InitiativeResponsible[]
   createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -612,6 +622,23 @@ model Initiative {
   @@index([managerPersonRoleId])
   @@index([technicalLeadPersonRoleId])
   @@map("initiative")
+}
+
+model InitiativeResponsible {
+  id                 String                       @id @default(uuid()) @db.Uuid
+  initiativeId       String                       @map("initiative_id") @db.Uuid
+  personRoleId       String                       @map("person_role_id") @db.Uuid
+  responsibilityType InitiativeResponsibilityType @map("responsibility_type")
+  createdBy          String?                      @map("created_by") @db.Uuid
+  initiative         Initiative                   @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  personRole         PersonRole                   @relation(fields: [personRoleId], references: [id])
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([initiativeId, personRoleId, responsibilityType])
+  @@index([initiativeId, responsibilityType])
+  @@index([personRoleId])
+  @@map("initiative_responsible")
 }
 
 model IndicatorTarget {
