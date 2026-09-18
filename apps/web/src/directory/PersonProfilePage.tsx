@@ -37,8 +37,8 @@ export function PersonProfilePage({ personId }: { personId: string }) {
           <div><p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">Perfil de colaborador</p><h2 className="mt-1 text-2xl font-bold text-slate-800">{data.names}</h2><p className="mt-1 text-sm text-slate-500">DNI {data.dni} · {data.position ?? data.occupationLevel?.name ?? "Sin puesto registrado"}</p></div>
           <span className="justify-self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 lg:justify-self-end">{data.status.name}</span>
         </div>
-        <div className="grid border-t border-slate-100 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Info icon={Building2} label="Empresa" value={data.company.name} /><Info icon={MapPin} label="Unidad" value={data.organizationalUnit?.name ?? "Sin unidad"} /><Info icon={UsersRound} label="Business Partner" value={data.businessPartner?.name ?? "Sin asignar"} /><Info icon={Mail} label="Contacto" value={data.email ?? data.phone ?? "Sin contacto"} />
+        <div className="grid border-t border-slate-100 text-sm sm:grid-cols-2 lg:grid-cols-5">
+          <Info icon={Building2} label="Empresa" value={data.company.name} /><Info icon={MapPin} label="Unidad" value={data.organizationalUnit?.name ?? "Sin unidad"} /><Info icon={UsersRound} label="Business Partner" value={data.businessPartner?.name ?? "Sin asignar"} /><Info icon={Mail} label="Correo" value={data.email ?? "Sin correo"} /><Info icon={Phone} label="Teléfono" value={data.phone ?? "Sin teléfono"} />
         </div>
       </section>
 
