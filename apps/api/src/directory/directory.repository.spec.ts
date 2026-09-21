@@ -3,6 +3,34 @@ import { describe, expect, it, vi } from "vitest";
 import { DirectoryRepository } from "./directory.repository";
 
 describe("DirectoryRepository assignment scope", () => {
+  it("paginates people in the database and returns the complete filtered total", async () => {
+    const prisma = {
+      person: {
+        count: vi.fn().mockResolvedValue(1250),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+    const repository = new DirectoryRepository(prisma as never);
+
+    const result = await repository.listPeoplePage({ search: "ana", page: 3, pageSize: 20, statuses: ["Activo"] });
+
+    expect(result).toEqual({ items: [], total: 1250, page: 3, pageSize: 20, pages: 63 });
+    expect(prisma.person.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 40, take: 20 }));
+    expect(prisma.person.count).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: { name: { in: ["Activo"] } } }),
+    }));
+  });
+
+  it("clamps the people page size to protect the API", async () => {
+    const prisma = { person: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) } };
+    const repository = new DirectoryRepository(prisma as never);
+
+    const result = await repository.listPeoplePage({ page: 1, pageSize: 500 });
+
+    expect(result.pageSize).toBe(100);
+    expect(prisma.person.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 100 }));
+  });
+
   it("rejects assigning a person who is not an active member of the user's teams", async () => {
     const prisma = {
       person: { findUnique: vi.fn().mockResolvedValue({ id: "person-2" }) },

@@ -11,8 +11,8 @@ export class ObjectivesController {
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(this.profile(profile),email)}
 
   @Get()
-  async list(@Query("year") year?: string, @Query("search") search?: string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
-    return this.repository.list(year ? Number(year) : undefined, search,await this.scope(profile,email));
+  async list(@Query("year") year?: string, @Query("search") search?: string,@Query("teamIds") teamIds?:string,@Query("cycleIds") cycleIds?:string,@Query("statusIds") statusIds?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    const ids=(value?:string)=>value?.split(",").filter(Boolean)??[];return this.repository.list(year ? Number(year) : undefined, search,await this.scope(profile,email),page?{selectedTeamIds:ids(teamIds),cycleIds:ids(cycleIds),statusIds:ids(statusIds),page:Number(page),pageSize:Number(pageSize)||10}:undefined);
   }
 
   @Get("options")

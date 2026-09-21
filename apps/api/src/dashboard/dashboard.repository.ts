@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 
-type DashboardFilters = { teamIds: string[] };
+type DashboardFilters = { teamIds: string[]; roleNames: string[] };
 
 const dashboardRoles = [
   "SPONSOR",
@@ -12,6 +12,8 @@ const dashboardRoles = [
   "ATF",
 ];
 
+const defaultDashboardRoles = dashboardRoles.filter(role => role !== "ATF");
+
 @Injectable()
 export class DashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -21,6 +23,7 @@ export class DashboardRepository {
     if (deniedTeam) throw new BadRequestException("El equipo no está permitido para esta cuenta");
 
     const teamIds = filters.teamIds.length ? filters.teamIds : allowedTeams;
+    const roleNames = filters.roleNames.length ? filters.roleNames.filter(role => dashboardRoles.includes(role)) : defaultDashboardRoles;
     const currentYear = Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "America/Lima" }).format(new Date()));
     const now = new Date();
     const currentPeriod = await this.prisma.period.findFirst({
@@ -34,17 +37,18 @@ export class DashboardRepository {
     });
     const assignmentWhere = {
       teamId: teamIds === null ? undefined : { in: teamIds },
-      role: { name: { in: dashboardRoles } },
+      role: { name: { in: roleNames } },
       status: { code: "ACTIVO" },
     };
 
-    const [teams, people, assignments, courses, completed, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
+    const [teams, roles, people, assignments, courses, completed, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
       this.prisma.team.findMany({ where: { status: { code: "ACTIVO" }, id: allowedTeams === null ? undefined : { in: allowedTeams } }, include: { program: true }, orderBy: { sourceId: "asc" } }),
+      this.prisma.role.findMany({ where: { name: { in: dashboardRoles }, status: { code: "ACTIVO" }, assignments: { some: { status: { code: "ACTIVO" }, teamId: allowedTeams === null ? undefined : { in: allowedTeams } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       this.prisma.person.count({ where: { assignments: { some: assignmentWhere } } }),
       this.prisma.personRole.count({ where: assignmentWhere }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere } }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere, status: { code: { in: ["TERMINADO", "APROBADO", "COMPLETADO"] } } } }),
-      currentPeriod ? this.prisma.roleMaturity.findMany({ where: { periodId: currentPeriod.id, personRole: { teamId: teamIds === null ? undefined : { in: teamIds }, role: { name: { in: dashboardRoles } } } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
+      currentPeriod ? this.prisma.roleMaturity.findMany({ where: { periodId: currentPeriod.id, personRole: { teamId: teamIds === null ? undefined : { in: teamIds }, role: { name: { in: roleNames } } } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
       currentPeriod ? this.prisma.teamMaturity.findMany({ where: { periodId: currentPeriod.id, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
       this.prisma.objective.findMany({ where: { isSystemPlaceholder: false, year: currentYear, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { achievement: true, resultStatus: { select: { name: true } } } }),
       this.prisma.initiative.findMany({ where: { year: currentYear, type: { code: "ESTRATEGICA", catalog: { code: "TIPO_INICIATIVA" } }, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { status: { select: { name: true } }, projectedEconomicBenefit: true, actualEconomicBenefit: true } }),
@@ -59,6 +63,7 @@ export class DashboardRepository {
     return {
       filters: {
         teams: teams.map(team => ({ id: team.id, sourceId: team.sourceId, label: `${team.sourceId} · ${team.program.name}` })),
+        roles: roles.map(role => ({ id: role.name, label: role.name })),
       },
       context: {
         year: currentYear,

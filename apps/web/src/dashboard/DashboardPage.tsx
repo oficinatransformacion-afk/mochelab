@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import type { UserCapabilities } from "@mochelab/shared";
 import { AlertTriangle, ArrowRight, BriefcaseBusiness, ClipboardCheck, GraduationCap, RefreshCw, Target, Users } from "lucide-react";
 import { MultiSelect } from "../components/MultiSelect";
 import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
 
 type Group = { name: string; value: number };
 type Data = {
-  filters: { teams: { id: string; sourceId: string; label: string }[] };
+  filters: { teams: { id: string; sourceId: string; label: string }[]; roles: { id: string; label: string }[] };
   context: { year: number; maturityPeriod: { id: string; label: string; status: string } | null };
   capabilities: { people: number; assignments: number; courses: number; completedCourses: number; pendingCourses: number; learningCompletion: number; roleMaturityAverage: number; teamMaturityAverage: number; roleLevels: Group[]; teamLevels: Group[] };
   strategy: { objectives: number; objectiveAverage: number; objectiveStatuses: Group[]; initiatives: number; initiativeStatuses: Group[]; projectedBenefit: number; actualBenefit: number };
@@ -15,25 +14,27 @@ type Data = {
 const money = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", maximumFractionDigits: 0 });
 const total = (groups: Group[]) => groups.reduce((sum, item) => sum + item.value, 0);
 const attention = (groups: Group[]) => groups.filter(item => /riesgo|atras|pendiente|sin resultado|deten/i.test(item.name)).reduce((sum, item) => sum + item.value, 0);
+const allRoleNames = ["SPONSOR", "LIDER AE", "LIDER EAD", "DUEÑO DE PROGRAMA", "DUEÑO DE PRODUCTO", "ATF"];
+const defaultRoleNames = allRoleNames.filter(role => role !== "ATF");
 
-export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Promise<UserCapabilities> }) {
+export function DashboardPage() {
   const [data, setData] = useState<Data | null>(null);
-  const [, setAccess] = useState<UserCapabilities | null>(null);
   const [tab, setTab] = useState<"capabilities" | "strategy">("capabilities");
   const [teamIds, setTeamIds] = useState<string[]>([]);
+  const [roleNames, setRoleNames] = useState<string[]>(defaultRoleNames);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
 
-  useEffect(() => { void loadCapabilities().then(setAccess).catch(error => setError(error.message)); }, [loadCapabilities]);
   useEffect(() => {
     const query = new URLSearchParams();
     if (teamIds.length) query.set("teamIds", teamIds.join(","));
+    query.set("roleNames", (roleNames.length ? roleNames : allRoleNames).join(","));
     setError("");
     fetch(`${apiUrl}/api/dashboard?${query}`, { headers: demoHeaders })
       .then(async response => { if (!response.ok) throw new Error("No se pudo cargar el resumen ejecutivo"); return response.json() as Promise<Data>; })
       .then(setData)
       .catch(reason => setError(reason instanceof Error ? reason.message : "Error inesperado"));
-  }, [teamIds, reload]);
+  }, [teamIds, roleNames, reload]);
 
   const roleEvaluations = data ? total(data.capabilities.roleLevels) : 0;
   const pendingMaturity = data ? Math.max(0, data.capabilities.assignments - roleEvaluations) : 0;
@@ -49,8 +50,9 @@ export function DashboardPage({ loadCapabilities }: { loadCapabilities: () => Pr
         <button type="button" onClick={() => setReload(value => value + 1)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:border-slate-300" title="Volver a consultar los indicadores con los filtros actuales"><RefreshCw size={16}/>Actualizar datos</button>
       </header>
 
-      <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <section className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-center">
         <MultiSelect label="Equipos" options={data?.filters.teams ?? []} value={teamIds} onChange={setTeamIds} emptyLabel="Todos los equipos"/>
+        <MultiSelect label="Roles" options={data?.filters.roles ?? []} value={roleNames} onChange={setRoleNames} emptyLabel="Todos los roles"/>
         <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Madurez: {data?.context.maturityPeriod?.label??"Sin período vigente"}</span>
       </section>
 

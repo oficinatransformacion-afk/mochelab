@@ -6,6 +6,7 @@ enum InitiativeResponsibilityType {
   PRODUCT_OWNER
   ATF
   MANAGER
+  IMPROVEMENT_SUPERVISOR
   TECHNICAL_LEAD
   DEVELOPER
 }

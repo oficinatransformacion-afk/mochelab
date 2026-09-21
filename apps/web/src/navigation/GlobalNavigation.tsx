@@ -4,9 +4,9 @@ import {
   Database, FileCog, Gauge, GraduationCap, Home, ListChecks,
   KeyRound, LogOut, Mail, Map, Network, PanelLeftClose, PanelLeftOpen, Settings2, ShieldCheck, Target, Users, UsersRound,
 } from "lucide-react";
-import { UserCapabilitiesSchema, type UserCapabilities } from "@mochelab/shared";
-import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
+import { demoHeaders } from "../directory/DirectoryShell";
 import { endDemoSession } from "../access/demoSession";
+import { useCapabilities } from "../access/CapabilitiesContext";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 type Profile = "USUARIO" | "ADMIN" | "SYSTEM";
@@ -42,16 +42,9 @@ export function GlobalNavigation() {
   const activeGroup = groups.find(group => group.links.some(link => isActive(link.href)))?.label;
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("mochelab.sidebar.collapsed") === "true");
-  const [access, setAccess] = useState<UserCapabilities | null>(null);
-  const [error, setError] = useState(false);
+  const {access,status,error,reload}=useCapabilities();
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => Object.fromEntries(groups.map(group => [group.label, group.label === activeGroup || group.label === "Principal"])));
   const accountEmail = String(demoHeaders["x-mochelab-demo-user-email"] || "");
-  useEffect(() => {
-    fetch(`${apiUrl}/api/me/capabilities`, { headers: demoHeaders }).then(async response => {
-      if (!response.ok) throw new Error();
-      return UserCapabilitiesSchema.parse(await response.json());
-    }).then(setAccess).catch(() => setError(true));
-  }, []);
   useEffect(() => {
     document.documentElement.classList.toggle("app-sidebar-collapsed", collapsed);
     localStorage.setItem("mochelab.sidebar.collapsed", String(collapsed));
@@ -66,8 +59,8 @@ export function GlobalNavigation() {
     <aside className={`app-sidebar ${open ? "is-open" : ""} ${collapsed ? "is-collapsed" : ""}`} aria-label="Navegación principal">
       <div className="app-brand"><div className="app-brand-mark">M</div><div className="app-brand-copy"><strong>Mochelab</strong><span>Gestión 2.0</span></div><button type="button" className="app-sidebar-collapse" onClick={() => setCollapsed(value => !value)} aria-label={collapsed ? "Expandir menú" : "Colapsar menú"} title={collapsed ? "Expandir menú" : "Colapsar menú"}>{collapsed ? <PanelLeftOpen size={19}/> : <PanelLeftClose size={19}/>}</button><button type="button" className="app-sidebar-mobile-close" onClick={() => setOpen(false)} aria-label="Cerrar menú">×</button></div>
       <nav className="app-nav-scroll">
-        {!access && !error && <p className="px-3 py-4 text-sm text-slate-400">Cargando opciones…</p>}
-        {error && <p className="rounded-lg bg-red-950/60 px-3 py-3 text-sm text-red-200">No se pudieron consultar tus permisos.</p>}
+        {status==="loading"&&<p className="px-3 py-4 text-sm text-slate-400">Cargando opciones…</p>}
+        {status==="error"&&<div className="rounded-lg bg-red-950/60 px-3 py-3 text-sm text-red-200"><p>{error}</p><button type="button" onClick={reload} className="mt-2 font-bold underline">Reintentar</button></div>}
         {groups.map(group => {
           const groupAllowed = !group.profiles || Boolean(access&&group.profiles.includes(access.profile));
           const links = groupAllowed ? group.links.filter(link => visible(link.module)&&(!link.profiles||Boolean(access&&link.profiles.includes(access.profile)))) : [];

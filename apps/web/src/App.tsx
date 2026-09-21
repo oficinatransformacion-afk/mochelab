@@ -1,8 +1,4 @@
 import { lazy, Suspense } from "react";
-import {
-  UserCapabilitiesSchema,
-  type UserCapabilities,
-} from "@mochelab/shared";
 const SelfAssessmentPage = lazy(() => import("./maturity/SelfAssessmentPage").then(module => ({ default: module.SelfAssessmentPage })));
 const CalibrationPage = lazy(() => import("./maturity/CalibrationPage").then(module => ({ default: module.CalibrationPage })));
 const CalibrationQueuePage = lazy(() => import("./maturity/CalibrationQueuePage").then(module => ({ default: module.CalibrationQueuePage })));
@@ -31,29 +27,25 @@ const DataQualityPage = lazy(() => import("./dashboard/DataQualityPage").then(mo
 const LoginPage = lazy(() => import("./access/LoginPage").then(module => ({ default: module.LoginPage })));
 const ChangePasswordPage = lazy(() => import("./access/ChangePasswordPage").then(module => ({ default: module.ChangePasswordPage })));
 import { hasDemoSession } from "./access/demoSession";
-import { demoHeaders, demoProfile } from "./directory/DirectoryShell";
+import { useCapabilities } from "./access/CapabilitiesContext";
+import { isAdministratorPath,moduleForPath } from "./access/routeAccess";
 
-const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-
-async function loadCapabilities(): Promise<UserCapabilities> {
-  const response = await fetch(`${apiUrl}/api/me/capabilities`, {
-    headers: demoHeaders,
-  });
-
-  if (!response.ok) throw new Error("No se pudieron cargar los accesos");
-  return UserCapabilitiesSchema.parse(await response.json());
-}
+function StatePage({title,detail,action}:{title:string;detail:string;action?:()=>void}){return <main className="grid min-h-screen place-items-center bg-slate-50 px-5"><section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"><h1 className="text-2xl font-bold text-slate-950">{title}</h1><p className="mt-3 text-slate-600">{detail}</p><div className="mt-6 flex justify-center gap-3">{action&&<button type="button" onClick={action} className="rounded-xl bg-slate-950 px-4 py-2 font-bold text-white">Reintentar</button>}<a href="/" className="rounded-xl border border-slate-300 px-4 py-2 font-bold text-slate-700">Ir al inicio</a></div></section></main>}
 
 function AppContent() {
+  const{access,status,error,reload}=useCapabilities();
   if (window.location.pathname === "/login") return <LoginPage />;
   if (!hasDemoSession()) {
     window.location.replace("/login");
     return null;
   }
-  const administrator=demoProfile==="ADMIN"||demoProfile==="SYSTEM";
-  if(demoProfile==="USUARIO"&&window.location.pathname==="/objetivos/metas"){window.location.replace("/");return null}
-  const administratorRoute=window.location.pathname.startsWith("/configuracion/")||window.location.pathname==="/calidad-datos"||window.location.pathname.startsWith("/madurez/calibracion")||window.location.pathname==="/madurez/periodos"||window.location.pathname==="/madurez/configuracion";
-  if(!administrator&&administratorRoute){window.location.replace("/");return null}
+  if(status==="loading"||status==="idle")return <StatePage title="Preparando tu espacio" detail="Estamos consultando tus permisos y módulos disponibles."/>;
+  if(status==="error")return <StatePage title="No pudimos cargar tus accesos" detail={error} action={reload}/>;
+  const administrator=access?.profile==="ADMIN"||access?.profile==="SYSTEM";
+  const administratorRoute=isAdministratorPath(window.location.pathname);
+  if(!administrator&&administratorRoute)return <StatePage title="Acceso restringido" detail="Tu perfil no tiene autorización para ingresar a esta sección."/>;
+  const requiredModule=moduleForPath(window.location.pathname);
+  if(requiredModule&&!access?.modules.some(item=>item.code===requiredModule&&item.canView))return <StatePage title="Acceso restringido" detail="No tienes permiso para consultar este módulo."/>;
   const profileMatch=window.location.pathname.match(/^\/personas\/([^/]+)$/);
   if(profileMatch)return <PersonProfilePage personId={profileMatch[1]} />;
   if (window.location.pathname === "/personas") return <PeoplePage />;
@@ -101,7 +93,8 @@ function AppContent() {
     return <SelfAssessmentPage />;
   }
 
-  return <DashboardPage loadCapabilities={loadCapabilities}/>;
+  if(window.location.pathname==="/")return <DashboardPage/>;
+  return <StatePage title="Página no encontrada" detail="La dirección solicitada no existe o fue trasladada."/>;
 }
 export function App() {
   return <Suspense fallback={<main className="min-h-screen bg-slate-50 p-8 text-slate-600">Cargando módulo…</main>}><AppContent /></Suspense>;

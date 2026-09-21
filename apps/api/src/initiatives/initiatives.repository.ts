@@ -4,7 +4,7 @@ import { PrismaService } from "../database/prisma.service";
 
 const mappings:Record<string,string>={cycleId:"CICLO",focusAreaId:"AREA_ENFOQUE",levelId:"NIVEL_OBJETIVO",typeId:"TIPO_INICIATIVA",executionAreaId:"AREA_EJECUCION_INICIATIVA",sizeId:"TALLA_INICIATIVA",priorityId:"PRIORIDAD_INICIATIVA",managementTypeId:"TIPO_GESTION_INICIATIVA",statusId:"ESTADO_INICIATIVA",escalationId:"ESCALAMIENTO_INICIATIVA",returnHorizonId:"HORIZONTE_RETORNO",tiCapacityId:"CAPACIDAD_TI",categoryId:"CATEGORIA_INICIATIVA",impactId:"IMPACTO_INICIATIVA"};
 const required=["companyId","year","cycleId","focusAreaId","levelId","programId","typeId","sizeId","name","managementTypeId","statusId","impactId"];
-const responsibleRoles={productOwnerPersonRoleId:{type:"PRODUCT_OWNER",roles:["DUEÑO DE PRODUCTO"]},atfPersonRoleId:{type:"ATF",roles:["ATF"]},managerPersonRoleId:{type:"MANAGER",roles:["GESTOR DE MEJORA CONTINUA"]},technicalLeadPersonRoleId:{type:"TECHNICAL_LEAD",roles:["LIDER TECNICO"]}} as const;
+const responsibleRoles={productOwnerPersonRoleId:{type:"PRODUCT_OWNER",roles:["DUEÑO DE PRODUCTO"]},atfPersonRoleId:{type:"ATF",roles:["ATF"]},managerPersonRoleId:{type:"MANAGER",roles:["GESTOR DE MEJORA CONTINUA"]},improvementSupervisorPersonRoleId:{type:"IMPROVEMENT_SUPERVISOR",roles:["SUPERVISOR DE MEJORA CONTINUA"]},technicalLeadPersonRoleId:{type:"TECHNICAL_LEAD",roles:["LIDER TECNICO"]}} as const;
 type Input=Record<string,unknown>;
 
 @Injectable()

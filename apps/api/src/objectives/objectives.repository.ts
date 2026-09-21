@@ -43,10 +43,24 @@ export class ObjectivesRepository {
   return {catalogs,teams,parents:parents.map(p=>({...p,sourceId:String(p.sourceId) }))};
  }
 
- async list(year?:number,search?:string,teamIds:string[]|null=null){
+ async list(year?:number,search?:string,teamIds:string[]|null=null,filters?:{selectedTeamIds?:string[];cycleIds?:string[];statusIds?:string[];page?:number;pageSize?:number}){
   if(year!==undefined&&(!Number.isInteger(year)||year<2000||year>2100))throw new BadRequestException("Año inválido");
-  const rows=await this.prisma.objective.findMany({where:{isSystemPlaceholder:false,year,teamId:teamIds===null?undefined:{in:teamIds},OR:search?.trim()?[{objective:{contains:search.trim(),mode:"insensitive"}},{keyResult:{contains:search.trim(),mode:"insensitive"}}]:undefined},orderBy:[{year:"desc"},{sourceId:"desc"}],include:{level:{select:{code:true,name:true}},team:{select:{id:true,sourceId:true,program:{select:{name:true}}}},focusArea:{select:{code:true,name:true}},cycle:{select:{code:true,name:true}},direction:{select:{code:true,name:true}},type:{select:{code:true,name:true}},unit:{select:{code:true,name:true}},resultStatus:{select:{code:true,name:true}},recordStatus:{select:{code:true,name:true}},parent:{select:{id:true,sourceId:true,objective:true}},_count:{select:{children:true,initiatives:true}}}});
-  return rows.map(row=>this.dto(row));
+  const requestedTeams=filters?.selectedTeamIds??[],corporate=requestedTeams.includes("CORPORATIVO"),requestedIds=requestedTeams.filter(id=>id!=="CORPORATIVO");
+  const teamWhere:any=teamIds===null
+   ?requestedTeams.length?{OR:[...(corporate?[{teamId:null}]:[]),...(requestedIds.length?[{teamId:{in:requestedIds}}]:[])]}:{}
+   :{teamId:{in:requestedTeams.length?requestedIds.filter(id=>teamIds.includes(id)):teamIds}};
+  const where:any={isSystemPlaceholder:false,year,...teamWhere,cycleId:filters?.cycleIds?.length?{in:filters.cycleIds}:undefined,recordStatusId:filters?.statusIds?.length?{in:filters.statusIds}:undefined,AND:search?.trim()?{OR:[{objective:{contains:search.trim(),mode:"insensitive"}},{keyResult:{contains:search.trim(),mode:"insensitive"}}]}:undefined};
+  const include={level:{select:{id:true,code:true,name:true}},team:{select:{id:true,sourceId:true,program:{select:{name:true}}}},focusArea:{select:{id:true,code:true,name:true}},cycle:{select:{id:true,code:true,name:true}},direction:{select:{id:true,code:true,name:true}},type:{select:{id:true,code:true,name:true}},unit:{select:{id:true,code:true,name:true}},resultStatus:{select:{id:true,code:true,name:true}},recordStatus:{select:{id:true,code:true,name:true}},parent:{select:{id:true,sourceId:true,objective:true}},_count:{select:{children:true,initiatives:true}}} as const;
+  if(!filters?.page){const rows=await this.prisma.objective.findMany({where,orderBy:[{year:"desc"},{sourceId:"desc"}],include});return rows.map(row=>this.dto(row))}
+  const page=Math.max(1,filters.page),pageSize=Math.min(100,Math.max(1,filters.pageSize??10));
+  const[total,rows,achievement,corporateTotal,initiatives]=await Promise.all([
+   this.prisma.objective.count({where}),
+   this.prisma.objective.findMany({where,orderBy:[{year:"desc"},{sourceId:"desc"}],include,skip:(page-1)*pageSize,take:pageSize}),
+   this.prisma.objective.aggregate({where,_avg:{achievement:true}}),
+   this.prisma.objective.count({where:{AND:[where,{teamId:null}]}}),
+   this.prisma.initiative.count({where:{objectiveLink:{is:where}}}),
+  ]);
+  return{items:rows.map(row=>this.dto(row)),total,page,pageSize,pages:Math.max(1,Math.ceil(total/pageSize)),summary:{averageAchievement:Math.round(Number(achievement._avg.achievement??0)),corporate:corporateTotal,initiatives}};
  }
 
  async create(input:Input,teamIds:string[]|null=null,userId?:string,isAdmin=false){

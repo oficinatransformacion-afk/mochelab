@@ -9,6 +9,7 @@ function database(){
   return {
     period:{findFirst:vi.fn().mockResolvedValue({id:periodId,name:"Ago. 2026",status:{code:"CERRADO"}})},
     team:{findMany:vi.fn().mockResolvedValue([])},
+    role:{findMany:vi.fn().mockResolvedValue([])},
     person:{count:vi.fn().mockResolvedValue(1)},
     personRole:{count:vi.fn().mockResolvedValue(2)},
     personCourse:{count:vi.fn().mockResolvedValueOnce(4).mockResolvedValueOnce(3)},
@@ -22,11 +23,11 @@ function database(){
 describe("DashboardRepository",()=>{
   it("uses the current period, current year and strategic initiatives",async()=>{
     const prisma=database(),repository=new DashboardRepository(prisma as never);
-    const result=await repository.summary({teamIds:[teamId]},[teamId]);
+    const result=await repository.summary({teamIds:[teamId],roleNames:["SPONSOR"]},[teamId]);
     const currentYear=Number(new Intl.DateTimeFormat("en-US",{year:"numeric",timeZone:"America/Lima"}).format(new Date()));
 
     expect(result.context).toEqual({year:currentYear,maturityPeriod:{id:periodId,label:"Ago. 2026",status:"CERRADO"}});
-    expect(prisma.personRole.count).toHaveBeenCalledWith({where:expect.objectContaining({teamId:{in:[teamId]},status:{code:"ACTIVO"},role:{name:{in:expect.arrayContaining(["SPONSOR","ATF"])}}})});
+    expect(prisma.personRole.count).toHaveBeenCalledWith({where:expect.objectContaining({teamId:{in:[teamId]},status:{code:"ACTIVO"},role:{name:{in:["SPONSOR"]}}})});
     expect(prisma.roleMaturity.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({periodId})}));
     expect(prisma.objective.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({year:currentYear})}));
     expect(prisma.initiative.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({year:currentYear,type:{code:"ESTRATEGICA",catalog:{code:"TIPO_INICIATIVA"}}})}));
@@ -35,6 +36,6 @@ describe("DashboardRepository",()=>{
 
   it("rejects teams outside the authenticated user's scope",async()=>{
     const repository=new DashboardRepository(database() as never);
-    await expect(repository.summary({teamIds:[teamId]},[])).rejects.toThrow(BadRequestException);
+    await expect(repository.summary({teamIds:[teamId],roleNames:[]},[])).rejects.toThrow(BadRequestException);
   });
 });
