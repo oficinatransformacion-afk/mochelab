@@ -3,6 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { DirectoryRepository } from "./directory.repository";
 
 describe("DirectoryRepository assignment scope", () => {
+  it("requires a meaningful reason for an assignment without a development path", async () => {
+    const repository = new DirectoryRepository({} as never);
+
+    await expect(repository.assignPerson("person-1", "role-1", "team-1", "admin-1", null, { withoutDevelopmentPath: true, reason: "breve" }))
+      .rejects.toThrow("La justificación de Sin ruta de desarrollo debe tener al menos 10 caracteres");
+  });
+
   it("paginates people in the database and returns the complete filtered total", async () => {
     const prisma = {
       person: {

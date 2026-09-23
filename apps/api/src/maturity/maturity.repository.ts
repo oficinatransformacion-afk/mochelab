@@ -29,14 +29,14 @@ export class MaturityRepository {
 
   async listPeriods() {
     this.prisma.requireConnection();
-    const [periods,eligibleRoles]=await Promise.all([this.prisma.period.findMany({
+    const periods=await this.prisma.period.findMany({
       orderBy: { startDate: "desc" },
       include: {
         status: { select: { code: true, name: true } },
         _count: { select: { selfAssessments: true, roleMaturities: true } },
       },
-    }),this.prisma.personRole.count({where:{status:{code:"ACTIVO"},role:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}}}})]);
-    return Promise.all(periods.map(async period=>{const calibrated=await this.prisma.roleMaturity.count({where:{periodId:period.id,calibratedAt:{not:null}}});return{...period,summary:{eligibleRoles,submitted:period._count.selfAssessments,pendingSubmission:Math.max(eligibleRoles-period._count.selfAssessments,0),calibrated,pendingCalibration:Math.max(period._count.roleMaturities-calibrated,0)}}}));
+    });
+    return Promise.all(periods.map(async period=>{const[calibrated,configuredModels]=await Promise.all([this.prisma.roleMaturity.count({where:{periodId:period.id,calibratedAt:{not:null}}}),this.prisma.periodAssessmentModel.count({where:{periodId:period.id,active:true}})]);const eligibleRoles=await this.prisma.personRole.count({where:{status:{code:"ACTIVO"},developmentPathMode:"STANDARD",role:{...(configuredModels?{periodAssessmentModels:{some:{periodId:period.id,active:true}}}:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}})}}});return{...period,summary:{eligibleRoles,submitted:period._count.selfAssessments,pendingSubmission:Math.max(eligibleRoles-period._count.selfAssessments,0),calibrated,pendingCalibration:Math.max(period._count.roleMaturities-calibrated,0)}}}));
   }
 
   async createPeriod(input: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion: string },administratorId:string) {
@@ -74,7 +74,8 @@ export class MaturityRepository {
         if (anotherOpen > 0) throw new BadRequestException("Ya existe otro período con la autoevaluación abierta");
       }
       if(next==="CALIBRACION"){
-        const [eligible,submitted]=await Promise.all([tx.personRole.count({where:{status:{code:"ACTIVO"},role:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}}}}),tx.roleSelfAssessment.count({where:{periodId:id}})]);
+        const configuredModels=await tx.periodAssessmentModel.count({where:{periodId:id,active:true}});
+        const [eligible,submitted]=await Promise.all([tx.personRole.count({where:{status:{code:"ACTIVO"},developmentPathMode:"STANDARD",role:{...(configuredModels?{periodAssessmentModels:{some:{periodId:id,active:true}}}:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}})}}}),tx.roleSelfAssessment.count({where:{periodId:id}})]);
         if(submitted<eligible)throw new BadRequestException(`No se puede iniciar la calibración: faltan ${eligible-submitted} autoevaluaciones`);
       }
       if (next === "CERRADO") {
@@ -100,6 +101,66 @@ export class MaturityRepository {
             roles: {
               where: { active: true },
               include: { role: { select: { id: true, sourceId: true, name: true } } },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async listAssessmentModels() {
+    this.prisma.requireConnection();
+    return this.prisma.assessmentModel.findMany({
+      orderBy: { role: { name: "asc" } },
+      include: {
+        role: { select: { id: true, sourceId: true, name: true } },
+        versions: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            sections: {
+              orderBy: { sortOrder: "asc" },
+              include: {
+                responseScale: { include: { options: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
+                dimensions: {
+                  where: { active: true },
+                  orderBy: { sortOrder: "asc" },
+                  include: { items: { where: { active: true }, orderBy: { sortOrder: "asc" }, include: { maturityLevel: { select: { code: true, name: true } } } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  private versionedModel(periodId: string, roleId: string) {
+    return this.prisma.periodAssessmentModel.findUnique({
+      where: { periodId_roleId: { periodId, roleId } },
+      include: {
+        modelVersion: {
+          include: {
+            sections: {
+              where: { active: true },
+              orderBy: { sortOrder: "asc" },
+              include: {
+                responseScale: { include: { options: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
+                dimensions: {
+                  where: { active: true },
+                  orderBy: { sortOrder: "asc" },
+                  include: {
+                    items: {
+                      where: { active: true },
+                      orderBy: { sortOrder: "asc" },
+                      include: {
+                        behavior: true,
+                        responseScale: { include: { options: { where: { active: true }, orderBy: { sortOrder: "asc" } } } },
+                        maturityLevel: { select: { code: true, name: true } },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -191,18 +252,18 @@ export class MaturityRepository {
   }
 
   async getCalibration(id: string) {
-    const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: true, selfAssessment: { include: { responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] } } }, personRole: { include: { person: true, role: true, team: true } } } });
+    const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: true, selfAssessment: { include: { responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] }, resultDetails: { orderBy: [{ scopeType: "asc" }, { scopeCode: "asc" }] } } }, personRole: { include: { person: true, role: true, team: true } } } });
     if (!maturity) throw new NotFoundException("No se encontró la calibración");
     const [people, officialTeamMaturities] = await Promise.all([
       this.prisma.person.findMany({ select: { id: true, names: true }, orderBy: { names: "asc" } }),
       this.prisma.teamMaturity.findMany({ where: { teamId: maturity.personRole.teamId, periodId: maturity.periodId, level: { code: "OFICIAL" } }, select: { id: true } }),
     ]);
-    return { id: maturity.id, personId:maturity.personRole.person.id,person: maturity.personRole.person.names, role: maturity.personRole.role.name, team: maturity.personRole.team.sourceId, period: maturity.period.name, originalScore: Number(maturity.selfAssessmentScore ?? maturity.score), calibratedScore:maturity.calibratedScore===null?null:Number(maturity.calibratedScore),calibratedAt:maturity.calibratedAt,calibrationComments:maturity.calibrationComments, level: maturity.level.code, responses: maturity.selfAssessment?.responses.map((r) => ({ behaviorId: r.behaviorId, statement: r.behaviorStatement, score: Number(r.score), comments: r.comments, dimensionCode: r.dimensionCode, dimensionName: r.dimensionName })) ?? [], people:people.filter(person=>person.id!==maturity.personRole.person.id), officialTeamMaturities };
+    return { id: maturity.id, personId:maturity.personRole.person.id,person: maturity.personRole.person.names, role: maturity.personRole.role.name, team: maturity.personRole.team.sourceId, period: maturity.period.name, originalScore: Number(maturity.selfAssessmentScore ?? maturity.score), calibratedScore:maturity.calibratedScore===null?null:Number(maturity.calibratedScore),calibratedAt:maturity.calibratedAt,calibrationComments:maturity.calibrationComments, level: maturity.level.code, responses: maturity.selfAssessment?.responses.map((r) => ({ behaviorId: r.behaviorId, statement: r.behaviorStatement, score: Number(r.score), comments: r.comments, dimensionCode: r.dimensionCode, dimensionName: r.dimensionName })) ?? [], resultDetails:maturity.selfAssessment?.resultDetails.map(detail=>({scopeType:detail.scopeType,scopeCode:detail.scopeCode,scopeName:detail.scopeName,score:detail.score===null?null:Number(detail.score),positiveCount:detail.positiveCount,responseCount:detail.responseCount,completionPercentage:detail.completionPercentage===null?null:Number(detail.completionPercentage),weight:Number(detail.weight)}))??[], people:people.filter(person=>person.id!==maturity.personRole.person.id), officialTeamMaturities };
   }
 
   async getSelfAssessmentForm(personRoleId?: string,teamIds:string[]|null=null,personId:string|null=null) {
     this.prisma.requireConnection();
-    const assignments=await this.prisma.personRole.findMany({where:{personId:personId??undefined,person:personId===null?{dni:{startsWith:"DEMO"}}:undefined,teamId:teamIds===null?undefined:{in:teamIds},status:{code:"ACTIVO"}},include:{person:true,role:true,team:true},orderBy:[{team:{sourceId:"asc"}},{role:{name:"asc"}}]});
+    const assignments=await this.prisma.personRole.findMany({where:{personId:personId??undefined,person:personId===null?{dni:{startsWith:"DEMO"}}:undefined,teamId:teamIds===null?undefined:{in:teamIds},status:{code:"ACTIVO"},developmentPathMode:"STANDARD"},include:{person:true,role:true,team:true},orderBy:[{team:{sourceId:"asc"}},{role:{name:"asc"}}]});
     const assignment=personRoleId?assignments.find(item=>item.id===personRoleId):assignments[0];
     if (!assignment) throw new NotFoundException("No se encontró una asignación para autoevaluar");
     const period = await this.prisma.period.findFirst({
@@ -213,12 +274,24 @@ export class MaturityRepository {
     if (!period) throw new NotFoundException("No existe un período de madurez configurado");
     const submitted=await this.prisma.roleSelfAssessment.findMany({where:{periodId:period.id,personRoleId:{in:assignments.map(item=>item.id)}},select:{personRoleId:true,submittedAt:true,status:{select:{code:true,name:true}}}});
     const submittedByRole=new Map(submitted.map(item=>[item.personRoleId,item]));
+    const configured=await this.versionedModel(period.id,assignment.roleId);
+    if(configured?.active&&configured.modelVersion.status==="PUBLISHED"){
+      const dimensions=configured.modelVersion.sections.flatMap(section=>section.dimensions.map(dimension=>({
+        id:dimension.id,code:dimension.code,name:dimension.name,description:dimension.description,
+        section:{id:section.id,code:section.code,name:section.name,type:section.type,weight:Number(section.weight)},
+        behaviors:dimension.items.map(item=>{const scale=item.responseScale??section.responseScale;return{
+          id:item.behaviorId,itemVersionId:item.id,statement:item.statement,helpText:item.helpText,maturityLevel:item.maturityLevel,
+          options:scale.options.map(option=>({id:option.id,code:option.code,label:option.label,value:Number(option.numericValue)})),
+        }})
+      })));
+      return { personRoleId: assignment.id, person: assignment.person.names, role: assignment.role.name, team: assignment.team.sourceId, period: { id: period.id, code: period.code, name: period.name, status: period.status.code, configurationVersion: configured.modelVersion.version }, modelVersion:{id:configured.modelVersion.id,version:configured.modelVersion.version}, canSubmit: period.status.code === "AUTOEVALUACION"&&!submittedByRole.has(assignment.id), dimensions,availableRoles:assignments.map(item=>({personRoleId:item.id,role:item.role.name,team:item.team.sourceId,status:submittedByRole.get(item.id)?.status.name??"Pendiente",submitted:Boolean(submittedByRole.has(item.id))})),progress:{completed:submitted.length,total:assignments.length} };
+    }
     const behaviors = await this.prisma.observableBehavior.findMany({
       where: { active: true, dimension: { active: true }, roles: { some: { roleId: assignment.roleId, active: true } } },
       include: { dimension: true }, orderBy: [{ dimension: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     });
-    const grouped = new Map<string, { id: string; code: string; name: string; description: string | null; behaviors: { id: string; statement: string; helpText: string | null }[] }>();
-    for (const item of behaviors) { const dimension = grouped.get(item.dimensionId) ?? { id: item.dimension.id, code: item.dimension.code, name: item.dimension.name, description: item.dimension.description, behaviors: [] }; dimension.behaviors.push({ id: item.id, statement: item.statement, helpText: item.helpText }); grouped.set(item.dimensionId, dimension); }
+    const grouped = new Map<string, { id: string; code: string; name: string; description: string | null; behaviors: { id: string; statement: string; helpText: string | null; options: { id: null; code: string; label: string; value: number }[] }[] }>();
+    for (const item of behaviors) { const dimension = grouped.get(item.dimensionId) ?? { id: item.dimension.id, code: item.dimension.code, name: item.dimension.name, description: item.dimension.description, behaviors: [] }; dimension.behaviors.push({ id: item.id, statement: item.statement, helpText: item.helpText,options:[{id:null,code:"NOT_DEMONSTRATED",label:"No demostrado",value:0},{id:null,code:"WITH_SUPPORT",label:"Con apoyo",value:1},{id:null,code:"AUTONOMOUS",label:"Autónomo",value:2}] }); grouped.set(item.dimensionId, dimension); }
     return { personRoleId: assignment.id, person: assignment.person.names, role: assignment.role.name, team: assignment.team.sourceId, period: { id: period.id, code: period.code, name: period.name, status: period.status.code, configurationVersion: period.configurationVersion }, canSubmit: period.status.code === "AUTOEVALUACION"&&!submittedByRole.has(assignment.id), dimensions: [...grouped.values()],availableRoles:assignments.map(item=>({personRoleId:item.id,role:item.role.name,team:item.team.sourceId,status:submittedByRole.get(item.id)?.status.name??"Pendiente",submitted:Boolean(submittedByRole.has(item.id))})),progress:{completed:submitted.length,total:assignments.length} };
   }
 
@@ -231,13 +304,31 @@ export class MaturityRepository {
       }),
       this.prisma.personRole.findUnique({
         where: { id: input.personRoleId },
-        select: { id: true, roleId: true },
+        select: { id: true, roleId: true, developmentPathMode: true },
       }),
     ]);
     if (!period || !personRole) throw new NotFoundException("No se encontró el período o la asignación del rol");
+    if(personRole.developmentPathMode!=="STANDARD")throw new BadRequestException("La asignación no tiene ruta de desarrollo y no admite evaluaciones de madurez");
     if (period.status.code !== "AUTOEVALUACION") throw new BadRequestException("El período no admite autoevaluaciones");
-    if (period.configurationVersion !== input.configurationVersion) throw new BadRequestException("La versión del formulario no corresponde al período");
+    const configured=await this.versionedModel(period.id,personRole.roleId);
+    const expectedVersion=configured?.active&&configured.modelVersion.status==="PUBLISHED"?configured.modelVersion.version:period.configurationVersion;
+    if (expectedVersion !== input.configurationVersion) throw new BadRequestException("La versión del formulario no corresponde al período y rol");
     if(await this.prisma.roleSelfAssessment.findUnique({where:{personRoleId_periodId:{personRoleId:input.personRoleId,periodId:input.periodId}},select:{id:true}}))throw new BadRequestException("La autoevaluación de este rol ya fue enviada");
+
+    if(configured?.active&&configured.modelVersion.status==="PUBLISHED"){
+      const items=configured.modelVersion.sections.flatMap(section=>section.dimensions.flatMap(dimension=>dimension.items.map(item=>({section,dimension,item,scale:item.responseScale??section.responseScale}))));
+      const answers=new Map(input.answers.map(answer=>[answer.behaviorId,answer]));
+      if(items.length===0||items.some(entry=>!answers.has(entry.item.behaviorId))||answers.size!==items.length)throw new BadRequestException("Se deben responder todos y únicamente los comportamientos aplicables al rol");
+      const selectedOptions=new Map<string,{id:string;value:number;positive:boolean}>();
+      for(const entry of items){const answer=answers.get(entry.item.behaviorId)!;const option=entry.scale.options.find(candidate=>Number(candidate.numericValue)===answer.score);if(!option)throw new BadRequestException(`La respuesta no pertenece a la escala configurada: ${entry.item.statement}`);selectedOptions.set(entry.item.id,{id:option.id,value:Number(option.numericValue),positive:option.isPositive});}
+      const details:{scopeType:"SECTION"|"DIMENSION"|"LEVEL"|"TOTAL";scopeCode:string;scopeName:string;score:number|null;positiveCount:number|null;responseCount:number;completionPercentage:number|null;weight:number}[]=[];
+      let weightedTotal=0,totalSectionWeight=0;
+      for(const section of configured.modelVersion.sections){let weightedSection=0,totalDimensionWeight=0;for(const dimension of section.dimensions){let sum=0,totalWeight=0;for(const item of dimension.items){const selected=selectedOptions.get(item.id)!;sum+=selected.value*Number(item.weight);totalWeight+=Number(item.weight)}const dimensionScore=Math.round(sum/totalWeight*10000)/10000;weightedSection+=dimensionScore*Number(dimension.weight);totalDimensionWeight+=Number(dimension.weight);details.push({scopeType:"DIMENSION",scopeCode:`${section.code}:${dimension.code}`,scopeName:dimension.name,score:dimensionScore,positiveCount:null,responseCount:dimension.items.length,completionPercentage:null,weight:Number(dimension.weight)})}const sectionScore=Math.round(weightedSection/totalDimensionWeight*10000)/10000;weightedTotal+=sectionScore*Number(section.weight);totalSectionWeight+=Number(section.weight);details.push({scopeType:"SECTION",scopeCode:section.code,scopeName:section.name,score:sectionScore,positiveCount:null,responseCount:section.dimensions.reduce((total,dimension)=>total+dimension.items.length,0),completionPercentage:null,weight:Number(section.weight)})}
+      const levelGroups=new Map<string,{name:string;positive:number;total:number}>();for(const entry of items){if(!entry.item.maturityLevel)continue;const current=levelGroups.get(entry.item.maturityLevel.code)??{name:entry.item.maturityLevel.name,positive:0,total:0};current.total++;if(selectedOptions.get(entry.item.id)!.positive)current.positive++;levelGroups.set(entry.item.maturityLevel.code,current)}for(const [code,value] of levelGroups)details.push({scopeType:"LEVEL",scopeCode:code,scopeName:value.name,score:null,positiveCount:value.positive,responseCount:value.total,completionPercentage:Math.round(value.positive/value.total*10000)/10000,weight:1});
+      const resultScore=Math.round(weightedTotal/totalSectionWeight*10000)/10000;details.push({scopeType:"TOTAL",scopeCode:"GLOBAL",scopeName:"Puntaje global",score:resultScore,positiveCount:null,responseCount:items.length,completionPercentage:null,weight:1});
+      const [submittedStatusId,levelId]=await Promise.all([this.catalogValueId("ESTADO_AUTOEVALUACION","ENVIADA"),this.catalogValueId("NIVEL_MADUREZ",this.scoring.levelFor(resultScore))]);
+      return this.prisma.$transaction(async transaction=>{const assessment=await transaction.roleSelfAssessment.create({data:{personRoleId:input.personRoleId,periodId:input.periodId,statusId:submittedStatusId,modelVersionId:configured.modelVersion.id,configurationVersion:configured.modelVersion.version,calculatedScore:resultScore,submittedAt:new Date(),responses:{create:items.map(entry=>({behaviorId:entry.item.behaviorId,itemVersionId:entry.item.id,responseOptionId:selectedOptions.get(entry.item.id)!.id,score:answers.get(entry.item.behaviorId)!.score,comments:answers.get(entry.item.behaviorId)!.comments,behaviorStatement:entry.item.statement,behaviorWeight:entry.item.weight,dimensionCode:entry.dimension.code,dimensionName:entry.dimension.name,dimensionWeight:entry.dimension.weight}))},resultDetails:{create:details}}});const maturity=await transaction.roleMaturity.upsert({where:{personRoleId_periodId:{personRoleId:input.personRoleId,periodId:input.periodId}},create:{personRoleId:input.personRoleId,periodId:input.periodId,selfAssessmentId:assessment.id,evaluatedAt:new Date(),score:resultScore,selfAssessmentScore:resultScore,levelId},update:{selfAssessmentId:assessment.id,evaluatedAt:new Date(),score:resultScore,selfAssessmentScore:resultScore,calibratedScore:null,calibratedAt:null,calibratedById:null,calibrationComments:null,levelId}});return{assessmentId:assessment.id,roleMaturityId:maturity.id,score:resultScore,level:this.scoring.levelFor(resultScore),dimensionScores:details.filter(detail=>detail.scopeType==="DIMENSION").map(detail=>detail.score)}});
+    }
 
     const behaviors = await this.prisma.observableBehavior.findMany({
       where: { active: true, roles: { some: { roleId: personRole.roleId, active: true } } },

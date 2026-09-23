@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { postgresOptions } from "../src/database/postgres-options";
 import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
+config({ path: resolve(process.cwd(), "../../.env.local"), quiet: true });
 config({ path: resolve(process.cwd(), "../../.env"), quiet: true });
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -28,6 +29,11 @@ const catalogs = [
     code: "ESTADO_USUARIO",
     name: "Estado de usuario",
     values: [["ACTIVO", "Activo"], ["INACTIVO", "Inactivo"]],
+  },
+  {
+    code: "ESTADO_ONBOARDING",
+    name: "Estado de onboarding",
+    values: [["NO_APLICA", "No aplica"]],
   },
   {
     code: "ESTADO_PERIODO_MADUREZ",

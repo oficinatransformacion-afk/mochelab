@@ -16,6 +16,7 @@ export function assertSafeDatabaseWrite(
 ): string {
   const target = databaseName(databaseUrl);
   const isDevelopment = target === "mochelab_dev";
+  const isLocal = target === "mochelab_local";
   const isMigrationTest = /^mochelab_migration_test_[a-z0-9_]+$/i.test(target);
   const isProduction = target === "mochelab_prod";
 
@@ -34,10 +35,9 @@ export function assertSafeDatabaseWrite(
     return target;
   }
 
-  if (!isDevelopment && !isMigrationTest) {
+  if (!isDevelopment && !isLocal && !isMigrationTest) {
     throw new Error(`BLOQUEADO: ${target || "la base sin nombre"} no está registrada como PRUEBAS ni PRODUCCIÓN.`);
   }
 
   return target;
 }
-

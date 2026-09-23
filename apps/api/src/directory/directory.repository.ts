@@ -92,9 +92,9 @@ export class DirectoryRepository {
     return{...person,createdAt:person.createdAt.toISOString(),updatedAt:person.updatedAt.toISOString(),assignments:person.assignments.map(a=>({...a,startDate:a.startDate?.toISOString().slice(0,10)??null,endDate:a.endDate?.toISOString().slice(0,10)??null,courses:a.courses.map(c=>({...c,score:c.score?.toString()??null,startDate:c.startDate?.toISOString().slice(0,10)??null,endDate:c.endDate?.toISOString().slice(0,10)??null})),maturities:a.maturities.map(m=>({...m,score:m.score.toString(),selfAssessmentScore:m.selfAssessmentScore?.toString()??null,calibratedScore:m.calibratedScore?.toString()??null,evaluatedAt:m.evaluatedAt.toISOString().slice(0,10)}))}))};
   }
 
-  async listAssignments(filters:{search?:string;teamIds?:string[];roleIds?:string[];statusIds?:string[];statusCodes?:string[];onboardingStatusIds?:string[];page?:number;pageSize?:number},teamIds:string[]|null=null){
+  async listAssignments(filters:{search?:string;teamIds?:string[];roleIds?:string[];statusIds?:string[];statusCodes?:string[];onboardingStatusIds?:string[];developmentPathModes?:string[];page?:number;pageSize?:number},teamIds:string[]|null=null){
     const term=filters.search?.trim();
-    const where:any={teamId:filters.teamIds?.length?{in:filters.teamIds}:undefined,roleId:filters.roleIds?.length?{in:filters.roleIds}:undefined,statusId:filters.statusIds?.length?{in:filters.statusIds}:undefined,status:filters.statusCodes?.length?{code:{in:filters.statusCodes}}:undefined,onboardingStatusId:filters.onboardingStatusIds?.length?{in:filters.onboardingStatusIds}:undefined,AND:teamIds===null?undefined:[{teamId:{in:teamIds}}],OR:term?[{person:{names:{contains:term,mode:"insensitive"}}},{person:{dni:{contains:term,mode:"insensitive"}}},{role:{name:{contains:term,mode:"insensitive"}}},{team:{sourceId:{contains:term,mode:"insensitive"}}}]:undefined};
+    const where:any={teamId:filters.teamIds?.length?{in:filters.teamIds}:undefined,roleId:filters.roleIds?.length?{in:filters.roleIds}:undefined,statusId:filters.statusIds?.length?{in:filters.statusIds}:undefined,status:filters.statusCodes?.length?{code:{in:filters.statusCodes}}:undefined,onboardingStatusId:filters.onboardingStatusIds?.length?{in:filters.onboardingStatusIds}:undefined,developmentPathMode:filters.developmentPathModes?.length?{in:filters.developmentPathModes}:undefined,AND:teamIds===null?undefined:[{teamId:{in:teamIds}}],OR:term?[{person:{names:{contains:term,mode:"insensitive"}}},{person:{dni:{contains:term,mode:"insensitive"}}},{role:{name:{contains:term,mode:"insensitive"}}},{team:{sourceId:{contains:term,mode:"insensitive"}}}]:undefined};
     const include={person:{include:{company:true}},role:true,team:{include:{program:true}},status:true,onboardingStatus:true,_count:{select:{courses:true}}} as const,orderBy=[{role:{name:"asc"}},{person:{names:"asc"}},{team:{sourceId:"asc"}}] as any;
     if(!filters.page)return this.prisma.personRole.findMany({where,include,orderBy});
     const page=Math.max(1,filters.page),pageSize=Math.min(100,Math.max(1,filters.pageSize??25));
@@ -224,13 +224,15 @@ export class DirectoryRepository {
     try{return await this.prisma.$transaction(async tx=>{const row=id?await tx.role.update({where:{id},data}):await tx.role.create({data});await tx.audit.create({data:{occurredAt:new Date(),userId,action:id?"UPDATE":"CREATE",entity:"ROLE",recordId:row.id,oldValue:current?this.snapshot(current):undefined,newValue:this.snapshot(row),result:"OK",origin:"WEB"}});return row})}catch(error:unknown){if(typeof error==="object"&&error&&"code" in error&&error.code==="P2002")throw new BadRequestException("Ya existe un rol con ese código");throw error}
   }
 
-  async assignPerson(personId: string, roleId: string, teamId: string,administratorId:string,teamIds:string[]|null=null) {
+  async assignPerson(personId: string, roleId: string, teamId: string,administratorId:string,teamIds:string[]|null=null,development:{withoutDevelopmentPath:boolean;reason?:string}={withoutDevelopmentPath:false}) {
+    const reason=development.reason?.trim()??"";
+    if(development.withoutDevelopmentPath&&reason.length<10)throw new BadRequestException("La justificación de Sin ruta de desarrollo debe tener al menos 10 caracteres");
     const [person, role, team, status, onboarding] = await Promise.all([
       this.prisma.person.findUnique({ where: { id: personId } }),
       this.prisma.role.findUnique({ where: { id: roleId } }),
       this.prisma.team.findUnique({ where: { id: teamId } }),
       this.prisma.catalogValue.findFirst({ where: { code: "ACTIVO", catalog: { code: "ESTADO_ASIGNACION" } } }),
-      this.prisma.catalogValue.findFirst({ where: { code: "PENDIENTE", catalog: { code: "ESTADO_ONBOARDING" } } }),
+      this.prisma.catalogValue.findFirst({ where: { code: development.withoutDevelopmentPath?"NO_APLICA":"PENDIENTE", catalog: { code: "ESTADO_ONBOARDING" } } }),
     ]);
     if (!person || !role || !team || !status || !onboarding) throw new NotFoundException("No se encontró la persona, rol, equipo o configuración requerida");
     if(teamIds!==null){
@@ -245,13 +247,17 @@ export class DirectoryRepository {
     const existing = await this.prisma.personRole.findUnique({ where: { personId_roleId_teamId: { personId, roleId, teamId } } });
     if (existing) throw new ConflictException("La persona ya tiene ese rol en el equipo");
     return this.prisma.$transaction(async (tx) => {
-      const assignment = await tx.personRole.create({ data: { personId, roleId, teamId, statusId: status.id, onboardingStatusId: onboarding.id, startDate: new Date() } });
-      const requiredCourses = await tx.roleCourse.findMany({ where: { roleId, active: true } });
+      const assignment = await tx.personRole.create({ data: { personId, roleId, teamId, statusId: status.id, onboardingStatusId: onboarding.id, startDate: new Date(),developmentPathMode:development.withoutDevelopmentPath?"EXEMPT":"STANDARD",developmentExclusionReason:development.withoutDevelopmentPath?reason:null,developmentPathChangedAt:development.withoutDevelopmentPath?new Date():null,developmentPathChangedBy:development.withoutDevelopmentPath?administratorId:null } });
+      const requiredCourses = development.withoutDevelopmentPath?[]:await tx.roleCourse.findMany({ where: { roleId, active: true } });
       const pending = await tx.catalogValue.findFirst({ where: { code: "PENDIENTE", catalog: { code: "ESTADO_PERSONA_CURSO" } } });
-      if (pending && requiredCourses.length) await tx.personCourse.createMany({ data: requiredCourses.map((item) => ({ personRoleId: assignment.id, courseId: item.courseId, statusId: pending.id })), skipDuplicates: true });
-      await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"PERSON_ROLE",recordId:assignment.id,newValue:{personId,roleId,teamId,generatedCourses:requiredCourses.length},result:"OK",origin:"WEB"}});
+      const completedCodes=["TERMINADO","APROBADO","COMPLETADO"];
+      const previous=requiredCourses.length?await tx.personCourse.findMany({where:{courseId:{in:requiredCourses.map(item=>item.courseId)},personRole:{personId},status:{code:{in:completedCodes}}},orderBy:{updatedAt:"desc"},select:{id:true,courseId:true,statusId:true,score:true,startDate:true,endDate:true}}):[];
+      const recognized=new Map<string,(typeof previous)[number]>();for(const item of previous)if(!recognized.has(item.courseId))recognized.set(item.courseId,item);
+      if (pending && requiredCourses.length) await tx.personCourse.createMany({ data: requiredCourses.map((item) => {const prior=recognized.get(item.courseId);return prior?{personRoleId:assignment.id,courseId:item.courseId,statusId:prior.statusId,score:prior.score,startDate:prior.startDate,endDate:prior.endDate,recognizedFromId:prior.id}:{personRoleId:assignment.id,courseId:item.courseId,statusId:pending.id}}), skipDuplicates: true });
+      const reusedCourses=recognized.size,generatedCourses=requiredCourses.length-reusedCourses;
+      await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"PERSON_ROLE",recordId:assignment.id,newValue:{personId,roleId,teamId,developmentPathMode:assignment.developmentPathMode,developmentExclusionReason:assignment.developmentExclusionReason,generatedCourses,reusedCourses},result:"OK",origin:"WEB"}});
       await tx.communication.create({data:{eventType:"ROLE_ASSIGNED",recipient:person.email,subject:`Nuevo rol asignado: ${role.name}`,templateCode:"ROLE_ASSIGNED",variables:{personName:person.names,roleName:role.name,teamCode:team.sourceId},status:person.email?"PENDIENTE":"OMITIDA_SIN_CORREO",source:"AUTOMATICA",dedupeKey:`ROLE_ASSIGNED:${assignment.id}`,personRoleId:assignment.id,requestedById:administratorId}});
-      return { id: assignment.id, generatedCourses: requiredCourses.length };
+      return { id: assignment.id, generatedCourses, reusedCourses,withoutDevelopmentPath:development.withoutDevelopmentPath };
     });
   }
 

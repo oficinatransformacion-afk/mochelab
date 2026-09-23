@@ -11,6 +11,30 @@ enum InitiativeResponsibilityType {
   DEVELOPER
 }
 
+enum DevelopmentPathMode {
+  STANDARD
+  EXEMPT
+}
+
+enum AssessmentModelVersionStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum AssessmentSectionType {
+  INTEGRAL
+  TECHNICAL
+  SOFT
+}
+
+enum AssessmentResultScope {
+  SECTION
+  DIMENSION
+  LEVEL
+  TOTAL
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -56,6 +80,7 @@ model CatalogValue {
   personCourseSources    PersonCourse[] @relation("PersonCourseSource")
   personCourseGroups     PersonCourse[] @relation("PersonCourseGroup")
   roleMaturityLevels     RoleMaturity[] @relation("RoleMaturityLevel")
+  assessmentItemMaturityLevels AssessmentItemVersion[] @relation("AssessmentItemMaturityLevel")
   teamMaturityLevels     TeamMaturity[] @relation("TeamMaturityLevel")
   selfAssessmentStatuses RoleSelfAssessment[] @relation("SelfAssessmentStatus")
   maturityPeriodStatuses Period[]       @relation("MaturityPeriodStatus")
@@ -186,6 +211,8 @@ model Role {
   roleCourses RoleCourse[]
   targets     IndicatorTarget[]
   observableBehaviors ObservableBehaviorRole[]
+  assessmentModel AssessmentModel?
+  periodAssessmentModels PeriodAssessmentModel[]
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -236,6 +263,10 @@ model PersonRole {
   startDate            DateTime?      @map("start_date") @db.Date
   endDate              DateTime?      @map("end_date") @db.Date
   sourceRow            Int?           @map("source_row")
+  developmentPathMode  DevelopmentPathMode @default(STANDARD) @map("development_path_mode")
+  developmentExclusionReason String?  @map("development_exclusion_reason") @db.VarChar(500)
+  developmentPathChangedAt DateTime?  @map("development_path_changed_at") @db.Timestamptz(3)
+  developmentPathChangedBy String?    @map("development_path_changed_by") @db.Uuid
   person               Person         @relation(fields: [personId], references: [id])
   role                 Role           @relation(fields: [roleId], references: [id])
   team                 Team           @relation(fields: [teamId], references: [id])
@@ -245,9 +276,6 @@ model PersonRole {
   maturities           RoleMaturity[]
   selfAssessments      RoleSelfAssessment[]
   communications       Communication[]
-  initiativesAsProductOwner Initiative[] @relation("InitiativeProductOwner")
-  initiativesAsManager      Initiative[] @relation("InitiativeManager")
-  initiativesAsTechnicalLead Initiative[] @relation("InitiativeTechnicalLead")
   initiativeResponsibilities InitiativeResponsible[]
   createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -299,6 +327,9 @@ model PersonCourse {
   loadedAt       DateTime?     @map("loaded_at") @db.Timestamptz(3)
   loadedByLegacy String?       @map("loaded_by_legacy") @db.VarChar(254)
   sourceRow      Int?          @map("source_row")
+  recognizedFromId String?     @map("recognized_from_id") @db.Uuid
+  recognizedFrom PersonCourse? @relation("CourseRecognition", fields: [recognizedFromId], references: [id])
+  recognitions   PersonCourse[] @relation("CourseRecognition")
   personRole     PersonRole    @relation(fields: [personRoleId], references: [id])
   course         Course        @relation(fields: [courseId], references: [id])
   status         CatalogValue  @relation("PersonCourseStatus", fields: [statusId], references: [id])
@@ -309,6 +340,7 @@ model PersonCourse {
 
   @@unique([personRoleId, courseId])
   @@index([statusId])
+  @@index([recognizedFromId])
   @@map("person_course")
 }
 
@@ -329,6 +361,7 @@ model Period {
   teamMaturities TeamMaturity[]
   selfAssessments RoleSelfAssessment[]
   communications Communication[]
+  assessmentModels PeriodAssessmentModel[]
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -380,6 +413,157 @@ model MaturityDimension {
   @@map("maturity_dimension")
 }
 
+model AssessmentModel {
+  id        String   @id @default(uuid()) @db.Uuid
+  roleId    String   @unique @map("role_id") @db.Uuid
+  code      String   @unique @db.VarChar(100)
+  name      String   @db.VarChar(200)
+  active    Boolean  @default(true)
+  role      Role     @relation(fields: [roleId], references: [id])
+  versions  AssessmentModelVersion[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("assessment_model")
+}
+
+model AssessmentModelVersion {
+  id                String                       @id @default(uuid()) @db.Uuid
+  assessmentModelId String                       @map("assessment_model_id") @db.Uuid
+  version           String                       @db.VarChar(80)
+  status            AssessmentModelVersionStatus @default(DRAFT)
+  calculationMethod String                       @default("WEIGHTED_SECTIONS") @map("calculation_method") @db.VarChar(80)
+  publishedAt       DateTime?                    @map("published_at") @db.Timestamptz(3)
+  validFrom         DateTime?                    @map("valid_from") @db.Date
+  validTo           DateTime?                    @map("valid_to") @db.Date
+  assessmentModel   AssessmentModel              @relation(fields: [assessmentModelId], references: [id])
+  sections          AssessmentSection[]
+  periodLinks       PeriodAssessmentModel[]
+  assessments       RoleSelfAssessment[]
+  createdAt         DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([assessmentModelId, version])
+  @@index([status])
+  @@map("assessment_model_version")
+}
+
+model ResponseScale {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(80)
+  name      String   @db.VarChar(160)
+  active    Boolean  @default(true)
+  options   ResponseOption[]
+  sections  AssessmentSection[]
+  items     AssessmentItemVersion[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("response_scale")
+}
+
+model ResponseOption {
+  id           String   @id @default(uuid()) @db.Uuid
+  scaleId      String   @map("scale_id") @db.Uuid
+  code         String   @db.VarChar(80)
+  label        String   @db.VarChar(160)
+  numericValue Decimal  @map("numeric_value") @db.Decimal(8, 4)
+  isPositive   Boolean  @default(false) @map("is_positive")
+  sortOrder    Int      @default(0) @map("sort_order")
+  active       Boolean  @default(true)
+  scale        ResponseScale @relation(fields: [scaleId], references: [id])
+  responses    SelfAssessmentResponse[]
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([scaleId, code])
+  @@index([scaleId, active, sortOrder])
+  @@map("response_option")
+}
+
+model AssessmentSection {
+  id              String                @id @default(uuid()) @db.Uuid
+  modelVersionId  String                @map("model_version_id") @db.Uuid
+  responseScaleId String                @map("response_scale_id") @db.Uuid
+  code            String                @db.VarChar(80)
+  name            String                @db.VarChar(180)
+  type            AssessmentSectionType @default(INTEGRAL)
+  weight          Decimal               @default(1) @db.Decimal(8, 4)
+  sortOrder       Int                   @default(0) @map("sort_order")
+  active          Boolean               @default(true)
+  modelVersion    AssessmentModelVersion @relation(fields: [modelVersionId], references: [id])
+  responseScale   ResponseScale          @relation(fields: [responseScaleId], references: [id])
+  dimensions      AssessmentDimensionVersion[]
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([modelVersionId, code])
+  @@index([modelVersionId, active, sortOrder])
+  @@map("assessment_section")
+}
+
+model AssessmentDimensionVersion {
+  id          String            @id @default(uuid()) @db.Uuid
+  sectionId   String            @map("section_id") @db.Uuid
+  code        String            @db.VarChar(80)
+  name        String            @db.VarChar(180)
+  description String?
+  weight      Decimal           @default(1) @db.Decimal(8, 4)
+  sortOrder   Int               @default(0) @map("sort_order")
+  active      Boolean           @default(true)
+  section     AssessmentSection @relation(fields: [sectionId], references: [id])
+  items       AssessmentItemVersion[]
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([sectionId, code])
+  @@index([sectionId, active, sortOrder])
+  @@map("assessment_dimension_version")
+}
+
+model AssessmentItemVersion {
+  id              String                     @id @default(uuid()) @db.Uuid
+  dimensionId     String                     @map("dimension_id") @db.Uuid
+  behaviorId      String                     @map("behavior_id") @db.Uuid
+  responseScaleId String?                    @map("response_scale_id") @db.Uuid
+  maturityLevelId String?                    @map("maturity_level_id") @db.Uuid
+  code            String                     @db.VarChar(100)
+  statement       String
+  helpText        String?                    @map("help_text")
+  weight          Decimal                    @default(1) @db.Decimal(8, 4)
+  required        Boolean                    @default(true)
+  sortOrder       Int                        @default(0) @map("sort_order")
+  active          Boolean                    @default(true)
+  dimension       AssessmentDimensionVersion @relation(fields: [dimensionId], references: [id])
+  behavior        ObservableBehavior         @relation(fields: [behaviorId], references: [id])
+  responseScale   ResponseScale?             @relation(fields: [responseScaleId], references: [id])
+  maturityLevel   CatalogValue?               @relation("AssessmentItemMaturityLevel", fields: [maturityLevelId], references: [id])
+  responses       SelfAssessmentResponse[]
+  createdAt       DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([dimensionId, code])
+  @@unique([dimensionId, behaviorId])
+  @@index([dimensionId, active, sortOrder])
+  @@map("assessment_item_version")
+}
+
+model PeriodAssessmentModel {
+  periodId       String                 @map("period_id") @db.Uuid
+  roleId         String                 @map("role_id") @db.Uuid
+  modelVersionId String                 @map("model_version_id") @db.Uuid
+  active         Boolean                @default(true)
+  period         Period                 @relation(fields: [periodId], references: [id])
+  role           Role                   @relation(fields: [roleId], references: [id])
+  modelVersion   AssessmentModelVersion @relation(fields: [modelVersionId], references: [id])
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([periodId, roleId])
+  @@index([modelVersionId])
+  @@map("period_assessment_model")
+}
+
 model ObservableBehavior {
   id          String                   @id @default(uuid()) @db.Uuid
   dimensionId String                   @map("dimension_id") @db.Uuid
@@ -392,6 +576,7 @@ model ObservableBehavior {
   dimension   MaturityDimension        @relation(fields: [dimensionId], references: [id])
   roles       ObservableBehaviorRole[]
   responses   SelfAssessmentResponse[]
+  versionedItems AssessmentItemVersion[]
   createdAt   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -416,6 +601,7 @@ model RoleSelfAssessment {
   periodId        String                   @map("period_id") @db.Uuid
   statusId        String                   @map("status_id") @db.Uuid
   calculatedScore Decimal?                 @map("calculated_score") @db.Decimal(8, 4)
+  modelVersionId  String?                  @map("model_version_id") @db.Uuid
   configurationVersion String              @map("configuration_version") @db.VarChar(80)
   startedAt       DateTime                 @default(now()) @map("started_at") @db.Timestamptz(3)
   submittedAt     DateTime?                @map("submitted_at") @db.Timestamptz(3)
@@ -423,6 +609,8 @@ model RoleSelfAssessment {
   period          Period                   @relation(fields: [periodId], references: [id])
   status          CatalogValue             @relation("SelfAssessmentStatus", fields: [statusId], references: [id])
   responses       SelfAssessmentResponse[]
+  resultDetails   AssessmentResultDetail[]
+  modelVersion    AssessmentModelVersion?  @relation(fields: [modelVersionId], references: [id])
   maturity        RoleMaturity?
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -435,6 +623,8 @@ model RoleSelfAssessment {
 model SelfAssessmentResponse {
   selfAssessmentId String              @map("self_assessment_id") @db.Uuid
   behaviorId       String              @map("behavior_id") @db.Uuid
+  itemVersionId    String?             @map("item_version_id") @db.Uuid
+  responseOptionId String?             @map("response_option_id") @db.Uuid
   score            Decimal             @db.Decimal(8, 4)
   comments         String?
   behaviorStatement String              @map("behavior_statement")
@@ -444,11 +634,35 @@ model SelfAssessmentResponse {
   dimensionWeight  Decimal              @map("dimension_weight") @db.Decimal(8, 4)
   assessment       RoleSelfAssessment  @relation(fields: [selfAssessmentId], references: [id])
   behavior         ObservableBehavior  @relation(fields: [behaviorId], references: [id])
+  itemVersion      AssessmentItemVersion? @relation(fields: [itemVersionId], references: [id])
+  responseOption   ResponseOption?     @relation(fields: [responseOptionId], references: [id])
   createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@id([selfAssessmentId, behaviorId])
+  @@index([itemVersionId])
+  @@index([responseOptionId])
   @@map("self_assessment_response")
+}
+
+model AssessmentResultDetail {
+  id                   String                @id @default(uuid()) @db.Uuid
+  selfAssessmentId     String                @map("self_assessment_id") @db.Uuid
+  scopeType            AssessmentResultScope @map("scope_type")
+  scopeCode            String                @map("scope_code") @db.VarChar(100)
+  scopeName            String                @map("scope_name") @db.VarChar(200)
+  score                Decimal?              @db.Decimal(8, 4)
+  positiveCount        Int?                  @map("positive_count")
+  responseCount        Int                   @map("response_count")
+  completionPercentage Decimal?              @map("completion_percentage") @db.Decimal(8, 4)
+  weight               Decimal               @default(1) @db.Decimal(8, 4)
+  assessment           RoleSelfAssessment    @relation(fields: [selfAssessmentId], references: [id])
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([selfAssessmentId, scopeType, scopeCode])
+  @@index([selfAssessmentId, scopeType])
+  @@map("assessment_result_detail")
 }
 
 model TeamMaturity {
@@ -564,11 +778,8 @@ model Initiative {
   executionEnd                 DateTime?     @map("execution_end") @db.Date
   priorityId                    String?       @map("priority_id") @db.Uuid
   productOwner                  String?       @map("product_owner") @db.VarChar(240)
-  productOwnerPersonRoleId      String?       @map("product_owner_person_role_id") @db.Uuid
   manager                       String?       @db.VarChar(240)
-  managerPersonRoleId           String?       @map("manager_person_role_id") @db.Uuid
   technicalLead                 String?       @map("technical_lead") @db.VarChar(240)
-  technicalLeadPersonRoleId     String?       @map("technical_lead_person_role_id") @db.Uuid
   managementTypeId              String        @map("management_type_id") @db.Uuid
   statusId                      String        @map("status_id") @db.Uuid
   accompanimentMilestone        String?       @map("accompaniment_milestone")
@@ -609,9 +820,6 @@ model Initiative {
   impact                        CatalogValue  @relation("InitiativeImpact", fields: [impactId], references: [id])
   executionArea                 CatalogValue? @relation("InitiativeExecutionArea", fields: [executionAreaId], references: [id])
   objectiveLink                 Objective     @relation(fields: [objectiveId], references: [id])
-  productOwnerAssignment        PersonRole?   @relation("InitiativeProductOwner", fields: [productOwnerPersonRoleId], references: [id])
-  managerAssignment             PersonRole?   @relation("InitiativeManager", fields: [managerPersonRoleId], references: [id])
-  technicalLeadAssignment       PersonRole?   @relation("InitiativeTechnicalLead", fields: [technicalLeadPersonRoleId], references: [id])
   responsibilities               InitiativeResponsible[]
   createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -619,9 +827,6 @@ model Initiative {
   @@index([teamId, year, cycleId])
   @@index([objectiveId])
   @@index([executionAreaId])
-  @@index([productOwnerPersonRoleId])
-  @@index([managerPersonRoleId])
-  @@index([technicalLeadPersonRoleId])
   @@map("initiative")
 }
 

@@ -61,19 +61,20 @@ export class DirectoryController {
 
   @RequirePermission("ASIGNACIONES","create")
   @Post("person-role-assignments")
-  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string; withoutDevelopmentPath?:boolean; developmentExclusionReason?:string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (!body.personId || !body.roleId || !body.teamId) throw new BadRequestException("Persona, rol y equipo son obligatorios");
     const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;
+    if(body.withoutDevelopmentPath&&identity!=="ADMIN"&&identity!=="SYSTEM")throw new ForbiddenException("Solo un administrador puede crear una asignación sin ruta de desarrollo");
     const scope=await this.access.getTeamScope(identity,email);
     if(scope!==null&&!scope.includes(body.teamId))throw new ForbiddenException("No puedes asignar roles fuera de tus equipos autorizados");
-    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope);
+    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope,{withoutDevelopmentPath:Boolean(body.withoutDevelopmentPath),reason:body.developmentExclusionReason});
   }
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments/:id")
   async updateAssignment(@Param("id") id:string,@Body() body:Record<string,unknown>,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;return this.repository.updateAssignment(id,body,await this.access.getUserId(identity,email),await this.access.getTeamScope(identity,email))}
 
   @RequirePermission("ASIGNACIONES","view") @Get("person-role-assignments")
-  async listAssignments(@Query("search") search?:string,@Query("teamIds") teamIds?:string,@Query("roleIds") roleIds?:string,@Query("statusIds") statusIds?:string,@Query("statusCodes") statusCodes?:string,@Query("onboardingStatusIds") onboardingStatusIds?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.listAssignments({search,teamIds:this.ids(teamIds),roleIds:this.ids(roleIds),statusIds:this.ids(statusIds),statusCodes:this.ids(statusCodes),onboardingStatusIds:this.ids(onboardingStatusIds),page:page?Number(page):undefined,pageSize:Number(pageSize)||25},await this.scope(profile,email))}
+  async listAssignments(@Query("search") search?:string,@Query("teamIds") teamIds?:string,@Query("roleIds") roleIds?:string,@Query("statusIds") statusIds?:string,@Query("statusCodes") statusCodes?:string,@Query("onboardingStatusIds") onboardingStatusIds?:string,@Query("developmentPathModes") developmentPathModes?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.listAssignments({search,teamIds:this.ids(teamIds),roleIds:this.ids(roleIds),statusIds:this.ids(statusIds),statusCodes:this.ids(statusCodes),onboardingStatusIds:this.ids(onboardingStatusIds),developmentPathModes:this.ids(developmentPathModes),page:page?Number(page):undefined,pageSize:Number(pageSize)||25},await this.scope(profile,email))}
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments")
   async bulkUpdateAssignments(@Body() body:{ids?:string[];statusId?:string;onboardingStatusId?:string;endDate?:string},@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){

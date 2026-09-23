@@ -12,7 +12,7 @@ export class CommunicationsRepository {
     const period=await this.prisma.period.findUnique({where:{id:periodId},include:{status:true}});
     if(!period)throw new NotFoundException("No se encontró el período");
     if(period.status.code!=="AUTOEVALUACION")throw new BadRequestException("Las comunicaciones solo pueden prepararse mientras la autoevaluación está abierta");
-    const assignments=await this.prisma.personRole.findMany({where:{status:{code:"ACTIVO"},role:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}},selfAssessments:type==="REMINDER"?{none:{periodId}}:undefined},include:{person:true,role:true,team:true,selfAssessments:{where:{periodId},select:{id:true}}},orderBy:[{team:{sourceId:"asc"}},{person:{names:"asc"}}]});
+    const assignments=await this.prisma.personRole.findMany({where:{status:{code:"ACTIVO"},developmentPathMode:"STANDARD",role:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}},selfAssessments:type==="REMINDER"?{none:{periodId}}:undefined},include:{person:true,role:true,team:true,selfAssessments:{where:{periodId},select:{id:true}}},orderBy:[{team:{sourceId:"asc"}},{person:{names:"asc"}}]});
     return{period,assignments:assignments.filter(item=>item.selfAssessments.length===0)};
   }
 

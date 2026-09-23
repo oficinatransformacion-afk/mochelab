@@ -12,6 +12,10 @@ describe("database environment guard", () => {
     expect(assertSafeDatabaseWrite(url("mochelab_dev"), "seed", [], {})).toBe("mochelab_dev");
   });
 
+  it("permite escrituras en la base local aislada", () => {
+    expect(assertSafeDatabaseWrite(url("mochelab_local"), "seed", [], {})).toBe("mochelab_local");
+  });
+
   it("bloquea producción sin doble confirmación", () => {
     expect(() => assertSafeDatabaseWrite(url("mochelab_prod"), "legacy-import", ["--confirm-production"], {})).toThrow("BLOQUEADO");
   });
@@ -28,4 +32,3 @@ describe("database environment guard", () => {
     })).toThrow("datos de visualización");
   });
 });
-

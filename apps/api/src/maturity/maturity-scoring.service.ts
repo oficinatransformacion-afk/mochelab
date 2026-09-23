@@ -72,7 +72,7 @@ export class MaturityScoringService {
     if (score < 0 || score > 2) {
       throw new BadRequestException("El puntaje de madurez debe estar entre 0 y 2");
     }
-    if (score < 0.5) return "POSTULANTE";
+    if (score < 1) return "POSTULANTE";
     if (score < 1.5) return "PRINCIPIANTE";
     if (mastery?.trainedPerson && mastery.facilitatedCamp && mastery.teamIsOfficial) {
       return "MAESTRO";
