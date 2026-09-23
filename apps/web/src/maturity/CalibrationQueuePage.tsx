@@ -12,7 +12,7 @@ const sampleAssessments = [
 ];
 
 function levelFor(score: number): string {
-  if (score < 0.5) return "Postulante";
+  if (score < 1) return "Postulante";
   if (score < 1.5) return "Principiante";
   return "Oficial";
 }
@@ -48,8 +48,8 @@ export function CalibrationQueuePage() {
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">Madurez por rol</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Autoevaluaciones</h1>
-            <p className="mt-3 text-base text-slate-600">Revisa los resultados enviados y completa su calibración.</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Bandeja de calibración</h1>
+            <p className="mt-3 text-base text-slate-600">Revisa las autoevaluaciones enviadas y registra el resultado final por persona y rol.</p>
           </div>
           <div className="flex items-center gap-4">
             <a href="/madurez/periodos" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-slate-500">Períodos</a>
