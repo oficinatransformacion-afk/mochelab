@@ -2,7 +2,9 @@
 
 ## Regla predeterminada
 
-- Toda solicitud, prueba, carga, migración o cambio de datos se ejecuta en **PRUEBAS** salvo que el usuario autorice explícitamente **PRODUCCIÓN**.
+- Toda implementación se realiza y valida primero en **LOCAL**.
+- El despliegue, carga, migración o cambio de datos en **PRUEBAS** requiere autorización explícita del usuario después de validar el resultado local.
+- No interpretar expresiones como `go`, `ok`, `vamos`, `continúa` o `implementa` como autorización para desplegar o modificar **PRUEBAS**.
 - No interpretar expresiones como `go`, `ok`, `continúa` o `implementa` como autorización para modificar producción.
 - Antes de una escritura externa, indicar el entorno y la base objetivo.
 
@@ -24,4 +26,3 @@ Para modificar datos en `mochelab_prod` se requiere todo lo siguiente:
 5. Usar las confirmaciones técnicas exigidas por los scripts; nunca desactivar ni eludir las guardas.
 
 Los datos DUMMY o de visualización están prohibidos en producción, incluso con confirmación.
-

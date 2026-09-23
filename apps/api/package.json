@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:maturity-local": "tsc -p tsconfig.seed-local.json && node dist-seed-local/prisma/seed-maturity-models-local.js",
     "db:import:atf-local": "tsc -p tsconfig.seed-local.json && node dist-seed-local/prisma/import-atf-responses-local.js",
+    "db:audit:maturity-local": "tsc -p tsconfig.seed-local.json && node dist-seed-local/prisma/audit-maturity-transfer-local.js",
     "db:seed:visualization": "tsx prisma/seed-visualization.ts",
     "migration:import": "tsc -p tsconfig.migration.json && node dist-migration/prisma/import-legacy.js"
   },
