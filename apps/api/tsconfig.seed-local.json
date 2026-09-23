@@ -10,6 +10,7 @@
     "prisma/seed-maturity-models-local.ts",
     "prisma/import-atf-responses-local.ts",
     "prisma/audit-maturity-transfer-local.ts",
+    "prisma/maturity-transfer-policy.ts",
     "src/database/environment-guard.ts",
     "src/database/postgres-options.ts"
   ]
