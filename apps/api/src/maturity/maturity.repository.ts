@@ -67,7 +67,7 @@ export class MaturityRepository {
   async createPeriod(input: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion?: string; roleModels?:{roleId:string;modelVersionId:string}[] },administratorId:string) {
     const code = input.code?.trim().toUpperCase();
     const name = input.name?.trim();
-    const roleModels=[...new Map((input.roleModels??[]).map(item=>[item.roleId,item])).values()];
+    const roleModels=[...new Map((input.roleModels??[]).map(item=>[item.modelVersionId,item])).values()];
     if (!code || !name || roleModels.length===0) throw new BadRequestException("Código, nombre y al menos un modelo por rol son obligatorios");
     const versions=await this.prisma.assessmentModelVersion.findMany({where:{id:{in:roleModels.map(item=>item.modelVersionId)},status:"PUBLISHED"},include:{assessmentModel:{select:{roleId:true}}}});
     if(versions.length!==roleModels.length||versions.some(version=>roleModels.find(item=>item.modelVersionId===version.id)?.roleId!==version.assessmentModel.roleId))throw new BadRequestException("Los modelos seleccionados no corresponden a versiones publicadas de sus roles");
@@ -249,8 +249,8 @@ export class MaturityRepository {
   }
 
   private versionedModel(periodId: string, roleId: string) {
-    return this.prisma.periodAssessmentModel.findUnique({
-      where: { periodId_roleId: { periodId, roleId } },
+    return this.prisma.periodAssessmentModel.findFirst({
+      where: { periodId, roleId, active:true },
       include: {
         modelVersion: {
           include: {

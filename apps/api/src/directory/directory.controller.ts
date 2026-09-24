@@ -61,13 +61,13 @@ export class DirectoryController {
 
   @RequirePermission("ASIGNACIONES","create")
   @Post("person-role-assignments")
-  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string; withoutDevelopmentPath?:boolean; developmentExclusionReason?:string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string; modelIds?:string[]; withoutDevelopmentPath?:boolean; developmentExclusionReason?:string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (!body.personId || !body.roleId || !body.teamId) throw new BadRequestException("Persona, rol y equipo son obligatorios");
     const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;
     if(body.withoutDevelopmentPath&&identity!=="ADMIN"&&identity!=="SYSTEM")throw new ForbiddenException("Solo un administrador puede crear una asignación sin ruta de desarrollo");
     const scope=await this.access.getTeamScope(identity,email);
     if(scope!==null&&!scope.includes(body.teamId))throw new ForbiddenException("No puedes asignar roles fuera de tus equipos autorizados");
-    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope,{withoutDevelopmentPath:Boolean(body.withoutDevelopmentPath),reason:body.developmentExclusionReason});
+    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope,{withoutDevelopmentPath:Boolean(body.withoutDevelopmentPath),reason:body.developmentExclusionReason,modelIds:Array.isArray(body.modelIds)?body.modelIds:[]});
   }
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments/:id")
