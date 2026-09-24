@@ -6,11 +6,15 @@ import { PrismaClient } from "@prisma/client";
 import { postgresOptions } from "../src/database/postgres-options";
 import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
-config({ path: resolve(process.cwd(), "../../.env.local"), quiet: true });
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error("DATABASE_URL no configurada");
+const developmentMode = process.argv.includes("--confirm-development");
+config({ path: resolve(process.cwd(), developmentMode ? "../../.env" : "../../.env.local"), quiet: true });
+const configuredDatabaseUrl = process.env.DATABASE_URL;
+if (!configuredDatabaseUrl) throw new Error("DATABASE_URL no configurada");
+const targetUrl = new URL(configuredDatabaseUrl);
+if (developmentMode) targetUrl.pathname = "/mochelab_dev";
+const databaseUrl = targetUrl.toString();
 const databaseName = assertSafeDatabaseWrite(databaseUrl, "seed");
-if (databaseName !== "mochelab_local") throw new Error(`Esta importación solo puede ejecutarse en mochelab_local, no en ${databaseName}`);
+if (databaseName !== (developmentMode ? "mochelab_dev" : "mochelab_local")) throw new Error(`Destino no permitido: ${databaseName}`);
 const prisma = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });
 
 type Answer = { sectionCode: string; dimensionCode: string; itemCode: string; value: number; source: string };
@@ -29,13 +33,13 @@ async function main() {
   const inputPath = process.env.ATF_RESPONSES_JSON ?? resolve(process.cwd(), "../../.artifact-work/atf-responses.local.json");
   const source = JSON.parse(await readFile(inputPath, "utf8")) as SourceFile;
   const [company, team, role, period] = await Promise.all([
-    prisma.company.findUnique({ where: { code: "DEMO_DANPER" } }),
-    prisma.team.findUnique({ where: { sourceId: "DEMO-TEAM-001" } }),
-    prisma.role.findUnique({ where: { sourceId: "MAT-07" } }),
-    prisma.period.findUnique({ where: { code: "LOCAL-MAD-2026" }, include: { status: true } }),
+    developmentMode ? Promise.resolve(null) : prisma.company.findUnique({ where: { code: "DEMO_DANPER" } }),
+    developmentMode ? Promise.resolve(null) : prisma.team.findUnique({ where: { sourceId: "DEMO-TEAM-001" } }),
+    developmentMode ? prisma.role.findFirst({ where: { name: { equals: "ATF", mode: "insensitive" } } }) : prisma.role.findUnique({ where: { sourceId: "MAT-07" } }),
+    prisma.period.findUnique({ where: { code: developmentMode ? "202608" : "LOCAL-MAD-2026" }, include: { status: true } }),
   ]);
-  if (!company || !team || !role || !period) throw new Error("Falta la configuración local de empresa, equipo, rol ATF o período");
-  if (period.status.code !== "AUTOEVALUACION") throw new Error("LOCAL-MAD-2026 no está abierto para autoevaluación");
+  if (!role || !period || (!developmentMode && (!company || !team))) throw new Error("Falta la configuración de empresa, equipo, rol ATF o período");
+  if (!developmentMode && period.status.code !== "AUTOEVALUACION") throw new Error("LOCAL-MAD-2026 no está abierto para autoevaluación");
 
   const periodModel = await prisma.periodAssessmentModel.findUnique({
     where: { periodId_roleId: { periodId: period.id, roleId: role.id } },
@@ -46,6 +50,18 @@ async function main() {
   const configuredItems = periodModel.modelVersion.sections.flatMap(section => section.dimensions.flatMap(dimension => dimension.items.map(item => ({ section, dimension, item, scale: item.responseScale ?? section.responseScale }))));
   if (configuredItems.length !== 125) throw new Error(`El modelo ATF publicado tiene ${configuredItems.length} preguntas; se esperaban 125`);
   const itemByKey = new Map(configuredItems.map(entry => [`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`, entry]));
+  if (developmentMode) {
+    const statusCatalog = await prisma.catalog.upsert({
+      where: { code: "ESTADO_AUTOEVALUACION" },
+      create: { code: "ESTADO_AUTOEVALUACION", name: "Estado de autoevaluación", active: true },
+      update: { active: true },
+    });
+    await prisma.catalogValue.upsert({
+      where: { catalogId_code: { catalogId: statusCatalog.id, code: "ENVIADA" } },
+      create: { catalogId: statusCatalog.id, code: "ENVIADA", name: "Enviada", sortOrder: 1, active: true },
+      update: { name: "Enviada", sortOrder: 1, active: true },
+    });
+  }
   const [personStatusId, assignmentStatusId, onboardingStatusId, submittedStatusId] = await Promise.all([
     catalogValueId("ESTADO_PERSONA", "ACTIVO"), catalogValueId("ESTADO_ASIGNACION", "ACTIVO"),
     catalogValueId("ESTADO_ONBOARDING", "NO_APLICA"), catalogValueId("ESTADO_AUTOEVALUACION", "ENVIADA"),
@@ -55,17 +71,25 @@ async function main() {
   for (const sourcePerson of source.people) {
     const supplied = new Map(sourcePerson.answers.map(answer => [`${answer.sectionCode}|${answer.dimensionCode}|${answer.itemCode}`, answer]));
     if (supplied.size !== configuredItems.length || configuredItems.some(entry => !supplied.has(`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`))) throw new Error(`Las respuestas de ${sourcePerson.dni} no corresponden exactamente al modelo ATF`);
-    const person = await prisma.person.upsert({
-      where: { dni_companyId: { dni: sourcePerson.dni, companyId: company.id } },
-      create: { dni: sourcePerson.dni, companyId: company.id, names: sourcePerson.name, email: sourcePerson.email, statusId: personStatusId },
-      update: { names: sourcePerson.name, email: sourcePerson.email, statusId: personStatusId },
-    });
-    const assignment = await prisma.personRole.upsert({
-      where: { personId_roleId_teamId: { personId: person.id, roleId: role.id, teamId: team.id } },
-      create: { personId: person.id, roleId: role.id, teamId: team.id, statusId: assignmentStatusId, onboardingStatusId, developmentPathMode: "STANDARD" },
-      update: { statusId: assignmentStatusId, onboardingStatusId, developmentPathMode: "STANDARD" },
-    });
-    const existing = await prisma.roleSelfAssessment.findUnique({ where: { personRoleId_periodId: { personRoleId: assignment.id, periodId: period.id } }, include: { responses: true } });
+    const person = developmentMode
+      ? await prisma.person.findFirst({ where: { dni: sourcePerson.dni } })
+      : await prisma.person.upsert({
+        where: { dni_companyId: { dni: sourcePerson.dni, companyId: company!.id } },
+        create: { dni: sourcePerson.dni, companyId: company!.id, names: sourcePerson.name, email: sourcePerson.email, statusId: personStatusId },
+        update: { names: sourcePerson.name, email: sourcePerson.email, statusId: personStatusId },
+      });
+    if (!person) throw new Error(`No existe la persona con DNI ${sourcePerson.dni} en PRUEBAS`);
+    const assignment = developmentMode
+      ? (await prisma.personRole.findMany({ where: { personId: person.id, roleId: role.id, status: { code: "ACTIVO" }, developmentPathMode: "STANDARD" }, include: { team: true }, orderBy: { team: { sourceId: "asc" } } }))[0]
+      : await prisma.personRole.upsert({
+        where: { personId_roleId_teamId: { personId: person.id, roleId: role.id, teamId: team!.id } },
+        create: { personId: person.id, roleId: role.id, teamId: team!.id, statusId: assignmentStatusId, onboardingStatusId, developmentPathMode: "STANDARD" },
+        update: { statusId: assignmentStatusId, onboardingStatusId, developmentPathMode: "STANDARD" },
+      });
+    if (!assignment) throw new Error(`El DNI ${sourcePerson.dni} no tiene una asignación ATF activa con ruta de desarrollo`);
+    const existing = developmentMode
+      ? await prisma.roleSelfAssessment.findFirst({ where: { periodId: period.id, personRole: { personId: person.id, roleId: role.id } }, include: { responses: true } })
+      : await prisma.roleSelfAssessment.findUnique({ where: { personRoleId_periodId: { personRoleId: assignment.id, periodId: period.id } }, include: { responses: true } });
     if (existing && !(existing.responses.length === 125 && existing.responses.every(response => response.comments?.startsWith("Importado desde ")))) throw new Error(`El DNI ${sourcePerson.dni} ya tiene una autoevaluación que no será sobrescrita`);
 
     const details: { scopeType: "SECTION" | "DIMENSION" | "LEVEL" | "TOTAL"; scopeCode: string; scopeName: string; score: number | null; positiveCount: number | null; responseCount: number; completionPercentage: number | null; weight: number }[] = [];

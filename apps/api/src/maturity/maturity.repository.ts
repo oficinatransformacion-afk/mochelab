@@ -13,6 +13,21 @@ export class MaturityRepository {
   ) {}
   private snapshot(value:unknown){return JSON.parse(JSON.stringify(value,(_,item)=>typeof item==="bigint"?item.toString():item))}
 
+  private async periodPopulation(periodId:string){
+    const configuredModels=await this.prisma.periodAssessmentModel.count({where:{periodId,active:true}});
+    const roleFilter=configuredModels?{periodAssessmentModels:{some:{periodId,active:true}}}:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}};
+    const assignmentWhere={status:{code:"ACTIVO"},developmentPathMode:"STANDARD" as const,role:roleFilter};
+    const [eligibleRows,submittedRows,resultRows]=await Promise.all([
+      this.prisma.personRole.findMany({where:assignmentWhere,distinct:["personId","roleId"],select:{personId:true,roleId:true}}),
+      this.prisma.roleSelfAssessment.findMany({where:{periodId,personRole:{role:roleFilter}},select:{personRole:{select:{personId:true,roleId:true}}}}),
+      this.prisma.roleMaturity.findMany({where:{periodId,personRole:{role:roleFilter}},select:{calibratedAt:true,personRole:{select:{personId:true,roleId:true}}}}),
+    ]);
+    const submitted=new Set(submittedRows.map(row=>`${row.personRole.personId}:${row.personRole.roleId}`)).size;
+    const results=new Set(resultRows.map(row=>`${row.personRole.personId}:${row.personRole.roleId}`));
+    const calibrated=new Set(resultRows.filter(row=>row.calibratedAt!==null).map(row=>`${row.personRole.personId}:${row.personRole.roleId}`)).size;
+    return{eligibleRoles:eligibleRows.length,submitted,pendingSubmission:Math.max(eligibleRows.length-submitted,0),results:results.size,calibrated,pendingCalibration:Math.max(results.size-calibrated,0)};
+  }
+
   private async catalogValueId(catalogCode: string, valueCode: string): Promise<string> {
     const value = await this.prisma.catalogValue.findFirst({
       where: { code: valueCode, active: true, catalog: { code: catalogCode, active: true } },
@@ -36,14 +51,22 @@ export class MaturityRepository {
         _count: { select: { selfAssessments: true, roleMaturities: true } },
       },
     });
-    return Promise.all(periods.map(async period=>{const[calibrated,configuredModels]=await Promise.all([this.prisma.roleMaturity.count({where:{periodId:period.id,calibratedAt:{not:null}}}),this.prisma.periodAssessmentModel.count({where:{periodId:period.id,active:true}})]);const eligibleRoles=await this.prisma.personRole.count({where:{status:{code:"ACTIVO"},developmentPathMode:"STANDARD",role:{...(configuredModels?{periodAssessmentModels:{some:{periodId:period.id,active:true}}}:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}})}}});return{...period,summary:{eligibleRoles,submitted:period._count.selfAssessments,pendingSubmission:Math.max(eligibleRoles-period._count.selfAssessments,0),calibrated,pendingCalibration:Math.max(period._count.roleMaturities-calibrated,0)}}}));
+    return Promise.all(periods.map(async period=>{const[population,models]=await Promise.all([this.periodPopulation(period.id),this.prisma.periodAssessmentModel.findMany({where:{periodId:period.id,active:true},include:{role:{select:{id:true,name:true}},modelVersion:{select:{id:true,version:true}}},orderBy:{role:{name:"asc"}}})]);return{...period,_count:{...period._count,roleMaturities:population.results},models:models.map(item=>({roleId:item.roleId,role:item.role.name,modelVersionId:item.modelVersionId,version:item.modelVersion.version})),summary:population}}));
   }
 
-  async createPeriod(input: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion: string },administratorId:string) {
+  async listPeriodModelOptions(){
+    const versions=await this.prisma.assessmentModelVersion.findMany({where:{status:"PUBLISHED",assessmentModel:{active:true,role:{status:{code:"ACTIVO"}}}},include:{assessmentModel:{include:{role:{select:{id:true,sourceId:true,name:true}}}},_count:{select:{sections:true}}},orderBy:[{assessmentModel:{role:{name:"asc"}}},{version:"desc"}]});
+    return versions.map(item=>({roleId:item.assessmentModel.role.id,roleSourceId:item.assessmentModel.role.sourceId,role:item.assessmentModel.role.name,modelVersionId:item.id,version:item.version,model:item.assessmentModel.name,sectionCount:item._count.sections}));
+  }
+
+  async createPeriod(input: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion?: string; roleModels?:{roleId:string;modelVersionId:string}[] },administratorId:string) {
     const code = input.code?.trim().toUpperCase();
     const name = input.name?.trim();
-    const configurationVersion = input.configurationVersion?.trim();
-    if (!code || !name || !configurationVersion) throw new BadRequestException("Código, nombre y versión son obligatorios");
+    const roleModels=[...new Map((input.roleModels??[]).map(item=>[item.roleId,item])).values()];
+    if (!code || !name || roleModels.length===0) throw new BadRequestException("Código, nombre y al menos un modelo por rol son obligatorios");
+    const versions=await this.prisma.assessmentModelVersion.findMany({where:{id:{in:roleModels.map(item=>item.modelVersionId)},status:"PUBLISHED"},include:{assessmentModel:{select:{roleId:true}}}});
+    if(versions.length!==roleModels.length||versions.some(version=>roleModels.find(item=>item.modelVersionId===version.id)?.roleId!==version.assessmentModel.roleId))throw new BadRequestException("Los modelos seleccionados no corresponden a versiones publicadas de sus roles");
+    const configurationVersion=input.configurationVersion?.trim()||([...new Set(versions.map(item=>item.version))].length===1?versions[0].version:"POR_ROL");
     const dates = {
       startDate: new Date(input.startDate), endDate: new Date(input.endDate),
       selfAssessmentOpensAt: new Date(input.selfAssessmentOpensAt), selfAssessmentClosesAt: new Date(input.selfAssessmentClosesAt),
@@ -53,7 +76,7 @@ export class MaturityRepository {
     this.periods.validateDates(dates);
     const statusId = await this.catalogValueId("ESTADO_PERIODO_MADUREZ", "PLANIFICADO");
     try {
-      return await this.prisma.$transaction(async tx=>{const period=await tx.period.create({ data: { code, name, ...dates, configurationVersion, statusId }, include: { status: { select: { code: true, name: true } }, _count: { select: { selfAssessments: true, roleMaturities: true } } } });await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"MATURITY_PERIOD",recordId:period.id,newValue:this.snapshot(period),result:"OK",origin:"WEB"}});return period});
+      return await this.prisma.$transaction(async tx=>{const period=await tx.period.create({ data: { code, name, ...dates, configurationVersion, statusId }, include: { status: { select: { code: true, name: true } }, _count: { select: { selfAssessments: true, roleMaturities: true } } } });await tx.periodAssessmentModel.createMany({data:roleModels.map(item=>({periodId:period.id,roleId:item.roleId,modelVersionId:item.modelVersionId,active:true}))});await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"MATURITY_PERIOD",recordId:period.id,newValue:{...this.snapshot(period),roleModels},result:"OK",origin:"WEB"}});return period});
     } catch (error: unknown) {
       if (typeof error === "object" && error && "code" in error && error.code === "P2002") throw new BadRequestException("Ya existe un período con ese código");
       throw error;
@@ -74,18 +97,32 @@ export class MaturityRepository {
         if (anotherOpen > 0) throw new BadRequestException("Ya existe otro período con la autoevaluación abierta");
       }
       if(next==="CALIBRACION"){
-        const configuredModels=await tx.periodAssessmentModel.count({where:{periodId:id,active:true}});
-        const [eligible,submitted]=await Promise.all([tx.personRole.count({where:{status:{code:"ACTIVO"},developmentPathMode:"STANDARD",role:{...(configuredModels?{periodAssessmentModels:{some:{periodId:id,active:true}}}:{observableBehaviors:{some:{active:true,behavior:{active:true,dimension:{active:true}}}}})}}}),tx.roleSelfAssessment.count({where:{periodId:id}})]);
-        if(submitted<eligible)throw new BadRequestException(`No se puede iniciar la calibración: faltan ${eligible-submitted} autoevaluaciones`);
+        const population=await this.periodPopulation(id);
+        if(population.submitted<population.eligibleRoles)throw new BadRequestException(`No se puede iniciar la calibración: faltan ${population.pendingSubmission} autoevaluaciones`);
       }
       if (next === "CERRADO") {
-        const pending = await tx.roleMaturity.count({ where: { periodId: id, selfAssessmentId: { not: null }, calibratedAt: null } });
-        if (pending > 0) throw new BadRequestException(`No se puede cerrar: quedan ${pending} calibraciones pendientes`);
+        const population=await this.periodPopulation(id);
+        if (population.pendingCalibration > 0) throw new BadRequestException(`No se puede cerrar: quedan ${population.pendingCalibration} calibraciones pendientes`);
       }
       const status = await tx.catalogValue.findFirst({ where: { code: next, active: true, catalog: { code: "ESTADO_PERIODO_MADUREZ", active: true } }, select: { id: true } });
       if (!status) throw new BadRequestException(`Falta configurar ESTADO_PERIODO_MADUREZ.${next}`);
       const updated=await tx.period.update({ where: { id }, data: { statusId: status.id, active: !["CERRADO", "CANCELADO"].includes(next) }, include: { status: { select: { code: true, name: true } }, _count: { select: { selfAssessments: true, roleMaturities: true } } } });
       await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"STATUS_CHANGE",entity:"MATURITY_PERIOD",recordId:id,oldValue:this.snapshot(period),newValue:this.snapshot(updated),result:"OK",origin:"WEB"}});
+      return updated;
+    });
+  }
+
+  async reopenPeriodForCalibration(id:string,justification:string,administratorId:string){
+    const reason=justification?.trim();
+    if(!reason||reason.length<10)throw new BadRequestException("La justificación de reapertura debe tener al menos 10 caracteres");
+    return this.prisma.$transaction(async tx=>{
+      const period=await tx.period.findUnique({where:{id},include:{status:{select:{code:true,name:true}}}});
+      if(!period)throw new NotFoundException("No se encontró el período");
+      if(period.status.code!=="CERRADO")throw new BadRequestException("Solo puede reabrirse un período cerrado");
+      const status=await tx.catalogValue.findFirst({where:{code:"CALIBRACION",active:true,catalog:{code:"ESTADO_PERIODO_MADUREZ",active:true}},select:{id:true}});
+      if(!status)throw new BadRequestException("Falta configurar ESTADO_PERIODO_MADUREZ.CALIBRACION");
+      const updated=await tx.period.update({where:{id},data:{statusId:status.id,active:true},include:{status:{select:{code:true,name:true}},_count:{select:{selfAssessments:true,roleMaturities:true}}}});
+      await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"REOPEN_FOR_CALIBRATION",entity:"MATURITY_PERIOD",recordId:id,oldValue:this.snapshot(period),newValue:{...this.snapshot(updated),justification:reason},result:"OK",origin:"WEB"}});
       return updated;
     });
   }

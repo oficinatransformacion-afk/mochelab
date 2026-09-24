@@ -14,14 +14,22 @@ export class MaturityController {
     return this.repository.listPeriods();
   }
 
+  @Get("periods/model-options")
+  listPeriodModelOptions(){return this.repository.listPeriodModelOptions();}
+
   @Post("periods")
-  async createPeriod(@Body() body: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion: string },@Headers("x-mochelab-demo-user-email") email?:string) {
+  async createPeriod(@Body() body: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion?: string; roleModels?:{roleId:string;modelVersionId:string}[] },@Headers("x-mochelab-demo-user-email") email?:string) {
     return this.repository.createPeriod(body,await this.access.getUserId("ADMIN",email));
   }
 
   @Patch("periods/:id/status")
   async transitionPeriod(@Param("id") id: string, @Body() body: { status: string },@Headers("x-mochelab-demo-user-email") email?:string) {
     return this.repository.transitionPeriod(id, body.status,await this.access.getUserId("ADMIN",email));
+  }
+
+  @Patch("periods/:id/reopen-calibration")
+  async reopenPeriod(@Param("id") id:string,@Body() body:{justification?:string},@Headers("x-mochelab-demo-user-email") email?:string){
+    return this.repository.reopenPeriodForCalibration(id,body.justification??"",await this.access.getUserId("ADMIN",email));
   }
 
   @Get("configuration")
