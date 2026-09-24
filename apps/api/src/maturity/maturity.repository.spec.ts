@@ -79,4 +79,16 @@ describe("MaturityRepository person-role identity", () => {
     expect(result.status.code).toBe("CALIBRACION");
     expect(tx.audit.create).toHaveBeenCalledWith({data:expect.objectContaining({action:"REOPEN_FOR_CALIBRATION",entity:"MATURITY_PERIOD",recordId:periodId})});
   });
+
+  it("does not open self-assessment without a published model per role", async () => {
+    const tx={
+      period:{findUnique:vi.fn().mockResolvedValue({id:periodId,status:{code:"PLANIFICADO"}})},
+      periodAssessmentModel:{findMany:vi.fn().mockResolvedValue([])},
+    };
+    const prisma={$transaction:vi.fn((callback:(client:typeof tx)=>unknown)=>callback(tx))};
+    const repository = new MaturityRepository(prisma as never, new MaturityScoringService(), {validateTransition:vi.fn()} as never);
+
+    await expect(repository.transitionPeriod(periodId,"AUTOEVALUACION","admin-1"))
+      .rejects.toThrow("el período no tiene modelos por rol");
+  });
 });

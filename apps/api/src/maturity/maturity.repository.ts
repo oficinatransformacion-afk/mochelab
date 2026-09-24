@@ -51,7 +51,7 @@ export class MaturityRepository {
         _count: { select: { selfAssessments: true, roleMaturities: true } },
       },
     });
-    return Promise.all(periods.map(async period=>{const[population,models]=await Promise.all([this.periodPopulation(period.id),this.prisma.periodAssessmentModel.findMany({where:{periodId:period.id,active:true},include:{role:{select:{id:true,name:true}},modelVersion:{select:{id:true,version:true}}},orderBy:{role:{name:"asc"}}})]);return{...period,_count:{...period._count,roleMaturities:population.results},models:models.map(item=>({roleId:item.roleId,role:item.role.name,modelVersionId:item.modelVersionId,version:item.modelVersion.version})),summary:population}}));
+    return Promise.all(periods.map(async period=>{const[population,models]=await Promise.all([this.periodPopulation(period.id),this.prisma.periodAssessmentModel.findMany({where:{periodId:period.id,active:true},include:{role:{select:{id:true,name:true}},modelVersion:{select:{id:true,version:true,assessmentModel:{select:{name:true}}}}},orderBy:{role:{name:"asc"}}})]);return{...period,_count:{...period._count,roleMaturities:population.results},models:models.map(item=>({roleId:item.roleId,role:item.role.name,modelVersionId:item.modelVersionId,model:item.modelVersion.assessmentModel.name,version:item.modelVersion.version})),summary:population}}));
   }
 
   async listPeriodModelOptions(){
@@ -93,6 +93,11 @@ export class MaturityRepository {
       const current = period.status.code as MaturityPeriodStatus;
       this.periods.validateTransition(current, next);
       if (next === "AUTOEVALUACION") {
+        const configuredModels=await tx.periodAssessmentModel.findMany({where:{periodId:id,active:true},select:{modelVersion:{select:{status:true}}}});
+        if(configuredModels.length===0)throw new BadRequestException("No se puede abrir la autoevaluación: el período no tiene modelos por rol");
+        if(configuredModels.some(item=>item.modelVersion.status!=="PUBLISHED"))throw new BadRequestException("No se puede abrir la autoevaluación: todos los modelos deben estar publicados");
+        const population=await this.periodPopulation(id);
+        if(population.eligibleRoles===0)throw new BadRequestException("No se puede abrir la autoevaluación: no existen personas y roles elegibles");
         const anotherOpen = await tx.period.count({ where: { id: { not: id }, active: true, status: { code: "AUTOEVALUACION", catalog: { code: "ESTADO_PERIODO_MADUREZ" } } } });
         if (anotherOpen > 0) throw new BadRequestException("Ya existe otro período con la autoevaluación abierta");
       }
