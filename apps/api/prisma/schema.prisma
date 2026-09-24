@@ -106,6 +106,7 @@ model CatalogValue {
   initiativeCategories   Initiative[]   @relation("InitiativeCategory")
   initiativeImpacts      Initiative[]   @relation("InitiativeImpact")
   initiativeExecutionAreas Initiative[] @relation("InitiativeExecutionArea")
+  initiativeImprovementSupervisors Initiative[] @relation("InitiativeImprovementSupervisor")
   targetIndicators       IndicatorTarget[] @relation("TargetIndicator")
   targetScopes           IndicatorTarget[] @relation("TargetScope")
   targetUnits            IndicatorTarget[] @relation("TargetUnit")
@@ -789,6 +790,7 @@ model Initiative {
   categoryId                    String?       @map("category_id") @db.Uuid
   impactId                      String        @map("impact_id") @db.Uuid
   executionAreaId               String?       @map("execution_area_id") @db.Uuid
+  improvementSupervisorId       String?       @map("improvement_supervisor_id") @db.Uuid
   impactDescription             String?       @map("impact_description")
   projectedEconomicBenefit      Decimal?      @map("projected_economic_benefit") @db.Decimal(20, 4)
   actualEconomicBenefit         Decimal?      @map("actual_economic_benefit") @db.Decimal(20, 4)
@@ -819,6 +821,7 @@ model Initiative {
   category                      CatalogValue? @relation("InitiativeCategory", fields: [categoryId], references: [id])
   impact                        CatalogValue  @relation("InitiativeImpact", fields: [impactId], references: [id])
   executionArea                 CatalogValue? @relation("InitiativeExecutionArea", fields: [executionAreaId], references: [id])
+  improvementSupervisor         CatalogValue? @relation("InitiativeImprovementSupervisor", fields: [improvementSupervisorId], references: [id])
   objectiveLink                 Objective     @relation(fields: [objectiveId], references: [id])
   responsibilities               InitiativeResponsible[]
   createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -827,6 +830,7 @@ model Initiative {
   @@index([teamId, year, cycleId])
   @@index([objectiveId])
   @@index([executionAreaId])
+  @@index([improvementSupervisorId])
   @@map("initiative")
 }
 
