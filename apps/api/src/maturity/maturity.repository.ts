@@ -261,7 +261,7 @@ export class MaturityRepository {
 
   async listCalibrations(){
     this.prisma.requireConnection();
-    return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
+    return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true,status:{select:{code:true,name:true}}}},selfAssessment:{select:{configurationVersion:true,modelVersion:{select:{id:true,version:true,assessmentModel:{select:{name:true}}}}}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
   }
 
   async teamMaturityOptions(teamIds:string[]|null=null){
@@ -289,13 +289,15 @@ export class MaturityRepository {
   }
 
   async getCalibration(id: string) {
-    const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: true, selfAssessment: { include: { responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] }, resultDetails: { orderBy: [{ scopeType: "asc" }, { scopeCode: "asc" }] } } }, personRole: { include: { person: true, role: true, team: true } } } });
+    const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: {include:{status:true}}, selfAssessment: { include: { modelVersion:{include:{assessmentModel:{select:{name:true}}}},responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] }, resultDetails: { orderBy: [{ scopeType: "asc" }, { scopeCode: "asc" }] } } }, personRole: { include: { person: true, role: true, team: true } } } });
     if (!maturity) throw new NotFoundException("No se encontró la calibración");
     const [people, officialTeamMaturities] = await Promise.all([
       this.prisma.person.findMany({ select: { id: true, names: true }, orderBy: { names: "asc" } }),
       this.prisma.teamMaturity.findMany({ where: { teamId: maturity.personRole.teamId, periodId: maturity.periodId, level: { code: "OFICIAL" } }, select: { id: true } }),
     ]);
-    return { id: maturity.id, personId:maturity.personRole.person.id,person: maturity.personRole.person.names, role: maturity.personRole.role.name, team: maturity.personRole.team.sourceId, period: maturity.period.name, originalScore: Number(maturity.selfAssessmentScore ?? maturity.score), calibratedScore:maturity.calibratedScore===null?null:Number(maturity.calibratedScore),calibratedAt:maturity.calibratedAt,calibrationComments:maturity.calibrationComments, level: maturity.level.code, responses: maturity.selfAssessment?.responses.map((r) => ({ behaviorId: r.behaviorId, statement: r.behaviorStatement, score: Number(r.score), comments: r.comments, dimensionCode: r.dimensionCode, dimensionName: r.dimensionName })) ?? [], resultDetails:maturity.selfAssessment?.resultDetails.map(detail=>({scopeType:detail.scopeType,scopeCode:detail.scopeCode,scopeName:detail.scopeName,score:detail.score===null?null:Number(detail.score),positiveCount:detail.positiveCount,responseCount:detail.responseCount,completionPercentage:detail.completionPercentage===null?null:Number(detail.completionPercentage),weight:Number(detail.weight)}))??[], people:people.filter(person=>person.id!==maturity.personRole.person.id), officialTeamMaturities };
+    const modelVersion=maturity.selfAssessment?.modelVersion;
+    const integrityReason=!maturity.selfAssessment?"No existe una autoevaluación asociada":!modelVersion?"No se puede identificar la versión del modelo utilizada":maturity.period.status.code!=="CALIBRACION"?"El período no se encuentra en etapa de calibración":null;
+    return { id: maturity.id, personId:maturity.personRole.person.id,person: maturity.personRole.person.names, role: maturity.personRole.role.name, team: maturity.personRole.team.sourceId, period: maturity.period.name,periodStatus:maturity.period.status.code,model:modelVersion?{id:modelVersion.id,name:modelVersion.assessmentModel.name,version:modelVersion.version}:null,integrity:{canCalibrate:integrityReason===null,reason:integrityReason}, originalScore: Number(maturity.selfAssessmentScore ?? maturity.score), calibratedScore:maturity.calibratedScore===null?null:Number(maturity.calibratedScore),calibratedAt:maturity.calibratedAt,calibrationComments:maturity.calibrationComments, level: maturity.level.code, responses: maturity.selfAssessment?.responses.map((r) => ({ behaviorId: r.behaviorId, statement: r.behaviorStatement, score: Number(r.score), comments: r.comments, dimensionCode: r.dimensionCode, dimensionName: r.dimensionName })) ?? [], resultDetails:maturity.selfAssessment?.resultDetails.map(detail=>({scopeType:detail.scopeType,scopeCode:detail.scopeCode,scopeName:detail.scopeName,score:detail.score===null?null:Number(detail.score),positiveCount:detail.positiveCount,responseCount:detail.responseCount,completionPercentage:detail.completionPercentage===null?null:Number(detail.completionPercentage),weight:Number(detail.weight)}))??[], people:people.filter(person=>person.id!==maturity.personRole.person.id), officialTeamMaturities };
   }
 
   async getSelfAssessmentForm(personRoleId?: string,teamIds:string[]|null=null,personId:string|null=null) {
@@ -443,9 +445,11 @@ export class MaturityRepository {
     this.prisma.requireConnection();
     const maturity = await this.prisma.roleMaturity.findUnique({
       where: { id: input.roleMaturityId },
-      include: { personRole: { include: {person:true,role:true,team:true} },period:{include:{status:true}} },
+      include: { selfAssessment:{select:{id:true,modelVersionId:true}},personRole: { include: {person:true,role:true,team:true} },period:{include:{status:true}} },
     });
     if (!maturity) throw new NotFoundException("No se encontró el resultado de madurez");
+    if(!maturity.selfAssessment)throw new BadRequestException("No existe una autoevaluación asociada a este resultado");
+    if(!maturity.selfAssessment.modelVersionId)throw new BadRequestException("No se puede calibrar porque no se identificó la versión del modelo utilizada");
     if(maturity.period.status.code!=="CALIBRACION")throw new BadRequestException("El período no se encuentra en etapa de calibración");
     if(maturity.calibratedAt)throw new BadRequestException("Esta autoevaluación ya fue calibrada");
     const existingCalibration=await this.prisma.roleMaturity.findFirst({where:{id:{not:maturity.id},periodId:maturity.periodId,calibratedAt:{not:null},personRole:{personId:maturity.personRole.personId,roleId:maturity.personRole.roleId}},select:{id:true}});

@@ -41,7 +41,7 @@ describe("MaturityRepository person-role identity", () => {
     const prisma = {
       requireConnection:vi.fn(),
       roleMaturity:{
-        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
+        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, selfAssessment:{id:"assessment-2",modelVersionId:"model-v1"},period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
         findFirst:vi.fn().mockResolvedValue({ id:"maturity-1" }),
       },
     };
@@ -49,6 +49,19 @@ describe("MaturityRepository person-role identity", () => {
 
     await expect(repository.calibrate({ roleMaturityId:personRoleId, calibratedScore:1.2 }, "admin-1"))
       .rejects.toThrow("Esta persona y rol ya tienen una calibración final para el período");
+  });
+
+  it("rejects calibration when the historical model version is missing", async () => {
+    const prisma = {
+      requireConnection:vi.fn(),
+      roleMaturity:{
+        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, selfAssessment:{id:"assessment-2",modelVersionId:null},period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
+      },
+    };
+    const repository = new MaturityRepository(prisma as never, new MaturityScoringService(), {} as never);
+
+    await expect(repository.calibrate({ roleMaturityId:personRoleId, calibratedScore:1.2 }, "admin-1"))
+      .rejects.toThrow("No se puede calibrar porque no se identificó la versión del modelo utilizada");
   });
 
   it("reopens a closed period for calibration with an audited justification", async () => {
