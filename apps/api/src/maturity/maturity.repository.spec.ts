@@ -91,4 +91,26 @@ describe("MaturityRepository person-role identity", () => {
     await expect(repository.transitionPeriod(periodId,"AUTOEVALUACION","admin-1"))
       .rejects.toThrow("el período no tiene modelos por rol");
   });
+
+  it("retires the previous published version before publishing the draft", async () => {
+    const version={
+      id:"version-2",assessmentModelId:"model-1",status:"DRAFT",assessmentModel:{id:"model-1"},
+      sections:[{id:"section-1",code:"INTEGRAL",name:"Integral",type:"INTEGRAL",weight:1,responseScaleId:"scale-1",dimensions:[{id:"dimension-1",code:"COMPROMISO",name:"Compromiso",description:null,weight:1,items:[{behaviorId:"behavior-1",weight:1,required:true,responseScaleId:null,maturityLevelId:null}]}]}],
+    };
+    const tx={
+      assessmentModelVersion:{
+        updateMany:vi.fn().mockResolvedValue({count:1}),
+        update:vi.fn().mockResolvedValue({...version,status:"PUBLISHED"}),
+      },
+      audit:{create:vi.fn().mockResolvedValue({id:"audit-1"})},
+    };
+    const prisma={assessmentModelVersion:{findUnique:vi.fn().mockResolvedValue(version)},$transaction:vi.fn((callback:(client:typeof tx)=>unknown)=>callback(tx))};
+    const repository=new MaturityRepository(prisma as never,new MaturityScoringService(),{} as never);
+
+    const result=await repository.publishAssessmentModelVersion("version-2","admin-1");
+
+    expect(result.status).toBe("PUBLISHED");
+    expect(tx.assessmentModelVersion.updateMany).toHaveBeenCalledWith(expect.objectContaining({where:{assessmentModelId:"model-1",status:"PUBLISHED",id:{not:"version-2"}},data:expect.objectContaining({status:"RETIRED"})}));
+    expect(tx.assessmentModelVersion.update).toHaveBeenCalledWith(expect.objectContaining({where:{id:"version-2"},data:expect.objectContaining({status:"PUBLISHED"})}));
+  });
 });

@@ -4,6 +4,11 @@ import { PrismaService } from "../database/prisma.service";
 import { MaturityScoringService } from "./maturity-scoring.service";
 import { MaturityPeriodService, type MaturityPeriodStatus } from "./maturity-period.service";
 
+type ModelItemInput={behaviorId:string;weight:number;required?:boolean;responseScaleId?:string|null;maturityLevelId?:string|null};
+type ModelDimensionInput={code:string;name:string;description?:string;weight:number;items:ModelItemInput[]};
+type ModelSectionInput={code:string;name:string;type:"INTEGRAL"|"TECHNICAL"|"SOFT";weight:number;responseScaleId:string;dimensions:ModelDimensionInput[]};
+type ModelDefinitionInput={sections:ModelSectionInput[]};
+
 @Injectable()
 export class MaturityRepository {
   constructor(
@@ -95,7 +100,7 @@ export class MaturityRepository {
       if (next === "AUTOEVALUACION") {
         const configuredModels=await tx.periodAssessmentModel.findMany({where:{periodId:id,active:true},select:{modelVersion:{select:{status:true}}}});
         if(configuredModels.length===0)throw new BadRequestException("No se puede abrir la autoevaluación: el período no tiene modelos por rol");
-        if(configuredModels.some(item=>item.modelVersion.status!=="PUBLISHED"))throw new BadRequestException("No se puede abrir la autoevaluación: todos los modelos deben estar publicados");
+        if(configuredModels.some(item=>item.modelVersion.status==="DRAFT"))throw new BadRequestException("No se puede abrir la autoevaluación: los modelos no pueden estar en borrador");
         const population=await this.periodPopulation(id);
         if(population.eligibleRoles===0)throw new BadRequestException("No se puede abrir la autoevaluación: no existen personas y roles elegibles");
         const anotherOpen = await tx.period.count({ where: { id: { not: id }, active: true, status: { code: "AUTOEVALUACION", catalog: { code: "ESTADO_PERIODO_MADUREZ" } } } });
@@ -174,6 +179,73 @@ export class MaturityRepository {
         },
       },
     });
+  }
+
+  async listAssessmentModelOptions(){
+    this.prisma.requireConnection();
+    const [scales,levels]=await Promise.all([
+      this.prisma.responseScale.findMany({where:{active:true},include:{options:{where:{active:true},orderBy:{sortOrder:"asc"}}},orderBy:{name:"asc"}}),
+      this.prisma.catalogValue.findMany({where:{active:true,catalog:{code:"NIVEL_MADUREZ",active:true}},select:{id:true,code:true,name:true,sortOrder:true},orderBy:{sortOrder:"asc"}}),
+    ]);
+    return{scales,levels};
+  }
+
+  async createAssessmentModel(input:{roleId:string;code:string;name:string;version:string},administratorId:string){
+    const roleId=input.roleId?.trim(),code=input.code?.trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_"),name=input.name?.trim(),version=input.version?.trim();
+    if(!roleId||!code||!name||!version)throw new BadRequestException("Rol, código, nombre y versión son obligatorios");
+    try{return await this.prisma.$transaction(async tx=>{
+      const model=await tx.assessmentModel.create({data:{roleId,code,name,versions:{create:{version,status:"DRAFT"}}},include:{versions:true,role:{select:{id:true,sourceId:true,name:true}}}});
+      await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"ASSESSMENT_MODEL",recordId:model.id,newValue:this.snapshot(model),result:"OK",origin:"WEB"}});
+      return model;
+    })}catch(error:unknown){if(typeof error==="object"&&error&&"code" in error&&error.code==="P2002")throw new BadRequestException("El rol o código ya tiene un modelo de madurez");throw error}
+  }
+
+  async createAssessmentModelVersion(modelId:string,input:{version:string;cloneFromVersionId?:string},administratorId:string){
+    const version=input.version?.trim();if(!version)throw new BadRequestException("La versión es obligatoria");
+    const source=input.cloneFromVersionId?await this.prisma.assessmentModelVersion.findFirst({where:{id:input.cloneFromVersionId,assessmentModelId:modelId},include:{sections:{orderBy:{sortOrder:"asc"},include:{dimensions:{orderBy:{sortOrder:"asc"},include:{items:{orderBy:{sortOrder:"asc"}}}}}}}}):null;
+    if(input.cloneFromVersionId&&!source)throw new BadRequestException("La versión base no pertenece al modelo");
+    try{return await this.prisma.$transaction(async tx=>{
+      const created=await tx.assessmentModelVersion.create({data:{assessmentModelId:modelId,version,status:"DRAFT",calculationMethod:source?.calculationMethod??"WEIGHTED_SECTIONS",sections:source?{create:source.sections.map(section=>({responseScaleId:section.responseScaleId,code:section.code,name:section.name,type:section.type,weight:section.weight,sortOrder:section.sortOrder,dimensions:{create:section.dimensions.map(dimension=>({code:dimension.code,name:dimension.name,description:dimension.description,weight:dimension.weight,sortOrder:dimension.sortOrder,items:{create:dimension.items.map(item=>({behaviorId:item.behaviorId,responseScaleId:item.responseScaleId,maturityLevelId:item.maturityLevelId,code:item.code,statement:item.statement,helpText:item.helpText,weight:item.weight,required:item.required,sortOrder:item.sortOrder}))}}))}}))}:undefined},include:{sections:true}});
+      await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"ASSESSMENT_MODEL_VERSION",recordId:created.id,newValue:this.snapshot(created),result:"OK",origin:"WEB"}});return created;
+    })}catch(error:unknown){if(typeof error==="object"&&error&&"code" in error&&error.code==="P2002")throw new BadRequestException("Ya existe esa versión para el modelo");throw error}
+  }
+
+  private validateModelDefinition(input:ModelDefinitionInput){
+    if(!Array.isArray(input.sections)||input.sections.length===0)throw new BadRequestException("El modelo debe tener al menos una sección");
+    const sectionCodes=new Set<string>();
+    for(const section of input.sections){section.code=section.code?.trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_");section.name=section.name?.trim();if(!section.code||!section.name||!section.responseScaleId||!section.type||section.weight<=0)throw new BadRequestException("Cada sección requiere código, nombre, tipo, escala y peso positivo");if(sectionCodes.has(section.code))throw new BadRequestException(`Código de sección duplicado: ${section.code}`);sectionCodes.add(section.code);if(!section.dimensions?.length)throw new BadRequestException(`La sección ${section.name} debe tener al menos una dimensión`);const dimensionCodes=new Set<string>();for(const dimension of section.dimensions){dimension.code=dimension.code?.trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_");dimension.name=dimension.name?.trim();if(!dimension.code||!dimension.name||dimension.weight<=0)throw new BadRequestException(`Cada dimensión de ${section.name} requiere código, nombre y peso positivo`);if(dimensionCodes.has(dimension.code))throw new BadRequestException(`Código de dimensión duplicado en ${section.name}: ${dimension.code}`);dimensionCodes.add(dimension.code);if(!dimension.items?.length)throw new BadRequestException(`La dimensión ${dimension.name} debe tener al menos una pregunta`);if(dimension.items.some(item=>!item.behaviorId||item.weight<=0))throw new BadRequestException(`Cada pregunta de ${dimension.name} requiere un comportamiento y peso positivo`);if(new Set(dimension.items.map(item=>item.behaviorId)).size!==dimension.items.length)throw new BadRequestException(`Hay preguntas repetidas en ${dimension.name}`)}}
+  }
+
+  async saveAssessmentModelVersion(versionId:string,input:ModelDefinitionInput,administratorId:string){
+    this.validateModelDefinition(input);
+    const current=await this.prisma.assessmentModelVersion.findUnique({where:{id:versionId},include:{assessmentModel:{select:{roleId:true}}}});if(!current)throw new NotFoundException("No se encontró la versión");if(current.status!=="DRAFT")throw new BadRequestException("Solo puede editarse una versión en borrador");
+    const behaviorIds=[...new Set(input.sections.flatMap(section=>section.dimensions.flatMap(dimension=>dimension.items.map(item=>item.behaviorId))))];
+    const scaleIds=[...new Set(input.sections.flatMap(section=>[section.responseScaleId,...section.dimensions.flatMap(dimension=>dimension.items.map(item=>item.responseScaleId).filter((id):id is string=>Boolean(id)))]))];
+    const [behaviorRows,scaleCount]=await Promise.all([this.prisma.observableBehavior.findMany({where:{id:{in:behaviorIds},active:true,roles:{some:{roleId:current.assessmentModel.roleId,active:true}}},select:{id:true,code:true,statement:true,helpText:true}}),this.prisma.responseScale.count({where:{id:{in:scaleIds},active:true}})]);
+    if(behaviorRows.length!==behaviorIds.length)throw new BadRequestException("Una o más preguntas no están activas o no corresponden al rol del modelo");if(scaleCount!==scaleIds.length)throw new BadRequestException("Una o más escalas no están activas");const behaviorMap=new Map(behaviorRows.map(item=>[item.id,item]));
+    return this.prisma.$transaction(async tx=>{
+      const sectionIds=(await tx.assessmentSection.findMany({where:{modelVersionId:versionId},select:{id:true}})).map(item=>item.id);
+      const dimensionIds=(await tx.assessmentDimensionVersion.findMany({where:{sectionId:{in:sectionIds}},select:{id:true}})).map(item=>item.id);
+      await tx.assessmentItemVersion.deleteMany({where:{dimensionId:{in:dimensionIds}}});
+      await tx.assessmentDimensionVersion.deleteMany({where:{sectionId:{in:sectionIds}}});
+      await tx.assessmentSection.deleteMany({where:{modelVersionId:versionId}});
+      for(const [sectionIndex,section] of input.sections.entries()){
+        await tx.assessmentSection.create({data:{
+          modelVersionId:versionId,responseScaleId:section.responseScaleId,code:section.code,name:section.name,type:section.type,weight:section.weight,sortOrder:sectionIndex,
+          dimensions:{create:section.dimensions.map((dimension,dimensionIndex)=>({
+            code:dimension.code,name:dimension.name,description:dimension.description?.trim()||null,weight:dimension.weight,sortOrder:dimensionIndex,
+            items:{create:dimension.items.map((item,itemIndex)=>{const behavior=behaviorMap.get(item.behaviorId)!;return{behaviorId:item.behaviorId,responseScaleId:item.responseScaleId||null,maturityLevelId:item.maturityLevelId||null,code:behavior.code,statement:behavior.statement,helpText:behavior.helpText,weight:item.weight,required:item.required!==false,sortOrder:itemIndex}})},
+          }))},
+        }});
+      }
+      await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"UPDATE",entity:"ASSESSMENT_MODEL_VERSION",recordId:versionId,oldValue:this.snapshot(current),newValue:this.snapshot(input),result:"OK",origin:"WEB"}});
+      return tx.assessmentModelVersion.findUnique({where:{id:versionId},include:{sections:{include:{dimensions:{include:{items:true}}}}}});
+    });
+  }
+
+  async publishAssessmentModelVersion(versionId:string,administratorId:string){
+    const version=await this.prisma.assessmentModelVersion.findUnique({where:{id:versionId},include:{sections:{include:{dimensions:{include:{items:true}}}},assessmentModel:true}});if(!version)throw new NotFoundException("No se encontró la versión");if(version.status!=="DRAFT")throw new BadRequestException("Solo puede publicarse una versión en borrador");this.validateModelDefinition({sections:version.sections.map(section=>({code:section.code,name:section.name,type:section.type,weight:Number(section.weight),responseScaleId:section.responseScaleId,dimensions:section.dimensions.map(dimension=>({code:dimension.code,name:dimension.name,description:dimension.description??undefined,weight:Number(dimension.weight),items:dimension.items.map(item=>({behaviorId:item.behaviorId,weight:Number(item.weight),required:item.required,responseScaleId:item.responseScaleId,maturityLevelId:item.maturityLevelId}))}))}))});
+    return this.prisma.$transaction(async tx=>{await tx.assessmentModelVersion.updateMany({where:{assessmentModelId:version.assessmentModelId,status:"PUBLISHED",id:{not:versionId}},data:{status:"RETIRED",validTo:new Date()}});const published=await tx.assessmentModelVersion.update({where:{id:versionId},data:{status:"PUBLISHED",publishedAt:new Date(),validFrom:new Date(),validTo:null}});await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"PUBLISH",entity:"ASSESSMENT_MODEL_VERSION",recordId:versionId,oldValue:this.snapshot(version),newValue:this.snapshot(published),result:"OK",origin:"WEB"}});return published});
   }
 
   private versionedModel(periodId: string, roleId: string) {
@@ -321,7 +393,7 @@ export class MaturityRepository {
     const submitted=await this.prisma.roleSelfAssessment.findMany({where:{periodId:period.id,personRoleId:{in:assignments.map(item=>item.id)}},select:{personRoleId:true,submittedAt:true,status:{select:{code:true,name:true}},personRole:{select:{roleId:true}}}});
     const submittedByRole=new Map(submitted.map(item=>[item.personRole.roleId,item]));
     const configured=await this.versionedModel(period.id,assignment.roleId);
-    if(configured?.active&&configured.modelVersion.status==="PUBLISHED"){
+    if(configured?.active&&configured.modelVersion.status!=="DRAFT"){
       const dimensions=configured.modelVersion.sections.flatMap(section=>section.dimensions.map(dimension=>({
         id:dimension.id,code:dimension.code,name:dimension.name,description:dimension.description,
         section:{id:section.id,code:section.code,name:section.name,type:section.type,weight:Number(section.weight)},
@@ -357,12 +429,12 @@ export class MaturityRepository {
     if(personRole.developmentPathMode!=="STANDARD")throw new BadRequestException("La asignación no tiene ruta de desarrollo y no admite evaluaciones de madurez");
     if (period.status.code !== "AUTOEVALUACION") throw new BadRequestException("El período no admite autoevaluaciones");
     const configured=await this.versionedModel(period.id,personRole.roleId);
-    const expectedVersion=configured?.active&&configured.modelVersion.status==="PUBLISHED"?configured.modelVersion.version:period.configurationVersion;
+    const expectedVersion=configured?.active&&configured.modelVersion.status!=="DRAFT"?configured.modelVersion.version:period.configurationVersion;
     if (expectedVersion !== input.configurationVersion) throw new BadRequestException("La versión del formulario no corresponde al período y rol");
     if(await this.prisma.roleSelfAssessment.findFirst({where:{periodId:input.periodId,personRole:{personId:personRole.personId,roleId:personRole.roleId}},select:{id:true}}))throw new BadRequestException("La autoevaluación de esta persona y rol ya fue enviada para el período");
     const existingMaturity=await this.prisma.roleMaturity.findFirst({where:{periodId:input.periodId,personRole:{personId:personRole.personId,roleId:personRole.roleId}},select:{id:true}});
 
-    if(configured?.active&&configured.modelVersion.status==="PUBLISHED"){
+    if(configured?.active&&configured.modelVersion.status!=="DRAFT"){
       const items=configured.modelVersion.sections.flatMap(section=>section.dimensions.flatMap(dimension=>dimension.items.map(item=>({section,dimension,item,scale:item.responseScale??section.responseScale}))));
       const answers=new Map(input.answers.map(answer=>[answer.behaviorId,answer]));
       if(items.length===0||items.some(entry=>!answers.has(entry.item.behaviorId))||answers.size!==items.length)throw new BadRequestException("Se deben responder todos y únicamente los comportamientos aplicables al rol");

@@ -42,6 +42,21 @@ export class MaturityController {
     return this.repository.listAssessmentModels();
   }
 
+  @Get("configuration/model-options")
+  listAssessmentModelOptions(){return this.repository.listAssessmentModelOptions();}
+
+  @Post("configuration/models")
+  async createAssessmentModel(@Body() body:{roleId:string;code:string;name:string;version:string},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.createAssessmentModel(body,await this.access.getUserId("ADMIN",email));}
+
+  @Post("configuration/models/:id/versions")
+  async createAssessmentModelVersion(@Param("id") id:string,@Body() body:{version:string;cloneFromVersionId?:string},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.createAssessmentModelVersion(id,body,await this.access.getUserId("ADMIN",email));}
+
+  @Patch("configuration/model-versions/:id")
+  async saveAssessmentModelVersion(@Param("id") id:string,@Body() body:Parameters<MaturityRepository["saveAssessmentModelVersion"]>[1],@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.saveAssessmentModelVersion(id,body,await this.access.getUserId("ADMIN",email));}
+
+  @Post("configuration/model-versions/:id/publish")
+  async publishAssessmentModelVersion(@Param("id") id:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.publishAssessmentModelVersion(id,await this.access.getUserId("ADMIN",email));}
+
   @Post("configuration/dimensions")
   async createDimension(@Body() body: { code: string; name: string; description?: string; weight: number },@Headers("x-mochelab-demo-user-email") email?:string) { return this.repository.createDimension(body,await this.access.getUserId("ADMIN",email)); }
 
