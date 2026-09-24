@@ -34,22 +34,23 @@ export class ObjectivesRepository {
  }
 
  async options(teamIds:string[]|null=null){
-  const [values,teams,parents]=await Promise.all([
+  const [values,teams,parents,years]=await Promise.all([
    this.prisma.catalogValue.findMany({where:{active:true,catalog:{code:{in:[...catalogCodes]},active:true}},orderBy:[{catalog:{code:"asc"}},{sortOrder:"asc"},{name:"asc"}],select:{id:true,code:true,name:true,catalog:{select:{code:true}}}}),
    this.prisma.team.findMany({where:teamIds===null?undefined:{id:{in:teamIds}},orderBy:{sourceId:"asc"},select:{id:true,sourceId:true,program:{select:{name:true}}}}),
    this.prisma.objective.findMany({where:{isSystemPlaceholder:false,recordStatus:{code:"ACTIVO"},level:{code:"CORPORATIVO"}},orderBy:{sourceId:"desc"},select:{id:true,sourceId:true,objective:true,year:true,cycleId:true,focusAreaId:true}}),
+   this.prisma.objective.findMany({where:{isSystemPlaceholder:false},select:{year:true},distinct:["year"],orderBy:{year:"desc"}}),
   ]);
   const catalogs=Object.fromEntries(catalogCodes.map(code=>[code,values.filter(v=>v.catalog.code===code).map(({catalog:_,...v})=>v)]));
-  return {catalogs,teams,parents:parents.map(p=>({...p,sourceId:String(p.sourceId) }))};
+  return {catalogs,teams,parents:parents.map(p=>({...p,sourceId:String(p.sourceId) })),years:years.map(item=>item.year)};
  }
 
- async list(year?:number,search?:string,teamIds:string[]|null=null,filters?:{selectedTeamIds?:string[];cycleIds?:string[];statusIds?:string[];page?:number;pageSize?:number}){
-  if(year!==undefined&&(!Number.isInteger(year)||year<2000||year>2100))throw new BadRequestException("Año inválido");
+ async list(years:number[]=[],search?:string,teamIds:string[]|null=null,filters?:{selectedTeamIds?:string[];cycleIds?:string[];statusIds?:string[];page?:number;pageSize?:number}){
+  if(years.some(year=>!Number.isInteger(year)||year<2000||year>2100))throw new BadRequestException("Año inválido");
   const requestedTeams=filters?.selectedTeamIds??[],corporate=requestedTeams.includes("CORPORATIVO"),requestedIds=requestedTeams.filter(id=>id!=="CORPORATIVO");
   const teamWhere:any=teamIds===null
    ?requestedTeams.length?{OR:[...(corporate?[{teamId:null}]:[]),...(requestedIds.length?[{teamId:{in:requestedIds}}]:[])]}:{}
    :{teamId:{in:requestedTeams.length?requestedIds.filter(id=>teamIds.includes(id)):teamIds}};
-  const where:any={isSystemPlaceholder:false,year,...teamWhere,cycleId:filters?.cycleIds?.length?{in:filters.cycleIds}:undefined,recordStatusId:filters?.statusIds?.length?{in:filters.statusIds}:undefined,AND:search?.trim()?{OR:[{objective:{contains:search.trim(),mode:"insensitive"}},{keyResult:{contains:search.trim(),mode:"insensitive"}}]}:undefined};
+  const where:any={isSystemPlaceholder:false,year:years.length?{in:years}:undefined,...teamWhere,cycleId:filters?.cycleIds?.length?{in:filters.cycleIds}:undefined,recordStatusId:filters?.statusIds?.length?{in:filters.statusIds}:undefined,AND:search?.trim()?{OR:[{objective:{contains:search.trim(),mode:"insensitive"}},{keyResult:{contains:search.trim(),mode:"insensitive"}}]}:undefined};
   const include={level:{select:{id:true,code:true,name:true}},team:{select:{id:true,sourceId:true,program:{select:{name:true}}}},focusArea:{select:{id:true,code:true,name:true}},cycle:{select:{id:true,code:true,name:true}},direction:{select:{id:true,code:true,name:true}},type:{select:{id:true,code:true,name:true}},unit:{select:{id:true,code:true,name:true}},resultStatus:{select:{id:true,code:true,name:true}},recordStatus:{select:{id:true,code:true,name:true}},parent:{select:{id:true,sourceId:true,objective:true}},_count:{select:{children:true,initiatives:true}}} as const;
   if(!filters?.page){const rows=await this.prisma.objective.findMany({where,orderBy:[{year:"desc"},{sourceId:"desc"}],include});return rows.map(row=>this.dto(row))}
   const page=Math.max(1,filters.page),pageSize=Math.min(100,Math.max(1,filters.pageSize??10));
