@@ -38,6 +38,23 @@ describe("DirectoryRepository assignment scope", () => {
     expect(prisma.person.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 100 }));
   });
 
+  it("returns the focus area id required to edit a team", async () => {
+    const prisma = {
+      team: {
+        findMany: vi.fn().mockResolvedValue([{
+          id: "team-1", sourceId: "2", name: "EAD Alcachofa", focusAreaId: "focus-1", programId: null,
+          unitId: null, focusArea: { name: "EAD" }, program: null, unit: null,
+          status: { name: "ACTIVO" }, statusId: "status-1", assignments: [],
+        }]),
+      },
+    };
+    const repository = new DirectoryRepository(prisma as never);
+
+    const [team] = await repository.listTeams();
+
+    expect(team).toEqual(expect.objectContaining({ id: "team-1", focusAreaId: "focus-1", focusArea: "EAD" }));
+  });
+
   it("rejects assigning a person who is not an active member of the user's teams", async () => {
     const prisma = {
       person: { findUnique: vi.fn().mockResolvedValue({ id: "person-2" }) },

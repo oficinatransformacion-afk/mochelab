@@ -153,6 +153,7 @@ export class DirectoryRepository {
       id: team.id,
       sourceId: team.sourceId,
       name:team.name,
+      focusAreaId:team.focusAreaId,
       focusArea: team.focusArea?.name ?? null,
       program: team.program?.name ?? team.name,
       programId:team.programId,
@@ -173,7 +174,7 @@ export class DirectoryRepository {
     const where:any={id:teamIds===null?undefined:{in:teamIds},assignments:roleNames.length?{some:{status:{code:"ACTIVO"},role:{name:{in:roleNames},status:{code:"ACTIVO"}}}}:undefined,OR:term?[{sourceId:{contains:term,mode:"insensitive"}},{name:{contains:term,mode:"insensitive"}},{program:{name:{contains:term,mode:"insensitive"}}},{unit:{name:{contains:term,mode:"insensitive"}}}]:undefined};
     const include={program:true,focusArea:true,unit:{include:{company:true}},status:true,assignments:{where:{status:{code:"ACTIVO"},role:{status:{code:"ACTIVO"},name:roleNames.length?{in:roleNames}:undefined}},include:{person:true,role:true}}} as const;
     const[total,teams]=await Promise.all([this.prisma.team.count({where}),this.prisma.team.findMany({where,include,orderBy:{sourceId:"asc"},skip:(page-1)*pageSize,take:pageSize})]);
-    const items=teams.map(team=>({id:team.id,sourceId:team.sourceId,name:team.name,focusArea:team.focusArea?.name??null,program:team.program?.name??team.name,programId:team.programId,unit:team.unit?.name??null,unitId:team.unitId,company:team.unit?.company?.name??null,status:team.status.name,statusId:team.statusId,members:team.assignments.map(assignment=>({name:assignment.person.names,role:assignment.role.name}))}));
+    const items=teams.map(team=>({id:team.id,sourceId:team.sourceId,name:team.name,focusAreaId:team.focusAreaId,focusArea:team.focusArea?.name??null,program:team.program?.name??team.name,programId:team.programId,unit:team.unit?.name??null,unitId:team.unitId,company:team.unit?.company?.name??null,status:team.status.name,statusId:team.statusId,members:team.assignments.map(assignment=>({name:assignment.person.names,role:assignment.role.name}))}));
     return{items,total,page,pageSize,pages:Math.max(1,Math.ceil(total/pageSize))};
   }
 
