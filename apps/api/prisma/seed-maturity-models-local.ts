@@ -7,6 +7,7 @@ import { postgresOptions } from "../src/database/postgres-options";
 import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
 const developmentMode = process.argv.includes("--confirm-development");
+const allRoles = process.argv.includes("--all-roles");
 config({ path: resolve(process.cwd(), developmentMode ? "../../.env" : "../../.env.local"), quiet: true });
 const configuredDatabaseUrl = process.env.DATABASE_URL;
 if (!configuredDatabaseUrl) throw new Error("DATABASE_URL no configurada");
@@ -24,6 +25,16 @@ type SectionDefinition = { code: string; name: string; type: AssessmentSectionTy
 type RoleDefinition = { sourceId: string; name: string; sections: SectionDefinition[] };
 type ModelFile = { version: string; roles: RoleDefinition[] };
 
+const officialRoleSourceIds: Record<string, string> = {
+  "MAT-01": "1",
+  "MAT-02": "2",
+  "MAT-03": "3",
+  "MAT-04": "4",
+  "MAT-05": "5",
+  "MAT-06": "5",
+  "MAT-07": "6",
+};
+
 const scaleDefinitions = [
   { code: "FREQUENCY_0_2", name: "Frecuencia 0 a 2", options: [["NEVER", "Nunca", 0, false], ["SOMETIMES", "A veces", 1, false], ["ALWAYS", "Siempre", 2, true]] },
   { code: "BINARY_COMPLIANCE", name: "Cumplimiento binario", options: [["NO", "No", 0, false], ["YES", "Sí", 2, true]] },
@@ -38,8 +49,8 @@ async function catalogValueId(catalogCode: string, valueCode: string) {
 
 async function main() {
   const source = JSON.parse(await readFile(resolve(process.cwd(), "prisma/data/maturity-models.local.json"), "utf8")) as ModelFile;
-  const roleDefinitions = developmentMode ? source.roles.filter(role => role.name === "ATF") : source.roles;
-  if (developmentMode && roleDefinitions.length !== 1) throw new Error("No se encontró exactamente una definición ATF");
+  const roleDefinitions = developmentMode && !allRoles ? source.roles.filter(role => role.name === "ATF") : source.roles;
+  if (developmentMode && !allRoles && roleDefinitions.length !== 1) throw new Error("No se encontró exactamente una definición ATF");
   const [roleTypeId, roleStatusId, assignmentStatusId, onboardingStatusId, periodStatusId] = await Promise.all([
     catalogValueId("TIPO_ROL", "3_OPERATIVO"), catalogValueId("ESTADO_ROL", "ACTIVO"),
     catalogValueId("ESTADO_ASIGNACION", "ACTIVO"), catalogValueId("ESTADO_ONBOARDING", "NO_APLICA"),
@@ -97,8 +108,11 @@ async function main() {
   if (!period) throw new Error("No existe el período 202608 en PRUEBAS");
 
   for (const [roleIndex, definition] of roleDefinitions.entries()) {
+    const sourceRoleId = developmentMode && allRoles
+      ? officialRoleSourceIds[definition.sourceId]
+      : definition.sourceId;
     const role = developmentMode
-      ? await prisma.role.findFirst({ where: { name: { equals: "ATF", mode: "insensitive" } } })
+      ? await prisma.role.findFirst({ where: sourceRoleId ? { sourceId: sourceRoleId } : { name: { equals: "ATF", mode: "insensitive" } } })
       : await prisma.role.upsert({
         where: { sourceId: definition.sourceId },
         create: { sourceId: definition.sourceId, name: definition.name, typeId: roleTypeId, statusId: roleStatusId },
@@ -110,11 +124,11 @@ async function main() {
       create: { personId: person.id, roleId: role.id, teamId: team.id, statusId: assignmentStatusId, onboardingStatusId },
       update: { statusId: assignmentStatusId, onboardingStatusId },
     });
-    const model = await prisma.assessmentModel.upsert({
-      where: { roleId: role.id },
-      create: { roleId: role.id, code: `MODEL_${definition.sourceId}`, name: `Modelo de madurez - ${definition.name}` },
-      update: { code: `MODEL_${definition.sourceId}`, name: `Modelo de madurez - ${definition.name}`, active: true },
-    });
+    const modelCode = `MODEL_${definition.sourceId}`;
+    const existingModel = await prisma.assessmentModel.findUnique({ where: { code: modelCode } });
+    const model = existingModel
+      ? await prisma.assessmentModel.update({ where: { id: existingModel.id }, data: { roleId: role.id, name: `Modelo de madurez - ${definition.name}`, active: true } })
+      : await prisma.assessmentModel.create({ data: { roleId: role.id, code: modelCode, name: `Modelo de madurez - ${definition.name}` } });
     const version = await prisma.assessmentModelVersion.upsert({
       where: { assessmentModelId_version: { assessmentModelId: model.id, version: source.version } },
       create: { assessmentModelId: model.id, version: source.version, status: "PUBLISHED", publishedAt: new Date(), validFrom: new Date("2026-09-01") },
@@ -164,7 +178,7 @@ async function main() {
       }
     }
     await prisma.periodAssessmentModel.upsert({
-      where: { periodId_roleId: { periodId: period.id, roleId: role.id } },
+      where: { periodId_modelVersionId: { periodId: period.id, modelVersionId: version.id } },
       create: { periodId: period.id, roleId: role.id, modelVersionId: version.id },
       update: { modelVersionId: version.id, active: true },
     });

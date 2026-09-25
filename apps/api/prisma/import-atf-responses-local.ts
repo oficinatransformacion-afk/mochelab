@@ -41,8 +41,8 @@ async function main() {
   if (!role || !period || (!developmentMode && (!company || !team))) throw new Error("Falta la configuración de empresa, equipo, rol ATF o período");
   if (!developmentMode && period.status.code !== "AUTOEVALUACION") throw new Error("LOCAL-MAD-2026 no está abierto para autoevaluación");
 
-  const periodModel = await prisma.periodAssessmentModel.findUnique({
-    where: { periodId_roleId: { periodId: period.id, roleId: role.id } },
+  const periodModel = await prisma.periodAssessmentModel.findFirst({
+    where: { periodId: period.id, roleId: role.id, active: true },
     include: { modelVersion: { include: { sections: { where: { active: true }, include: { responseScale: { include: { options: { where: { active: true } } } }, dimensions: { where: { active: true }, include: { items: { where: { active: true }, include: { behavior: true, maturityLevel: true, responseScale: { include: { options: { where: { active: true } } } } } } } } } } } } },
   });
   if (!periodModel || periodModel.modelVersion.version !== source.modelVersion || periodModel.modelVersion.status !== "PUBLISHED") throw new Error("La versión ATF del archivo no coincide con la publicada en LOCAL");
@@ -89,7 +89,7 @@ async function main() {
     if (!assignment) throw new Error(`El DNI ${sourcePerson.dni} no tiene una asignación ATF activa con ruta de desarrollo`);
     const existing = developmentMode
       ? await prisma.roleSelfAssessment.findFirst({ where: { periodId: period.id, personRole: { personId: person.id, roleId: role.id } }, include: { responses: true } })
-      : await prisma.roleSelfAssessment.findUnique({ where: { personRoleId_periodId: { personRoleId: assignment.id, periodId: period.id } }, include: { responses: true } });
+      : await prisma.roleSelfAssessment.findFirst({ where: { personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id }, include: { responses: true } });
     if (existing && !(existing.responses.length === 125 && existing.responses.every(response => response.comments?.startsWith("Importado desde ")))) throw new Error(`El DNI ${sourcePerson.dni} ya tiene una autoevaluación que no será sobrescrita`);
 
     const details: { scopeType: "SECTION" | "DIMENSION" | "LEVEL" | "TOTAL"; scopeCode: string; scopeName: string; score: number | null; positiveCount: number | null; responseCount: number; completionPercentage: number | null; weight: number }[] = [];
@@ -146,8 +146,8 @@ async function main() {
         }) }, resultDetails: { create: details },
       } });
       await transaction.roleMaturity.upsert({
-        where: { personRoleId_periodId: { personRoleId: assignment.id, periodId: period.id } },
-        create: { personRoleId: assignment.id, periodId: period.id, selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, levelId },
+        where: { personRoleId_periodId_modelVersionId: { personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id } },
+        create: { personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id, selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, levelId },
         update: { selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, calibratedScore: null, calibratedAt: null, calibratedById: null, calibrationComments: null, levelId },
       });
     });
