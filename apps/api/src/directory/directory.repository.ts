@@ -16,6 +16,10 @@ export class DirectoryRepository {
       companyId:person.companyId,
       organizationalUnit: person.organizationalUnit?.name ?? null,
       organizationalUnitId:person.organizationalUnitId,
+      managementId: person.managementId,
+      subManagementId: person.subManagementId,
+      divisionId: person.divisionId,
+      businessPartnerValueId: person.businessPartnerValueId,
       phone:person.phone,
       position:person.position,
       occupationLevelId:person.occupationLevelId,
@@ -86,10 +90,11 @@ export class DirectoryRepository {
   async getPersonProfile(id:string,teamIds:string[]|null=null){
     const person=await this.prisma.person.findFirst({
       where:{id,assignments:teamIds===null?undefined:{some:{teamId:{in:teamIds}}}},
-      include:{company:true,organizationalUnit:true,businessPartner:true,occupationLevel:true,status:true,assignments:{where:teamIds===null?undefined:{teamId:{in:teamIds}},include:{role:true,team:{include:{program:true}},status:true,onboardingStatus:true,courses:{include:{course:{include:{module:true}},status:true},orderBy:{course:{name:"asc"}}},maturities:{include:{period:true,level:true},orderBy:{evaluatedAt:"desc"}}},orderBy:{startDate:"desc"}}},
+      include:{company:true,organizationalUnit:true,management:true,division:true,businessPartner:true,businessPartnerValue:true,occupationLevel:true,status:true,assignments:{where:teamIds===null?undefined:{teamId:{in:teamIds}},include:{role:true,team:{include:{program:true}},status:true,onboardingStatus:true,courses:{include:{course:{include:{module:true}},status:true},orderBy:{course:{name:"asc"}}},maturities:{include:{period:true,level:true},orderBy:{evaluatedAt:"desc"}}},orderBy:{startDate:"desc"}}},
     });
     if(!person)throw new NotFoundException("No se encontró la persona o no pertenece a tus equipos");
-    return{...person,createdAt:person.createdAt.toISOString(),updatedAt:person.updatedAt.toISOString(),assignments:person.assignments.map(a=>({...a,startDate:a.startDate?.toISOString().slice(0,10)??null,endDate:a.endDate?.toISOString().slice(0,10)??null,courses:a.courses.map(c=>({...c,score:c.score?.toString()??null,startDate:c.startDate?.toISOString().slice(0,10)??null,endDate:c.endDate?.toISOString().slice(0,10)??null})),maturities:a.maturities.map(m=>({...m,score:m.score.toString(),selfAssessmentScore:m.selfAssessmentScore?.toString()??null,calibratedScore:m.calibratedScore?.toString()??null,evaluatedAt:m.evaluatedAt.toISOString().slice(0,10)}))}))};
+    const values=await this.prisma.catalogValue.findMany({where:{id:{in:[person.managementId,person.divisionId].filter((x):x is string=>Boolean(x))}},select:{id:true,name:true}}),value=(id:string|null)=>values.find(x=>x.id===id)??null;
+    return{...person,management:value(person.managementId),division:value(person.divisionId),createdAt:person.createdAt.toISOString(),updatedAt:person.updatedAt.toISOString(),assignments:person.assignments.map(a=>({...a,startDate:a.startDate?.toISOString().slice(0,10)??null,endDate:a.endDate?.toISOString().slice(0,10)??null,courses:a.courses.map(c=>({...c,score:c.score?.toString()??null,startDate:c.startDate?.toISOString().slice(0,10)??null,endDate:c.endDate?.toISOString().slice(0,10)??null})),maturities:a.maturities.map(m=>({...m,score:m.score.toString(),selfAssessmentScore:m.selfAssessmentScore?.toString()??null,calibratedScore:m.calibratedScore?.toString()??null,evaluatedAt:m.evaluatedAt.toISOString().slice(0,10)}))}))};
   }
 
   async listAssignments(filters:{search?:string;teamIds?:string[];roleIds?:string[];statusIds?:string[];statusCodes?:string[];onboardingStatusIds?:string[];developmentPathModes?:string[];page?:number;pageSize?:number},teamIds:string[]|null=null){
@@ -133,6 +138,7 @@ export class DirectoryRepository {
       },
       include: {
         program: true,
+        focusArea: true,
         unit: { include: { company: true } },
         status: true,
         assignments: {
@@ -146,8 +152,9 @@ export class DirectoryRepository {
     return teams.map((team) => ({
       id: team.id,
       sourceId: team.sourceId,
-      name:team.sourceId,
-      program: team.program.name,
+      name:team.name,
+      focusArea: team.focusArea?.name ?? null,
+      program: team.program?.name ?? team.name,
       programId:team.programId,
       unit: team.unit?.name ?? null,
       unitId:team.unitId,
@@ -163,10 +170,10 @@ export class DirectoryRepository {
 
   async listTeamsPage(search="",roleNames:string[]=[],page=1,pageSize=20,teamIds:string[]|null=null){
     const term=search.trim();page=Math.max(1,page);pageSize=Math.min(100,Math.max(1,pageSize));
-    const where:any={id:teamIds===null?undefined:{in:teamIds},assignments:roleNames.length?{some:{status:{code:"ACTIVO"},role:{name:{in:roleNames},status:{code:"ACTIVO"}}}}:undefined,OR:term?[{sourceId:{contains:term,mode:"insensitive"}},{program:{name:{contains:term,mode:"insensitive"}}},{unit:{name:{contains:term,mode:"insensitive"}}}]:undefined};
-    const include={program:true,unit:{include:{company:true}},status:true,assignments:{where:{status:{code:"ACTIVO"},role:{status:{code:"ACTIVO"},name:roleNames.length?{in:roleNames}:undefined}},include:{person:true,role:true}}} as const;
+    const where:any={id:teamIds===null?undefined:{in:teamIds},assignments:roleNames.length?{some:{status:{code:"ACTIVO"},role:{name:{in:roleNames},status:{code:"ACTIVO"}}}}:undefined,OR:term?[{sourceId:{contains:term,mode:"insensitive"}},{name:{contains:term,mode:"insensitive"}},{program:{name:{contains:term,mode:"insensitive"}}},{unit:{name:{contains:term,mode:"insensitive"}}}]:undefined};
+    const include={program:true,focusArea:true,unit:{include:{company:true}},status:true,assignments:{where:{status:{code:"ACTIVO"},role:{status:{code:"ACTIVO"},name:roleNames.length?{in:roleNames}:undefined}},include:{person:true,role:true}}} as const;
     const[total,teams]=await Promise.all([this.prisma.team.count({where}),this.prisma.team.findMany({where,include,orderBy:{sourceId:"asc"},skip:(page-1)*pageSize,take:pageSize})]);
-    const items=teams.map(team=>({id:team.id,sourceId:team.sourceId,name:team.sourceId,program:team.program.name,programId:team.programId,unit:team.unit?.name??null,unitId:team.unitId,company:team.unit?.company?.name??null,status:team.status.name,statusId:team.statusId,members:team.assignments.map(assignment=>({name:assignment.person.names,role:assignment.role.name}))}));
+    const items=teams.map(team=>({id:team.id,sourceId:team.sourceId,name:team.name,focusArea:team.focusArea?.name??null,program:team.program?.name??team.name,programId:team.programId,unit:team.unit?.name??null,unitId:team.unitId,company:team.unit?.company?.name??null,status:team.status.name,statusId:team.statusId,members:team.assignments.map(assignment=>({name:assignment.person.names,role:assignment.role.name}))}));
     return{items,total,page,pageSize,pages:Math.max(1,Math.ceil(total/pageSize))};
   }
 
@@ -183,7 +190,7 @@ export class DirectoryRepository {
     return {
       people: people.map((item) => ({ id: item.id, label: `${item.names} · ${item.dni} · ${item.company.name}` })),
       roles: roles.map((item) => ({ id: item.id, label: item.name })),
-      teams: teams.map((item) => ({ id: item.id, label: `${item.sourceId} · ${item.program.name}` })),
+      teams: teams.map((item) => ({ id: item.id, label: `${item.sourceId} · ${item.name}` })),
       assignmentStatuses:values.filter(item=>item.catalog.code==="ESTADO_ASIGNACION").map(item=>({id:item.id,label:item.name,code:item.code})),
       onboardingStatuses:values.filter(item=>item.catalog.code==="ESTADO_ONBOARDING").map(item=>({id:item.id,label:item.name,code:item.code})),
       maturityModels:models.map(item=>({id:item.id,roleId:item.role.id,label:item.name,version:item.versions[0]?.version??null})),
@@ -196,14 +203,14 @@ export class DirectoryRepository {
       this.prisma.organizationalUnit.findMany({orderBy:{name:"asc"},select:{id:true,code:true,name:true,companyId:true}}),
       this.prisma.program.findMany({where:{active:true},orderBy:{name:"asc"},select:{id:true,code:true,name:true}}),
       this.prisma.businessPartner.findMany({where:{active:true},orderBy:{name:"asc"},select:{id:true,code:true,name:true}}),
-      this.prisma.catalogValue.findMany({where:{active:true,catalog:{code:{in:["ESTADO_PERSONA","NIVEL_OCUPACIONAL","ESTADO_EQUIPO","TIPO_ROL","ESTADO_ROL","MODULO_CURSO","ESTADO_CURSO"]}}},orderBy:[{catalog:{code:"asc"}},{sortOrder:"asc"}],select:{id:true,code:true,name:true,catalog:{select:{code:true}}}}),
+      this.prisma.catalogValue.findMany({where:{active:true,catalog:{code:{in:["ESTADO_PERSONA","NIVEL_OCUPACIONAL","ESTADO_EQUIPO","TIPO_ROL","ESTADO_ROL","MODULO_CURSO","ESTADO_CURSO","AREA_ENFOQUE","BUSINESS_PARTNER","GERENCIA","DIVISION"]}}},orderBy:[{catalog:{code:"asc"}},{sortOrder:"asc"}],select:{id:true,code:true,name:true,catalog:{select:{code:true}}}}),
     ]);
-    return{companies,units,programs,businessPartners,catalogs:Object.fromEntries(["ESTADO_PERSONA","NIVEL_OCUPACIONAL","ESTADO_EQUIPO","TIPO_ROL","ESTADO_ROL","MODULO_CURSO","ESTADO_CURSO"].map(code=>[code,values.filter(value=>value.catalog.code===code).map(({catalog:_,...value})=>value)]))};
+    return{companies,units,programs,businessPartners:values.filter(value=>value.catalog.code==="BUSINESS_PARTNER").map(({catalog:_,...value})=>value),catalogs:Object.fromEntries(["ESTADO_PERSONA","NIVEL_OCUPACIONAL","ESTADO_EQUIPO","TIPO_ROL","ESTADO_ROL","MODULO_CURSO","ESTADO_CURSO","AREA_ENFOQUE","BUSINESS_PARTNER","GERENCIA","DIVISION"].map(code=>[code,values.filter(value=>value.catalog.code===code).map(({catalog:_,...value})=>value)]))};
   }
 
   async savePerson(id:string|null,input:Record<string,unknown>,userId:string){
     const current=id?await this.prisma.person.findUnique({where:{id},include:{status:true}}):null;if(id&&!current)throw new NotFoundException("No se encontró la persona");
-    const data={dni:this.text(input,"dni")!,companyId:this.text(input,"companyId")!,names:this.text(input,"names")!,email:this.text(input,"email",false),phone:this.text(input,"phone",false),position:this.text(input,"position",false),occupationLevelId:this.text(input,"occupationLevelId",false),organizationalUnitId:this.text(input,"organizationalUnitId",false),businessPartnerId:this.text(input,"businessPartnerId",false),statusId:this.text(input,"statusId")!};
+    const data={dni:this.text(input,"dni")!,companyId:this.text(input,"companyId")!,names:this.text(input,"names")!,email:this.text(input,"email",false),phone:this.text(input,"phone",false),position:this.text(input,"position",false),occupationLevelId:this.text(input,"occupationLevelId",false),organizationalUnitId:this.text(input,"organizationalUnitId",false),managementId:this.text(input,"managementId",false),subManagementId:this.text(input,"subManagementId",false),divisionId:this.text(input,"divisionId",false),businessPartnerValueId:this.text(input,"businessPartnerValueId",false),businessPartnerId:null,statusId:this.text(input,"statusId")!};
     const [company,status,unit,occupationLevel,businessPartner]=await Promise.all([this.prisma.company.findUnique({where:{id:data.companyId}}),this.prisma.catalogValue.findFirst({where:{id:data.statusId,catalog:{code:"ESTADO_PERSONA"}}}),data.organizationalUnitId?this.prisma.organizationalUnit.findUnique({where:{id:data.organizationalUnitId}}):Promise.resolve(null),data.occupationLevelId?this.prisma.catalogValue.findFirst({where:{id:data.occupationLevelId,catalog:{code:"NIVEL_OCUPACIONAL"}}}):Promise.resolve(null),data.businessPartnerId?this.prisma.businessPartner.findUnique({where:{id:data.businessPartnerId}}):Promise.resolve(null)]);
     if(!company||!status||data.organizationalUnitId&&!unit||data.occupationLevelId&&!occupationLevel||data.businessPartnerId&&!businessPartner)throw new BadRequestException("Empresa, estructura, nivel ocupacional, business partner o estado inválido");
     if(current&&current.status.code==="ACTIVO"&&status.code!=="ACTIVO"&&await this.prisma.personRole.count({where:{personId:id!,status:{code:"ACTIVO"}}}))throw new BadRequestException("No se puede desactivar una persona con asignaciones activas");
@@ -212,8 +219,8 @@ export class DirectoryRepository {
 
   async saveTeam(id:string|null,input:Record<string,unknown>,userId:string){
     const current=id?await this.prisma.team.findUnique({where:{id},include:{status:true}}):null;if(id&&!current)throw new NotFoundException("No se encontró el equipo");
-    const data={sourceId:this.text(input,"sourceId")!,programId:this.text(input,"programId")!,unitId:this.text(input,"unitId",false),statusId:this.text(input,"statusId")!};
-    const [program,status,unit]=await Promise.all([this.prisma.program.findUnique({where:{id:data.programId}}),this.prisma.catalogValue.findFirst({where:{id:data.statusId,catalog:{code:"ESTADO_EQUIPO"}}}),data.unitId?this.prisma.organizationalUnit.findUnique({where:{id:data.unitId}}):Promise.resolve(null)]);if(!program||!status||data.unitId&&!unit)throw new BadRequestException("Programa, unidad o estado inválido");
+    const data={sourceId:this.text(input,"sourceId")!,name:this.text(input,"name")!,focusAreaId:this.text(input,"focusAreaId")!,statusId:this.text(input,"statusId")!};
+    const [focusArea,status]=await Promise.all([this.prisma.catalogValue.findFirst({where:{id:data.focusAreaId,catalog:{code:"AREA_ENFOQUE"}}}),this.prisma.catalogValue.findFirst({where:{id:data.statusId,catalog:{code:"ESTADO_EQUIPO"}}})]);if(!focusArea||!status)throw new BadRequestException("Área de enfoque o estado inválido");
     if(current&&current.status.code==="ACTIVO"&&status.code!=="ACTIVO"&&await this.prisma.personRole.count({where:{teamId:id!,status:{code:"ACTIVO"}}}))throw new BadRequestException("No se puede desactivar un equipo con asignaciones activas");
     try{return await this.prisma.$transaction(async tx=>{const row=id?await tx.team.update({where:{id},data}):await tx.team.create({data});await tx.audit.create({data:{occurredAt:new Date(),userId,action:id?"UPDATE":"CREATE",entity:"TEAM",recordId:row.id,oldValue:current?this.snapshot(current):undefined,newValue:this.snapshot(row),result:"OK",origin:"WEB"}});return row})}catch(error:unknown){if(typeof error==="object"&&error&&"code" in error&&error.code==="P2002")throw new BadRequestException("Ya existe un equipo con ese código");throw error}
   }

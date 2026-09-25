@@ -14,8 +14,7 @@ type Data = {
 const money = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", maximumFractionDigits: 0 });
 const total = (groups: Group[]) => groups.reduce((sum, item) => sum + item.value, 0);
 const attention = (groups: Group[]) => groups.filter(item => /riesgo|atras|pendiente|sin resultado|deten/i.test(item.name)).reduce((sum, item) => sum + item.value, 0);
-const allRoleNames = ["SPONSOR", "LIDER AE", "LIDER EAD", "DUEÑO DE PROGRAMA", "DUEÑO DE PRODUCTO", "ATF"];
-const defaultRoleNames = allRoleNames.filter(role => role !== "ATF");
+const defaultRoleNames = ["SPONSOR", "LIDER AE", "LIDER EAD", "DUEÑO DE PROGRAMA", "DUEÑO DE PRODUCTO", "ATF"];
 
 export function DashboardPage() {
   const [data, setData] = useState<Data | null>(null);
@@ -28,7 +27,7 @@ export function DashboardPage() {
   useEffect(() => {
     const query = new URLSearchParams();
     if (teamIds.length) query.set("teamIds", teamIds.join(","));
-    query.set("roleNames", (roleNames.length ? roleNames : allRoleNames).join(","));
+    if (roleNames.length) query.set("roleNames", roleNames.join(","));
     setError("");
     fetch(`${apiUrl}/api/dashboard?${query}`, { headers: demoHeaders })
       .then(async response => { if (!response.ok) throw new Error("No se pudo cargar el resumen ejecutivo"); return response.json() as Promise<Data>; })

@@ -5,7 +5,7 @@ import { apiUrl, demoHeaders, DirectoryShell } from "./DirectoryShell";
 type CourseRow = { id: string; score: string | null; course: { name: string; module: { name: string } }; status: { name: string } };
 type MaturityRow = { id: string; score: string; calibratedScore: string | null; evaluatedAt: string; period: { name: string }; level: { name: string } };
 type AssignmentRow = { id: string; startDate: string | null; endDate: string | null; role: { name: string }; team: { sourceId: string; program: { name: string } }; status: { name: string }; onboardingStatus: { name: string }; courses: CourseRow[]; maturities: MaturityRow[] };
-type Profile = { id: string; dni: string; names: string; email: string | null; phone: string | null; position: string | null; company: { name: string }; organizationalUnit: { name: string } | null; businessPartner: { name: string } | null; occupationLevel: { name: string } | null; status: { name: string }; assignments: AssignmentRow[] };
+type Profile = { id: string; dni: string; names: string; email: string | null; phone: string | null; position: string | null; company: { name: string }; management: { name: string } | null; division: { name: string } | null; businessPartnerValue: { name: string } | null; occupationLevel: { name: string } | null; status: { name: string }; assignments: AssignmentRow[] };
 
 const completed = (course: CourseRow) => course.status.name.toUpperCase() === "TERMINADO";
 const displayScore = (value: string | null) => value === null ? "—" : Number(value).toFixed(2);
@@ -37,8 +37,8 @@ export function PersonProfilePage({ personId }: { personId: string }) {
           <div><p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">Perfil de colaborador</p><h2 className="mt-1 text-2xl font-bold text-slate-800">{data.names}</h2><p className="mt-1 text-sm text-slate-500">DNI {data.dni} · {data.position ?? data.occupationLevel?.name ?? "Sin puesto registrado"}</p></div>
           <span className="justify-self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 lg:justify-self-end">{data.status.name}</span>
         </div>
-        <div className="grid border-t border-slate-100 text-sm sm:grid-cols-2 lg:grid-cols-5">
-          <Info icon={Building2} label="Empresa" value={data.company.name} /><Info icon={MapPin} label="Unidad" value={data.organizationalUnit?.name ?? "Sin unidad"} /><Info icon={UsersRound} label="Business Partner" value={data.businessPartner?.name ?? "Sin asignar"} /><Info icon={Mail} label="Correo" value={data.email ?? "Sin correo"} /><Info icon={Phone} label="Teléfono" value={data.phone ?? "Sin teléfono"} />
+        <div className="grid border-t border-slate-100 text-sm sm:grid-cols-2 lg:grid-cols-6">
+          <Info icon={Building2} label="Empresa" value={data.company.name} /><Info icon={MapPin} label="Gerencia" value={data.management?.name ?? "Sin asignar"} /><Info icon={MapPin} label="División" value={data.division?.name ?? "Sin asignar"} /><Info icon={UsersRound} label="Business Partner" value={data.businessPartnerValue?.name ?? "Sin asignar"} /><Info icon={Mail} label="Correo" value={data.email ?? "Sin correo"} /><Info icon={Phone} label="Teléfono" value={data.phone ?? "Sin teléfono"} />
         </div>
       </section>
 

@@ -3,17 +3,6 @@ import { PrismaService } from "../database/prisma.service";
 
 type DashboardFilters = { teamIds: string[]; roleNames: string[] };
 
-const dashboardRoles = [
-  "SPONSOR",
-  "LIDER AE",
-  "LIDER EAD",
-  "DUEÑO DE PROGRAMA",
-  "DUEÑO DE PRODUCTO",
-  "ATF",
-];
-
-const defaultDashboardRoles = dashboardRoles.filter(role => role !== "ATF");
-
 @Injectable()
 export class DashboardRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -23,7 +12,15 @@ export class DashboardRepository {
     if (deniedTeam) throw new BadRequestException("El equipo no está permitido para esta cuenta");
 
     const teamIds = filters.teamIds.length ? filters.teamIds : allowedTeams;
-    const roleNames = filters.roleNames.length ? filters.roleNames.filter(role => dashboardRoles.includes(role)) : defaultDashboardRoles;
+    const availableRoles = await this.prisma.role.findMany({
+      where: { status: { code: "ACTIVO" } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+    const availableRoleNames = new Set(availableRoles.map(role => role.name));
+    const roleNames = filters.roleNames.length
+      ? filters.roleNames.filter(role => availableRoleNames.has(role))
+      : availableRoles.map(role => role.name);
     const currentYear = Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "America/Lima" }).format(new Date()));
     const now = new Date();
     const currentPeriod = await this.prisma.period.findFirst({
@@ -43,7 +40,7 @@ export class DashboardRepository {
 
     const [teams, roles, people, assignments, courses, completed, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
       this.prisma.team.findMany({ where: { status: { code: "ACTIVO" }, id: allowedTeams === null ? undefined : { in: allowedTeams } }, include: { program: true }, orderBy: { sourceId: "asc" } }),
-      this.prisma.role.findMany({ where: { name: { in: dashboardRoles }, status: { code: "ACTIVO" }, assignments: { some: { status: { code: "ACTIVO" }, teamId: allowedTeams === null ? undefined : { in: allowedTeams } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+      Promise.resolve(availableRoles),
       this.prisma.person.count({ where: { assignments: { some: assignmentWhere } } }),
       this.prisma.personRole.count({ where: assignmentWhere }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere } }),
@@ -62,7 +59,7 @@ export class DashboardRepository {
 
     return {
       filters: {
-        teams: teams.map(team => ({ id: team.id, sourceId: team.sourceId, label: `${team.sourceId} · ${team.program.name}` })),
+        teams: teams.map(team => ({ id: team.id, sourceId: team.sourceId, label: `${team.sourceId} · ${team.name}` })),
         roles: roles.map(role => ({ id: role.name, label: role.name })),
       },
       context: {

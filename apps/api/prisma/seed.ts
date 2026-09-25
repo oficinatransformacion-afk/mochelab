@@ -289,7 +289,7 @@ async function seedRepresentativeData() {
   });
   const team = await prisma.team.upsert({
     where: { sourceId: "DEMO-TEAM-001" },
-    create: { sourceId: "DEMO-TEAM-001", unitId: unit.id, programId: program.id, statusId: activeTeam.id },
+    create: { sourceId: "DEMO-TEAM-001", name: "Equipo demostrativo", unitId: unit.id, programId: program.id, statusId: activeTeam.id },
     update: { unitId: unit.id, programId: program.id, statusId: activeTeam.id },
   });
   const role = await prisma.role.upsert({

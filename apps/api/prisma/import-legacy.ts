@@ -356,7 +356,9 @@ async function applyImport(
   const teamMap = new Map<string, string>();
   for (const row of data.equipo) {
     const sourceId = key(row.data.ID_TEAM); if (!sourceId) continue;
-    const record = await tx.team.upsert({ where: { sourceId }, create: { sourceId, unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") }, update: { unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") } });
+    const name = validText(row.data.NOMBRE) ?? sourceId;
+    const focusAreaId = validText(row.data.AREA_ENFOQUE) ? await cv("AREA_ENFOQUE", row.data.AREA_ENFOQUE) : null;
+    const record = await tx.team.upsert({ where: { sourceId }, create: { sourceId, name, focusAreaId, unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") }, update: { name, focusAreaId, unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") } });
     teamMap.set(sourceId, record.id);
   }
 

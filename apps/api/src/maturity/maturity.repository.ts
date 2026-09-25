@@ -343,7 +343,7 @@ export class MaturityRepository {
 
   async teamMaturityOptions(teamIds:string[]|null=null){
     const[teams,periods]=await Promise.all([this.prisma.team.findMany({where:{status:{code:"ACTIVO"},id:teamIds===null?undefined:{in:teamIds}},include:{program:true},orderBy:{sourceId:"asc"}}),this.prisma.period.findMany({where:{status:{code:{not:"CANCELADO"}}},include:{status:true},orderBy:{startDate:"desc"}})]);
-    return{teams:teams.map(x=>({id:x.id,label:`${x.sourceId} · ${x.program.name}`})),periods:periods.map(x=>({id:x.id,label:x.name,status:x.status.code}))};
+    return{teams:teams.map(x=>({id:x.id,label:`${x.sourceId} · ${x.name}`})),periods:periods.map(x=>({id:x.id,label:x.name,status:x.status.code}))};
   }
 
   async listTeamMaturities(filters:{periodId?:string;teamId?:string},teamIds:string[]|null=null){
@@ -362,7 +362,7 @@ export class MaturityRepository {
   async maturityHistory(filters:{periodId?:string;teamId?:string},teamIds:string[]|null=null){
     const teamId=teamIds===null?filters.teamId||undefined:{in:teamIds,...(filters.teamId?{equals:filters.teamId}:{})};
     const[teams,roles]=await Promise.all([this.listTeamMaturities(filters,teamIds),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}]})]);
-    return{teams:teams.map(x=>({id:x.id,teamId:x.teamId,team:x.team.sourceId,program:x.team.program.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles:roles.map(x=>({id:x.id,person:x.personRole.person.names,personDni:x.personRole.person.dni,roleId:x.personRole.roleId,role:x.personRole.role.name,teamId:x.personRole.teamId,team:x.personRole.team.sourceId,period:x.period.name,periodId:x.periodId,score:Number(x.score),selfAssessmentScore:x.selfAssessmentScore===null?null:Number(x.selfAssessmentScore),calibratedScore:x.calibratedScore===null?null:Number(x.calibratedScore),calibratedAt:x.calibratedAt?.toISOString()??null,legacyRecord:x.legacyRecord,level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10)}))};
+    return{teams:teams.map(x=>({id:x.id,teamId:x.teamId,team:x.team.sourceId,program:x.team.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles:roles.map(x=>({id:x.id,person:x.personRole.person.names,personDni:x.personRole.person.dni,roleId:x.personRole.roleId,role:x.personRole.role.name,teamId:x.personRole.teamId,team:x.personRole.team.sourceId,period:x.period.name,periodId:x.periodId,score:Number(x.score),selfAssessmentScore:x.selfAssessmentScore===null?null:Number(x.selfAssessmentScore),calibratedScore:x.calibratedScore===null?null:Number(x.calibratedScore),calibratedAt:x.calibratedAt?.toISOString()??null,legacyRecord:x.legacyRecord,level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10)}))};
   }
 
   async getCalibration(id: string) {

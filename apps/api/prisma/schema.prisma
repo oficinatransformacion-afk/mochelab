@@ -69,9 +69,13 @@ model CatalogValue {
 
   personOccupationLevels Person[]       @relation("PersonOccupationLevel")
   personStatuses         Person[]       @relation("PersonStatus")
+  personBusinessPartners Person[]       @relation("PersonBusinessPartner")
+  personManagements      Person[]       @relation("PersonManagement")
+  personDivisions        Person[]       @relation("PersonDivision")
   roleTypes              Role[]         @relation("RoleType")
   roleStatuses           Role[]         @relation("RoleStatus")
   teamStatuses           Team[]         @relation("TeamStatus")
+  teamFocusAreas         Team[]         @relation("TeamFocusArea")
   assignmentStatuses     PersonRole[]   @relation("AssignmentStatus")
   onboardingStatuses     PersonRole[]   @relation("OnboardingStatus")
   courseModules          Course[]       @relation("CourseModule")
@@ -148,6 +152,7 @@ model OrganizationalUnit {
   children    OrganizationalUnit[] @relation("OrgUnitHierarchy")
   company     Company?             @relation(fields: [companyId], references: [id])
   people      Person[]
+  subManagedPeople Person[]          @relation("PersonSubManagement")
   teams       Team[]
   createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -180,12 +185,20 @@ model Person {
   position              String?             @db.VarChar(240)
   occupationLevelId     String?             @map("occupation_level_id") @db.Uuid
   organizationalUnitId  String?             @map("organizational_unit_id") @db.Uuid
+  managementId          String?             @map("management_id") @db.Uuid
+  subManagementId       String?             @map("sub_management_id") @db.Uuid
+  divisionId            String?             @map("division_id") @db.Uuid
+  businessPartnerValueId String?            @map("business_partner_value_id") @db.Uuid
   businessPartnerId     String?             @map("business_partner_id") @db.Uuid
   statusId              String              @map("status_id") @db.Uuid
   sourceRow             Int?                @map("source_row")
   company               Company             @relation(fields: [companyId], references: [id])
   occupationLevel       CatalogValue?       @relation("PersonOccupationLevel", fields: [occupationLevelId], references: [id])
   organizationalUnit    OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id])
+  management            CatalogValue?       @relation("PersonManagement", fields: [managementId], references: [id])
+  subManagement         OrganizationalUnit? @relation("PersonSubManagement", fields: [subManagementId], references: [id])
+  division              CatalogValue?       @relation("PersonDivision", fields: [divisionId], references: [id])
+  businessPartnerValue  CatalogValue?       @relation("PersonBusinessPartner", fields: [businessPartnerValueId], references: [id])
   businessPartner       BusinessPartner?    @relation(fields: [businessPartnerId], references: [id])
   status                CatalogValue        @relation("PersonStatus", fields: [statusId], references: [id])
   assignments           PersonRole[]
@@ -236,11 +249,14 @@ model Program {
 model Team {
   id         String              @id @default(uuid()) @db.Uuid
   sourceId   String              @unique @map("source_id") @db.VarChar(40)
+  name       String              @db.VarChar(200)
+  focusAreaId String?            @map("focus_area_id") @db.Uuid
   unitId     String?             @map("unit_id") @db.Uuid
-  programId  String              @map("program_id") @db.Uuid
+  programId  String?             @map("program_id") @db.Uuid
   statusId   String              @map("status_id") @db.Uuid
   unit       OrganizationalUnit? @relation(fields: [unitId], references: [id])
-  program    Program             @relation(fields: [programId], references: [id])
+  program    Program?            @relation(fields: [programId], references: [id])
+  focusArea  CatalogValue?       @relation("TeamFocusArea", fields: [focusAreaId], references: [id])
   status     CatalogValue        @relation("TeamStatus", fields: [statusId], references: [id])
   assignments PersonRole[]
   maturities TeamMaturity[]

@@ -31,12 +31,12 @@ export class AcademyRepository {
       include:{program:true},
       orderBy:{sourceId:"asc"},
     });
-    return{teams:teams.map(item=>({id:item.sourceId,label:`${item.sourceId} · ${item.program.name}`}))};
+    return{teams:teams.map(item=>({id:item.sourceId,label:`${item.sourceId} · ${item.name}`}))};
   }
 
   async learningRoutes(teamIds:string[]|null=null){
     const assignments=await this.prisma.personRole.findMany({where:{teamId:teamIds===null?undefined:{in:teamIds},status:{code:"ACTIVO"}},include:{person:{include:{company:true}},role:true,team:{include:{program:true}},courses:{include:{course:{include:{module:true}},status:true},orderBy:{course:{name:"asc"}}}},orderBy:[{role:{name:"asc"}},{person:{names:"asc"}},{team:{sourceId:"asc"}}]});
-    return assignments.map(item=>{const total=item.courses.length,completed=item.courses.filter(c=>["TERMINADO","APROBADO","COMPLETADO"].includes(c.status.code)).length,pending=total-completed,progress=total?Math.round(completed*10000/total)/100:0;return{personRoleId:item.id,personId:item.personId,person:item.person.names,dni:item.person.dni,company:item.person.company.name,role:item.role.name,team:item.team.sourceId,program:item.team.program.name,total,completed,pending,progress,situation:total===0?"SIN_RUTA":progress===100?"COMPLETA":completed===0?"SIN_INICIAR":"EN_PROGRESO",priority:pending===0?"BAJA":progress===0?"ALTA":"MEDIA",courses:item.courses.map(c=>({id:c.id,name:c.course.name,module:c.course.module.name,status:c.status.name,statusCode:c.status.code,score:c.score===null?null:Number(c.score)}))}});
+    return assignments.map(item=>{const total=item.courses.length,completed=item.courses.filter(c=>["TERMINADO","APROBADO","COMPLETADO"].includes(c.status.code)).length,pending=total-completed,progress=total?Math.round(completed*10000/total)/100:0;return{personRoleId:item.id,personId:item.personId,person:item.person.names,dni:item.person.dni,company:item.person.company.name,role:item.role.name,team:item.team.sourceId,program:item.team.name,total,completed,pending,progress,situation:total===0?"SIN_RUTA":progress===100?"COMPLETA":completed===0?"SIN_INICIAR":"EN_PROGRESO",priority:pending===0?"BAJA":progress===0?"ALTA":"MEDIA",courses:item.courses.map(c=>({id:c.id,name:c.course.name,module:c.course.module.name,status:c.status.name,statusCode:c.status.code,score:c.score===null?null:Number(c.score)}))}});
   }
 
   async assignCourse(roleId: string, courseId: string,administratorId:string) {
