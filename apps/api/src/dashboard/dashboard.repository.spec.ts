@@ -9,7 +9,7 @@ function database(){
   return {
     period:{findFirst:vi.fn().mockResolvedValue({id:periodId,name:"Ago. 2026",status:{code:"CERRADO"}})},
     team:{findMany:vi.fn().mockResolvedValue([])},
-    role:{findMany:vi.fn().mockResolvedValue([])},
+    role:{findMany:vi.fn().mockResolvedValue([{id:"33333333-3333-4333-8333-333333333333",name:"SPONSOR"}])},
     person:{count:vi.fn().mockResolvedValue(1)},
     personRole:{count:vi.fn().mockResolvedValue(2)},
     personCourse:{count:vi.fn().mockResolvedValueOnce(4).mockResolvedValueOnce(3)},
