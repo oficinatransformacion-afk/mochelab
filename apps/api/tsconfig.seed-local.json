@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "incremental": false,
+    "outDir": "./dist-seed-local",
+    "sourceMap": false
+  },
+  "include": [
+    "prisma/seed-maturity-models-local.ts",
+    "prisma/import-atf-responses-local.ts",
+    "prisma/audit-maturity-transfer-local.ts",
+    "prisma/map-person-structure.ts",
+    "prisma/import-maturity-history-local.ts",
+    "prisma/maturity-transfer-policy.ts",
+    "src/database/environment-guard.ts",
+    "src/database/postgres-options.ts"
+  ]
+}

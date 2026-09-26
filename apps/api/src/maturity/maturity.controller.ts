@@ -1,7 +1,7 @@
-import { BadRequestException, Body, Controller, Get, Headers, Optional, Param, Patch, Post, Query, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Optional, Param, Patch, Post, Query, UnauthorizedException } from "@nestjs/common";
 import { CalibrateRoleMaturitySchema, SubmitSelfAssessmentSchema } from "@mochelab/shared";
 import { AdminOnly, RequirePermission } from "../access/access.decorators";
-import { AccessService, type ProfileCode } from "../access/access.service";
+import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 import { MaturityRepository } from "./maturity.repository";
 
 @AdminOnly()
@@ -14,8 +14,11 @@ export class MaturityController {
     return this.repository.listPeriods();
   }
 
+  @Get("periods/model-options")
+  listPeriodModelOptions(){return this.repository.listPeriodModelOptions();}
+
   @Post("periods")
-  async createPeriod(@Body() body: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion: string },@Headers("x-mochelab-demo-user-email") email?:string) {
+  async createPeriod(@Body() body: { code: string; name: string; startDate: string; endDate: string; selfAssessmentOpensAt: string; selfAssessmentClosesAt: string; calibrationClosesAt: string; configurationVersion?: string; roleModels?:{roleId:string;modelVersionId:string}[] },@Headers("x-mochelab-demo-user-email") email?:string) {
     return this.repository.createPeriod(body,await this.access.getUserId("ADMIN",email));
   }
 
@@ -24,10 +27,35 @@ export class MaturityController {
     return this.repository.transitionPeriod(id, body.status,await this.access.getUserId("ADMIN",email));
   }
 
+  @Patch("periods/:id/reopen-calibration")
+  async reopenPeriod(@Param("id") id:string,@Body() body:{justification?:string},@Headers("x-mochelab-demo-user-email") email?:string){
+    return this.repository.reopenPeriodForCalibration(id,body.justification??"",await this.access.getUserId("ADMIN",email));
+  }
+
   @Get("configuration")
   listConfiguration() {
     return this.repository.listConfiguration();
   }
+
+  @Get("configuration/models")
+  listAssessmentModels() {
+    return this.repository.listAssessmentModels();
+  }
+
+  @Get("configuration/model-options")
+  listAssessmentModelOptions(){return this.repository.listAssessmentModelOptions();}
+
+  @Post("configuration/models")
+  async createAssessmentModel(@Body() body:{roleId:string;code:string;name:string;version:string},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.createAssessmentModel(body,await this.access.getUserId("ADMIN",email));}
+
+  @Post("configuration/models/:id/versions")
+  async createAssessmentModelVersion(@Param("id") id:string,@Body() body:{version:string;cloneFromVersionId?:string},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.createAssessmentModelVersion(id,body,await this.access.getUserId("ADMIN",email));}
+
+  @Patch("configuration/model-versions/:id")
+  async saveAssessmentModelVersion(@Param("id") id:string,@Body() body:Parameters<MaturityRepository["saveAssessmentModelVersion"]>[1],@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.saveAssessmentModelVersion(id,body,await this.access.getUserId("ADMIN",email));}
+
+  @Post("configuration/model-versions/:id/publish")
+  async publishAssessmentModelVersion(@Param("id") id:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.publishAssessmentModelVersion(id,await this.access.getUserId("ADMIN",email));}
 
   @Post("configuration/dimensions")
   async createDimension(@Body() body: { code: string; name: string; description?: string; weight: number },@Headers("x-mochelab-demo-user-email") email?:string) { return this.repository.createDimension(body,await this.access.getUserId("ADMIN",email)); }
@@ -86,12 +114,33 @@ export class MaturityController {
 @RequirePermission("MADUREZ","view")
 export class SelfAssessmentController {
   constructor(private readonly repository: MaturityRepository,@Optional() private readonly access?:AccessService) {}
-  private scope(profile:string|undefined,email:string|undefined){return this.access?this.access.getTeamScope(profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode,email):Promise.resolve(null)}
+  private scope(profile:string|undefined,email:string|undefined){return this.access?this.access.getTeamScope(profileCode(profile),email):Promise.resolve(null)}
+
+  private assistedProfile(profile?:string){const identity=profileCode(profile);if(identity==="COLABORADOR")throw new ForbiddenException("El perfil Colaborador no puede registrar evaluaciones asistidas");return identity}
+
+  @Get("assisted/options")
+  async assistedOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=this.assistedProfile(profile);return this.repository.assistedAssessmentOptions(await this.access!.getTeamScope(identity,email))}
+
+  @Get("assisted/self-assessment-form")
+  async assistedForm(@Query("personRoleId") personRoleId:string|undefined,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){if(!personRoleId)throw new BadRequestException("Selecciona una persona y rol");const identity=this.assistedProfile(profile),scope=await this.access!.getTeamScope(identity,email);await this.repository.assertPersonRoleScope(personRoleId,scope,null);return this.repository.getSelfAssessmentForm(personRoleId,scope,null,true)}
+
+  @Post("assisted/self-assessments") @RequirePermission("MADUREZ","create")
+  async submitAssisted(@Body() body:unknown,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=this.assistedProfile(profile),parsed=SubmitSelfAssessmentSchema.safeParse(body);if(!parsed.success)throw new BadRequestException(parsed.error.flatten());const input=body as Record<string,unknown>,scope=await this.access!.getTeamScope(identity,email);await this.repository.assertPersonRoleScope(parsed.data.personRoleId,scope,null);return this.repository.submitSelfAssessment(parsed.data,{mode:identity==="FACILITADOR"?"FACILITATOR_ASSISTED":"ADMIN_ASSISTED",submittedById:await this.access!.getUserId(identity,email),reason:typeof input.assistanceReason==="string"?input.assistanceReason:undefined,method:typeof input.assistanceMethod==="string"?input.assistanceMethod:undefined,notes:typeof input.assistanceNotes==="string"?input.assistanceNotes:undefined,respondentConfirmed:input.respondentConfirmed===true})}
+
+  @Get("overview/options")
+  async overviewOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    return this.repository.teamMaturityOptions(await this.scope(profile,email));
+  }
+
+  @Get("overview/history")
+  async overviewHistory(@Query("periodId") periodId?:string,@Query("teamId") teamId?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    return this.repository.maturityHistory({periodId,teamId},await this.scope(profile,email));
+  }
 
   @Get("self-assessment-form")
   async form(@Query("personRoleId") currentPersonRoleId?: string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (process.env.NODE_ENV === "production") throw new UnauthorizedException("La autenticación corporativa aún no está configurada");
-    const identityProfile:ProfileCode=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO";
+    const identityProfile:ProfileCode=profileCode(profile);
     const [teamIds,personId]=await Promise.all([this.scope(profile,email),this.access?this.access.getPersonId(identityProfile,email):Promise.resolve(null)]);
     return this.repository.getSelfAssessmentForm(currentPersonRoleId,teamIds,personId);
   }
@@ -112,9 +161,9 @@ export class SelfAssessmentController {
     if (!currentPersonRoleId || currentPersonRoleId !== parsed.data.personRoleId) {
       throw new UnauthorizedException("La autoevaluación solo puede enviarla el rol autenticado");
     }
-    const identityProfile:ProfileCode=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO";
+    const identityProfile:ProfileCode=profileCode(profile);
     const [teamIds,personId]=await Promise.all([this.scope(profile,email),this.access?this.access.getPersonId(identityProfile,email):Promise.resolve(null)]);
     await this.repository.assertPersonRoleScope(currentPersonRoleId,teamIds,personId);
-    return this.repository.submitSelfAssessment(parsed.data);
+    return this.repository.submitSelfAssessment(parsed.data,{mode:"SELF",submittedById:await this.access!.getUserId(identityProfile,email)});
   }
 }

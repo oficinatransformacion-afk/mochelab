@@ -1,15 +1,16 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post } from "@nestjs/common";
 import { AdminOnly, RequirePermission } from "../access/access.decorators";
-import { AccessService, type ProfileCode } from "../access/access.service";
+import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 import { AcademyRepository } from "./academy.repository";
 
 @Controller("academy")
 @RequirePermission("CURSOS","view")
 export class AcademyController {
   constructor(private readonly repository: AcademyRepository,private readonly access:AccessService) {}
-  private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode,email)}
+  private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profileCode(profile),email)}
   @Get("roles") async listRoles(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) { return this.repository.listRoles(await this.scope(profile,email)); }
   @Get("courses") async listCourses(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) { return this.repository.listCourses(await this.scope(profile,email)); }
+  @Get("routes/options") async learningRouteOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) { return this.repository.learningRouteOptions(await this.scope(profile,email)); }
   @Get("routes") async learningRoutes(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) { return this.repository.learningRoutes(await this.scope(profile,email)); }
   @AdminOnly() @Get("admin/options") adminOptions(){return this.repository.adminOptions()}
   @AdminOnly() @RequirePermission("CURSOS","create") @Post("courses") async createCourse(@Body() body:Record<string,unknown>,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.saveCourse(null,body,await this.access.getUserId("ADMIN",email))}

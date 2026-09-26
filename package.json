@@ -11,7 +11,11 @@
     "test:smoke": "node scripts/smoke-e2e.mjs",
     "db:validate": "pnpm --filter @mochelab/api db:validate",
     "db:generate": "pnpm --filter @mochelab/api db:generate",
+    "db:local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-db.ps1",
     "db:seed": "pnpm --filter @mochelab/api db:seed",
+    "db:seed:maturity-local": "pnpm --filter @mochelab/api db:seed:maturity-local",
+    "db:import:atf-local": "pnpm --filter @mochelab/api db:import:atf-local",
+    "db:audit:maturity-local": "pnpm --filter @mochelab/api db:audit:maturity-local",
     "migration:import": "pnpm --filter @mochelab/api migration:import"
   },
   "devDependencies": {

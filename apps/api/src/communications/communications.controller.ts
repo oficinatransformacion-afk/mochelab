@@ -10,7 +10,7 @@ import { GmailService } from "./gmail.service";
 export class CommunicationsController {
   constructor(private readonly repository:CommunicationsRepository,private readonly access:AccessService,private readonly gmail:GmailService){}
   private type(value:unknown){if(value!=="OPENING"&&value!=="REMINDER")throw new BadRequestException("El tipo debe ser OPENING o REMINDER");return value}
-  @Get() list(@Query("status") status?:string){return this.repository.list(status)}
+  @Get() list(@Query("status") status?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string){return this.repository.list(status,Number(page)||1,Number(pageSize)||25)}
   @Get("templates") templates(){return this.repository.listTemplates()}
   @Get("provider-status") providerStatus(){return this.gmail.status()}
   @Patch("templates/:id") async updateTemplate(@Param("id") id:string,@Body() body:{name?:string;subjectTemplate?:string;bodyTemplate?:string;senderName?:string;senderEmail?:string;active?:boolean},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.updateTemplate(id,body,await this.access.getUserId("ADMIN",email))}

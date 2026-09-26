@@ -4,11 +4,14 @@ import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { postgresOptions } from "../src/database/postgres-options";
+import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
+config({ path: resolve(process.cwd(), "../../.env.local"), quiet: true });
 config({ path: resolve(process.cwd(), "../../.env"), quiet: true });
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL no configurada");
+assertSafeDatabaseWrite(databaseUrl, "seed");
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });
 
@@ -17,7 +20,8 @@ const catalogs = [
     code: "PERFIL_USUARIO",
     name: "Perfil de usuario",
     values: [
-      ["USUARIO", "Usuario"],
+      ["COLABORADOR", "Colaborador"],
+      ["FACILITADOR", "Facilitador"],
       ["ADMIN", "Admin"],
       ["SYSTEM", "System"],
     ],
@@ -26,6 +30,11 @@ const catalogs = [
     code: "ESTADO_USUARIO",
     name: "Estado de usuario",
     values: [["ACTIVO", "Activo"], ["INACTIVO", "Inactivo"]],
+  },
+  {
+    code: "ESTADO_ONBOARDING",
+    name: "Estado de onboarding",
+    values: [["NO_APLICA", "No aplica"]],
   },
   {
     code: "ESTADO_PERIODO_MADUREZ",
@@ -78,6 +87,19 @@ const catalogs = [
       ["APT_AREQUIPA", "APT Arequipa"],
     ],
   },
+  {
+    code: "ESTADO_INICIATIVA",
+    name: "Estado de iniciativa",
+    values: [
+      ["0_POR_HACER", "0. Por Hacer"],
+      ["1_DESCUBRIMIENTO", "1. Descubrimiento"],
+      ["2_LISTO_PARA_IMPLEMENTAR", "2. Listo para Implementar"],
+      ["3_EN_IMPLEMENTACION", "3. En Implementación"],
+      ["4_MIDIENDO_RESULTADOS", "4. Midiendo Resultados"],
+      ["5_TERMINADO", "5. Terminado"],
+      ["DESPRIORIZADO", "Despriorizado"],
+    ],
+  },
 ] as const;
 
 const modules = [
@@ -88,6 +110,7 @@ const modules = [
   ["CURSOS", "Cursos", "/cursos", "book-open", 40],
   ["MADUREZ", "Madurez", "/madurez", "gauge", 50],
   ["OBJETIVOS", "Objetivos", "/objetivos", "target", 60],
+  ["METAS", "Metas", "/objetivos/metas", "bar-chart-3", 65],
   ["PORTAFOLIO", "Portafolio", "/portafolio", "briefcase-business", 70],
   ["CATALOGOS", "Catálogos", "/configuracion/catalogos", "list", 80],
   ["USUARIOS", "Usuarios", "/configuracion/usuarios", "user-cog", 90],
@@ -188,7 +211,7 @@ async function seedPreparedCatalogs() {
 
 async function seedModules() {
   const profiles = await prisma.catalogValue.findMany({
-    where: { catalog: { code: "PERFIL_USUARIO" }, code: { in: ["USUARIO", "ADMIN", "SYSTEM"] } },
+    where: { catalog: { code: "PERFIL_USUARIO" }, code: { in: ["COLABORADOR", "FACILITADOR", "ADMIN", "SYSTEM"] } },
   });
   for (const [code, name, route, icon, sortOrder] of modules) {
     const module = await prisma.systemModule.upsert({
@@ -197,22 +220,22 @@ async function seedModules() {
       update: { name, route, icon, sortOrder, active: true },
     });
     for (const profile of profiles) {
-      const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM";
-      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code);
-      const visible = administrator || !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code);
+      const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM",facilitator=profile.code==="FACILITADOR";
+      const writable = facilitator&&["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code)||profile.code==="COLABORADOR"&&code==="MADUREZ";
+      const visible = administrator || facilitator&&!["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code)||profile.code==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(code);
       await prisma.profileModule.upsert({
         where: { profileId_moduleId: { profileId: profile.id, moduleId: module.id } },
         create: {
           profileId: profile.id, moduleId: module.id, canView: visible,
           canCreate: code !== "INICIO" && (administrator || writable),
           canEdit: code !== "INICIO" && (administrator || writable),
-          canDelete: administrator && !["INICIO", "AUDITORIA"].includes(code),
+          canDelete: profile.code === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(code),
         },
         update: {
           canView: visible,
           canCreate: code !== "INICIO" && (administrator || writable),
           canEdit: code !== "INICIO" && (administrator || writable),
-          canDelete: administrator && !["INICIO", "AUDITORIA"].includes(code),
+          canDelete: profile.code === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(code),
         },
       });
     }
@@ -244,7 +267,7 @@ async function seedRepresentativeData() {
     catalogValue("ESTADO_AUTOEVALUACION", "ENVIADA"),
     catalogValue("NIVEL_MADUREZ", "OFICIAL"),
     catalogValue("PERFIL_USUARIO", "ADMIN"),
-    catalogValue("PERFIL_USUARIO", "USUARIO"),
+    catalogValue("PERFIL_USUARIO", "COLABORADOR"),
     catalogValue("PERFIL_USUARIO", "SYSTEM"),
     catalogValue("ESTADO_USUARIO", "ACTIVO"),
   ]);
@@ -267,7 +290,7 @@ async function seedRepresentativeData() {
   });
   const team = await prisma.team.upsert({
     where: { sourceId: "DEMO-TEAM-001" },
-    create: { sourceId: "DEMO-TEAM-001", unitId: unit.id, programId: program.id, statusId: activeTeam.id },
+    create: { sourceId: "DEMO-TEAM-001", name: "Equipo demostrativo", unitId: unit.id, programId: program.id, statusId: activeTeam.id },
     update: { unitId: unit.id, programId: program.id, statusId: activeTeam.id },
   });
   const role = await prisma.role.upsert({

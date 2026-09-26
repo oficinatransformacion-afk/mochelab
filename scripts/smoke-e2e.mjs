@@ -1,7 +1,7 @@
 const api = process.env.SMOKE_API_URL ?? "http://localhost:3000/api";
-const web = process.env.SMOKE_WEB_URL ?? "http://127.0.0.1:5173";
+const web = process.env.SMOKE_WEB_URL ?? "http://localhost:5173";
 const headers = {
-  "x-mochelab-demo-profile": "ADMINISTRADOR",
+  "x-mochelab-demo-profile": "ADMIN",
   "x-mochelab-demo-user-email": process.env.SMOKE_ADMIN_EMAIL ?? "admin.prueba@example.invalid",
 };
 
@@ -25,8 +25,9 @@ for (const [name, url, expectsArray] of checks) {
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const body = await response.json();
-    if (expectsArray && !Array.isArray(body)) throw new Error("respuesta no es una lista");
-    const count = Array.isArray(body) ? ` (${body.length})` : "";
+    const rows = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : null;
+    if (expectsArray && !rows) throw new Error("respuesta no contiene una lista");
+    const count = rows ? ` (${rows.length})` : "";
     console.log(`OK  ${name}${count}`);
   } catch (error) {
     failures += 1;

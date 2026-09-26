@@ -5,6 +5,7 @@ import { config } from "dotenv";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { postgresOptions } from "../src/database/postgres-options";
+import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
 config({ path: resolve(process.cwd(), "../../.env"), quiet: true });
 
@@ -197,6 +198,7 @@ async function main() {
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL no configurada");
+  if (APPLY) assertSafeDatabaseWrite(databaseUrl, "legacy-import");
   const migrationSchema = process.env.MIGRATION_SCHEMA?.trim();
   if (migrationSchema) throw new Error("MIGRATION_SCHEMA no está soportado por Prisma; use una base de datos aislada.");
   const prisma = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });
@@ -354,7 +356,9 @@ async function applyImport(
   const teamMap = new Map<string, string>();
   for (const row of data.equipo) {
     const sourceId = key(row.data.ID_TEAM); if (!sourceId) continue;
-    const record = await tx.team.upsert({ where: { sourceId }, create: { sourceId, unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") }, update: { unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") } });
+    const name = validText(row.data.NOMBRE) ?? sourceId;
+    const focusAreaId = validText(row.data.AREA_ENFOQUE) ? await cv("AREA_ENFOQUE", row.data.AREA_ENFOQUE) : null;
+    const record = await tx.team.upsert({ where: { sourceId }, create: { sourceId, name, focusAreaId, unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") }, update: { name, focusAreaId, unitId: teamUnitMap.get(code(row.data.UNIDAD)), programId: programMap.get(code(validText(row.data.PROGRAMA) ?? "SIN PROGRAMA"))!, statusId: await cv("ESTADO_EQUIPO", row.data.ESTADO, "ACTIVO") } });
     teamMap.set(sourceId, record.id);
   }
 
@@ -512,7 +516,8 @@ async function applyImport(
     const email = validText(row.data.USUARIO)?.toLowerCase(); if (!email) { counts.usuario.omitted++; continue; }
     const candidates = [...peopleByDni.values()].flat().filter((person) => person.email === email); const personId = candidates.find((candidate) => !usedPeople.has(candidate.id))?.id;
     if (personId) usedPeople.add(personId);
-    users.push({ id: uuid("user", email), email, name: null, profileId: await cv("PERFIL_USUARIO", row.data.PERFIL, "USUARIO"), statusId: await cv("ESTADO_USUARIO", row.data.ESTADO, "ACTIVO"), personId, passwordHash: null });
+    const importedProfile = code(validText(row.data.PERFIL) ?? "COLABORADOR") === "USUARIO" ? "COLABORADOR" : row.data.PERFIL;
+    users.push({ id: uuid("user", email), email, name: null, profileId: await cv("PERFIL_USUARIO", importedProfile, "COLABORADOR"), statusId: await cv("ESTADO_USUARIO", row.data.ESTADO, "ACTIVO"), personId, passwordHash: null });
   }
   counts.usuario.written = await createMany(users, (rows) => tx.user.createMany({ data: rows, skipDuplicates: true }));
 
@@ -520,19 +525,22 @@ async function applyImport(
     ["INICIO", "Inicio", "/", "home", 10], ["PERSONAS", "Personas", "/personas", "users", 20],
     ["ASIGNACIONES", "Asignaciones", "/asignaciones", "clipboard-list", 25], ["EQUIPOS", "Equipos", "/equipos", "users-round", 30],
     ["CURSOS", "Cursos", "/cursos", "book-open", 40], ["MADUREZ", "Madurez", "/madurez", "gauge", 50],
-    ["OBJETIVOS", "Objetivos", "/objetivos", "target", 60], ["PORTAFOLIO", "Portafolio", "/portafolio", "briefcase-business", 70],
+    ["OBJETIVOS", "Objetivos", "/objetivos", "target", 60], ["METAS", "Metas", "/objetivos/metas", "bar-chart-3", 65], ["PORTAFOLIO", "Portafolio", "/portafolio", "briefcase-business", 70],
     ["CATALOGOS", "Catálogos", "/configuracion/catalogos", "list", 80], ["USUARIOS", "Usuarios", "/configuracion/usuarios", "user-cog", 90],
     ["MIGRACIONES", "Migraciones", "/configuracion/migraciones", "database", 100], ["AUDITORIA", "Auditoría", "/configuracion/auditoria", "history", 110],
   ] as const;
-  const profiles = await Promise.all([cv("PERFIL_USUARIO", "USUARIO"), cv("PERFIL_USUARIO", "ADMIN"), cv("PERFIL_USUARIO", "SYSTEM")]);
+  const profiles = await Promise.all([cv("PERFIL_USUARIO", "COLABORADOR"), cv("PERFIL_USUARIO", "FACILITADOR"), cv("PERFIL_USUARIO", "ADMIN"), cv("PERFIL_USUARIO", "SYSTEM")]);
   for (const [moduleCode, name, route, icon, sortOrder] of modules) {
     const module = await tx.systemModule.upsert({ where: { code: moduleCode }, create: { code: moduleCode, name, route, icon, sortOrder }, update: { name, route, icon, sortOrder, active: true } });
     for (const profileId of profiles) {
-      const profileCode = [...catalogCache.entries()].find(([entry, id]) => entry.startsWith("PERFIL_USUARIO|") && id === profileId)?.[0].split("|")[1] ?? "USUARIO";
+      const profileCode = [...catalogCache.entries()].find(([entry, id]) => entry.startsWith("PERFIL_USUARIO|") && id === profileId)?.[0].split("|")[1] ?? "COLABORADOR";
       const administrator = profileCode === "ADMIN" || profileCode === "SYSTEM";
+      const facilitator = profileCode === "FACILITADOR";
       const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(moduleCode);
-      const canView = administrator || !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(moduleCode);
-      await tx.profileModule.upsert({ where: { profileId_moduleId: { profileId, moduleId: module.id } }, create: { profileId, moduleId: module.id, canView, canCreate: moduleCode !== "INICIO" && (administrator || writable), canEdit: moduleCode !== "INICIO" && (administrator || writable), canDelete: administrator && !["INICIO", "AUDITORIA"].includes(moduleCode) }, update: { canView, canCreate: moduleCode !== "INICIO" && (administrator || writable), canEdit: moduleCode !== "INICIO" && (administrator || writable), canDelete: administrator && !["INICIO", "AUDITORIA"].includes(moduleCode) } });
+      const canView = administrator || facilitator && !["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(moduleCode) || profileCode === "COLABORADOR" && ["PERSONAS", "MADUREZ"].includes(moduleCode);
+      const canWrite = moduleCode !== "INICIO" && (administrator || facilitator && writable || profileCode === "COLABORADOR" && moduleCode === "MADUREZ");
+      const canDelete = profileCode === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(moduleCode);
+      await tx.profileModule.upsert({ where: { profileId_moduleId: { profileId, moduleId: module.id } }, create: { profileId, moduleId: module.id, canView, canCreate: canWrite, canEdit: canWrite, canDelete }, update: { canView, canCreate: canWrite, canEdit: canWrite, canDelete } });
     }
   }
 

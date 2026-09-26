@@ -7,7 +7,8 @@ import {
 import { MODULES, USER_WRITABLE_MODULES } from "./access.data";
 import { PrismaService } from "../database/prisma.service";
 
-export type ProfileCode = "USUARIO" | "ADMIN" | "SYSTEM";
+export type ProfileCode = "COLABORADOR" | "FACILITADOR" | "ADMIN" | "SYSTEM";
+export function profileCode(value?:string):ProfileCode{const code=value?.toUpperCase();return code==="SYSTEM"?"SYSTEM":code==="ADMIN"?"ADMIN":code==="FACILITADOR"?"FACILITADOR":"COLABORADOR"}
 
 @Injectable()
 export class AccessService {
@@ -16,15 +17,16 @@ export class AccessService {
   private defaults(profile:ProfileCode):UserCapabilities {
     const modules: ModuleCapability[] = MODULES.map((module) => {
       const isAdministrator = profile === "ADMIN" || profile === "SYSTEM";
-      const canView = isAdministrator || !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(module.code);
-      const canWrite = isAdministrator || USER_WRITABLE_MODULES.has(module.code);
+      const facilitator=profile==="FACILITADOR";
+      const canView = isAdministrator || facilitator&&!['METAS','CATALOGOS','USUARIOS','MIGRACIONES','AUDITORIA'].includes(module.code) || profile==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(module.code);
+      const canWrite = isAdministrator || facilitator&&module.code!=="METAS"&&USER_WRITABLE_MODULES.has(module.code) || profile==="COLABORADOR"&&module.code==="MADUREZ";
 
       return {
         ...module,
         canView,
         canCreate: module.code !== "INICIO" && canWrite,
         canEdit: module.code !== "INICIO" && canWrite,
-        canDelete: isAdministrator && !["INICIO", "AUDITORIA"].includes(module.code),
+        canDelete: profile==="SYSTEM" && !["INICIO", "AUDITORIA"].includes(module.code),
       };
     });
 
@@ -51,10 +53,11 @@ export class AccessService {
     const user=await this.prisma.user.findUnique({where:{email:normalized},include:{
       profile:true,
       status:true,
-      person:{select:{dni:true,assignments:{where:{status:{code:"ACTIVO"}},select:{teamId:true}}}},
+      teams:{select:{teamId:true}},person:{select:{dni:true,assignments:{where:{status:{code:"ACTIVO"}},select:{teamId:true}}}},
     }});
     if(!user||user.status.code!=="ACTIVO"||user.profile.code!==profile)throw new ForbiddenException("La cuenta no está activa o no corresponde al perfil indicado");
-    if(!user.person?.dni?.trim())throw new ForbiddenException("La cuenta de Usuario debe estar vinculada a una persona con DNI");
+    if(profile==="FACILITADOR")return [...new Set(user.teams.map(item=>item.teamId))];
+    if(!user.person?.dni?.trim())throw new ForbiddenException("La cuenta de Colaborador debe estar vinculada a una persona con DNI");
     return [...new Set(user.person.assignments.map(item=>item.teamId))];
   }
   async getPersonId(profile:ProfileCode,email?:string):Promise<string|null>{
@@ -78,14 +81,16 @@ export class AccessService {
   }
   async permissionMatrix(){
     if(!this.prisma)throw new BadRequestException("Base de datos no disponible");
-    const profiles=await this.prisma.catalogValue.findMany({where:{active:true,catalog:{code:"PERFIL_USUARIO"},code:{in:["USUARIO","ADMIN","SYSTEM"]}},orderBy:{sortOrder:"asc"},include:{profileModuleAccesses:{include:{module:true}}}});
+    const profiles=await this.prisma.catalogValue.findMany({where:{active:true,catalog:{code:"PERFIL_USUARIO"},code:{in:["COLABORADOR","FACILITADOR","ADMIN","SYSTEM"]}},orderBy:{sortOrder:"asc"},include:{profileModuleAccesses:{include:{module:true}}}});
     return profiles.map(profile=>({id:profile.id,code:profile.code,name:profile.name,modules:profile.profileModuleAccesses.sort((a,b)=>a.module.sortOrder-b.module.sortOrder).map(row=>({moduleId:row.moduleId,code:row.module.code,name:row.module.name,canView:row.canView,canCreate:row.canCreate,canEdit:row.canEdit,canDelete:row.canDelete}))}));
   }
   async updatePermission(profileId:string,moduleId:string,input:{canView:boolean;canCreate:boolean;canEdit:boolean;canDelete:boolean},administratorId:string){
     if(!this.prisma)throw new BadRequestException("Base de datos no disponible");
     const current=await this.prisma.profileModule.findUnique({where:{profileId_moduleId:{profileId,moduleId}},include:{profile:true,module:true}});
     if(!current)throw new NotFoundException("No se encontró la asignación de permisos");
-    const normalized={canView:Boolean(input.canView),canCreate:Boolean(input.canCreate)&&Boolean(input.canView),canEdit:Boolean(input.canEdit)&&Boolean(input.canView),canDelete:Boolean(input.canDelete)&&Boolean(input.canView)};
+    const actor=await this.prisma.user.findUnique({where:{id:administratorId},include:{profile:true}});if(!actor)throw new ForbiddenException("No se encontró la cuenta administradora");
+    if(current.profile.code==="SYSTEM"&&actor.profile.code!=="SYSTEM")throw new ForbiddenException("Solo SYSTEM puede modificar los permisos del perfil SYSTEM");
+    const normalized={canView:Boolean(input.canView),canCreate:Boolean(input.canCreate)&&Boolean(input.canView),canEdit:Boolean(input.canEdit)&&Boolean(input.canView),canDelete:current.profile.code==="SYSTEM"&&actor.profile.code==="SYSTEM"&&Boolean(input.canDelete)&&Boolean(input.canView)};
     return this.prisma.$transaction(async tx=>{const updated=await tx.profileModule.update({where:{profileId_moduleId:{profileId,moduleId}},data:normalized});await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"UPDATE_PERMISSION",entity:"PROFILE_MODULE",recordId:profileId+":"+moduleId,oldValue:{canView:current.canView,canCreate:current.canCreate,canEdit:current.canEdit,canDelete:current.canDelete},newValue:normalized,result:"OK",origin:"WEB"}});return updated});
   }
 }

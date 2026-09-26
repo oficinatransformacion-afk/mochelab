@@ -1,0 +1,1313 @@
+{
+  "version": "2026-v1",
+  "roles": [
+    {
+      "sourceId": "MAT-01",
+      "name": "Sponsor",
+      "sections": [
+        {
+          "code": "INTEGRAL",
+          "name": "Evaluación integral",
+          "type": "INTEGRAL",
+          "weight": 1,
+          "scale": "FREQUENCY_0_2",
+          "dimensions": [
+            {
+              "code": "USO_DE_ARTEFACTOS",
+              "name": "Uso de Artefactos",
+              "items": [
+                {
+                  "code": "Q000",
+                  "statement": "¿Tiene una compresión clara de los artefactos necesarios para ejecutar un Planeamiento Estratégico exitoso? (Foda, Playing to Win)"
+                },
+                {
+                  "code": "Q001",
+                  "statement": "¿Tiene una compresión clara de los artefactos necesarios para revisar y planificar un programa/negocio durante un trimestre? (Tablero de OKR, Backlog de Portafolio, Matriz de Riesgos)"
+                }
+              ]
+            },
+            {
+              "code": "MANEJO_DE_EVENTOS",
+              "name": "Manejo de eventos",
+              "items": [
+                {
+                  "code": "Q002",
+                  "statement": "¿Revisa los temas a tratar y ofrece feedback del contenido antes de los eventos?"
+                },
+                {
+                  "code": "Q003",
+                  "statement": "¿Brinda soporte durante la ejecución de los eventos?"
+                },
+                {
+                  "code": "Q004",
+                  "statement": "¿Brinda feedback y soporte en las actividades generadas después de los eventos?"
+                }
+              ]
+            },
+            {
+              "code": "PRACTICAS_LEAN_AGILE",
+              "name": "Prácticas Lean Agile",
+              "items": [
+                {
+                  "code": "Q005",
+                  "statement": "¿Asegura que los programas/negocios cuenten con el respaldo y recursos necesarios para su ejecución?"
+                },
+                {
+                  "code": "Q006",
+                  "statement": "¿Ofrece feedback/cuestiona/participa en la definición de los OKR y el valor generado por las iniciativas?"
+                },
+                {
+                  "code": "Q007",
+                  "statement": "¿Impulsa activamente las iniciativas del programa/negocio?"
+                },
+                {
+                  "code": "Q008",
+                  "statement": "¿Proporciona apoyo y elimina/mitiga riesgos o impedimentos estratégicos?"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sourceId": "MAT-02",
+      "name": "Líder AE",
+      "sections": [
+        {
+          "code": "INTEGRAL",
+          "name": "Evaluación integral",
+          "type": "INTEGRAL",
+          "weight": 1,
+          "scale": "FREQUENCY_0_2",
+          "dimensions": [
+            {
+              "code": "USO_DE_ARTEFACTOS",
+              "name": "Uso de Artefactos",
+              "items": [
+                {
+                  "code": "Q000",
+                  "statement": "¿Tiene una compresión clara de los artefactos necesarios para ejecutar un Planeamiento Estratégico Integrado exitoso? (Foda, Play to Win)"
+                },
+                {
+                  "code": "Q001",
+                  "statement": "¿Prepara los artefactos necesarios para ejecutar una adecuada Sincronizacion de OKR y Revisión de Portafolio? (Tablero de OKR, Backlog de Portafolio)"
+                },
+                {
+                  "code": "Q002",
+                  "statement": "¿Tiene una compresión clara de los artefactos necesarios para revisar y planificar un programa/negocio durante un trimestre? (Backlog de Portafolio, Matriz de Riesgos)"
+                }
+              ]
+            },
+            {
+              "code": "MANEJO_DE_EVENTOS",
+              "name": "Manejo de eventos",
+              "items": [
+                {
+                  "code": "Q003",
+                  "statement": "¿Consolida el contenido del área de enfoque antes de los eventos Planeamiento Estratégico Integrado, Sincronización de OKR y Rev de Portafolio?"
+                },
+                {
+                  "code": "Q004",
+                  "statement": "¿Se asegura que los Dueño de Programa preparen el contenido para la Rev y Planificación del Programa y brinda retroalimentación?"
+                },
+                {
+                  "code": "Q005",
+                  "statement": "¿Lidera y presenta el contenido del área de enfoque durante los eventos Planeamiento Estratégico Integrado, Sincronización de OKR y Rev de Portafolio?"
+                },
+                {
+                  "code": "Q006",
+                  "statement": "¿Participa activamente en la Revisión y Planificación del Programa?"
+                },
+                {
+                  "code": "Q007",
+                  "statement": "¿Hace seguimiento de las iniciativas generadas y sincroniza con sus Dueños de Programa durante el trimestre en el evento de Sincronización de Programa?"
+                }
+              ]
+            },
+            {
+              "code": "PRACTICAS_LEAN_AGILE",
+              "name": "Prácticas Lean Agile",
+              "items": [
+                {
+                  "code": "Q008",
+                  "statement": "¿Asegura que su área de enfoque tenga objetivos estratégicos y resultados clave?"
+                },
+                {
+                  "code": "Q009",
+                  "statement": "¿Participa en la priorización estratégica de iniciativas y cambios de su área de enfoque?"
+                },
+                {
+                  "code": "Q010",
+                  "statement": "¿Asegura la ejecución coordinada de Programas e Iniciativas transversales que impactan en los OKRs del área de enfoque?"
+                },
+                {
+                  "code": "Q011",
+                  "statement": "¿Hace seguimiento de las iniciativas generadas y sincroniza con sus Dueños de Programa durante el trimestre?"
+                },
+                {
+                  "code": "Q012",
+                  "statement": "¿Se comunica constantemente con el Sponsor y Dueños de Programa para gestionar los riesgos, dependencias, impedimentos de su área de enfoque?"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sourceId": "MAT-03",
+      "name": "Líder EAD",
+      "sections": [
+        {
+          "code": "INTEGRAL",
+          "name": "Evaluación integral",
+          "type": "INTEGRAL",
+          "weight": 1,
+          "scale": "FREQUENCY_0_2",
+          "dimensions": [
+            {
+              "code": "USO_DE_ARTEFACTOS",
+              "name": "Uso de Artefactos",
+              "items": [
+                {
+                  "code": "Q000",
+                  "statement": "¿Prepara los artefactos necesarios para ejecutar adecuadamente los eventos estratégicos:Planeamiento Estratégico Integrado, Sincronizacion de OKR y Revisión de Portafolio? (Uso de Foda, Play to Win, Tablero de OKR, Backlog de Portafolio)"
+                },
+                {
+                  "code": "Q001",
+                  "statement": "¿Prepara los artefactos necesarios para ejecutar adecuadamente los eventos tácticos: Revisión y Planificación del Negocio? (Uso de Tablero de OKR, Backlog de Portafolio, Matriz de riesgos)"
+                }
+              ]
+            },
+            {
+              "code": "MANEJO_DE_EVENTOS",
+              "name": "Manejo de eventos",
+              "items": [
+                {
+                  "code": "Q002",
+                  "statement": "¿Prepara el contenido del negocio antes de los eventos estratégicos: Planeamiento Estratégico Integrado, Sincronización de OKR y Rev de Portafolio y tácticos: Revisión y Planificación del Negocio?"
+                },
+                {
+                  "code": "Q003",
+                  "statement": "¿Se asegura que los Dueño de Producto preparen el contenido para la Revisión y Planificación del Sprint, Inspección Lean?"
+                },
+                {
+                  "code": "Q004",
+                  "statement": "¿Releva lo puntos clave de la agenda y asegura que los Miembros del EAD preparen la información para la Sincronización Semanal EAD?"
+                },
+                {
+                  "code": "Q005",
+                  "statement": "¿Lidera y presenta el contenido del Negocio durante los eventos Planeamiento Estratégico Integrado, Sincronización de OKR y Rev de Portafolio, Revisión y Planificación del Negocio?"
+                },
+                {
+                  "code": "Q006",
+                  "statement": "¿Lidera y participa activamente en la Revisión y Planificación del Sprint, Inspección Lean y Sincronización Semanal EAD?"
+                },
+                {
+                  "code": "Q007",
+                  "statement": "¿Hace seguimiento de las iniciativas generadas y sincroniza con sus Dueños de Producto durante el trimestre?"
+                }
+              ]
+            },
+            {
+              "code": "PRACTICAS_LEAN_AGILE",
+              "name": "Prácticas Lean Agile",
+              "items": [
+                {
+                  "code": "Q008",
+                  "statement": "¿Participa en la definición de OKR y priorización estratégica de iniciativas de su negocio?"
+                },
+                {
+                  "code": "Q009",
+                  "statement": "¿Garantiza la Gestión efectiva de las operaciones de negocio guiando el equipo hacia los objetivos y resultados estratégicos del negocio?"
+                },
+                {
+                  "code": "Q010",
+                  "statement": "¿Promueve a su equipo actuar con proactividad en la identificación de oportunidades y amenazas relacionadas al negocio?"
+                },
+                {
+                  "code": "Q011",
+                  "statement": "¿Acompaña a su equipo retándolos constantemente a comprometerse con OKR de impacto?"
+                },
+                {
+                  "code": "Q012",
+                  "statement": "¿Sincroniza constantemente con su Sponsor y su equipo para resolver impedimentos, mitigar riesgos y adaptar constantemente la estrategia?"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sourceId": "MAT-04",
+      "name": "Dueño de Programa",
+      "sections": [
+        {
+          "code": "INTEGRAL",
+          "name": "Evaluación integral",
+          "type": "INTEGRAL",
+          "weight": 1,
+          "scale": "FREQUENCY_0_2",
+          "dimensions": [
+            {
+              "code": "USO_DE_ARTEFACTOS",
+              "name": "Uso de Artefactos",
+              "items": [
+                {
+                  "code": "Q000",
+                  "statement": "¿Tiene una compresión clara de los artefactos necesarios para ejecutar un Planeamiento Estratégico Integrado, Sincronización de OKR y Revisión de Portafolio?"
+                },
+                {
+                  "code": "Q001",
+                  "statement": "¿Prepara los artefactos necesarios para ejecutar adecuadamente los eventos tácticos: Revisión y Planificación del Programa?"
+                },
+                {
+                  "code": "Q002",
+                  "statement": "¿Tiene una compresión clara de los artefactos necesarios para ejecutar una Revisión y Planificación del Sprint, Inspección Lean?"
+                }
+              ]
+            },
+            {
+              "code": "MANEJO_DE_EVENTOS",
+              "name": "Manejo de eventos",
+              "items": [
+                {
+                  "code": "Q003",
+                  "statement": "¿Prepara el contenido del Programa antes de los eventos estratégicos: Planeamiento Estratégico Integrado, Sincronización de OKR y Rev de Portafolio y tácticos: Revisión y Planificación del Programa?"
+                },
+                {
+                  "code": "Q004",
+                  "statement": "¿Se asegura que los Dueño de Producto preparen el contenido para la Revisión y Planificación del Sprint, Inspección Lean?"
+                },
+                {
+                  "code": "Q005",
+                  "statement": "¿Participa activamente en los eventos Planeamiento Estratégico Integrado, Sincronización de OKR y Rev de Portafolio?"
+                },
+                {
+                  "code": "Q006",
+                  "statement": "¿Lider el evento de Revisión y Planificación del Programa?"
+                },
+                {
+                  "code": "Q007",
+                  "statement": "¿Participa activamente en la Revisión y Planificación del Sprint, Inspección Lean?"
+                },
+                {
+                  "code": "Q008",
+                  "statement": "¿Hace seguimiento de las iniciativas generadas y sincroniza con sus Dueños de Producto durante el trimestre?"
+                }
+              ]
+            },
+            {
+              "code": "PRACTICAS_LEAN_AGILE",
+              "name": "Prácticas Lean Agile",
+              "items": [
+                {
+                  "code": "Q009",
+                  "statement": "¿Define OKR de programa e identifica y prioriza iniciativas con el Lider AE y el Sponsor?"
+                },
+                {
+                  "code": "Q010",
+                  "statement": "¿Asegura la alineación estratégica de su programa con los objetivos y resultados clave?"
+                },
+                {
+                  "code": "Q011",
+                  "statement": "¿Define el equipo humano y solicita al Sponsor los recursos necesarios para generar valor en el programa?"
+                },
+                {
+                  "code": "Q012",
+                  "statement": "¿Garantiza la gestión efectiva de los programas guiando el equipo para alcanzar los objetivos y resultados clave?"
+                },
+                {
+                  "code": "Q013",
+                  "statement": "¿Asegura la entrega de valor del programa?"
+                },
+                {
+                  "code": "Q014",
+                  "statement": "¿Sincroniza constantemente con su Lider AE y Sponsor y su equipo para resolver impedimentos, mitigar riesgos y adaptar constantemente la estrategia?"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sourceId": "MAT-05",
+      "name": "Dueño de Producto (Agile)",
+      "sections": [
+        {
+          "code": "INTEGRAL",
+          "name": "Evaluación integral",
+          "type": "INTEGRAL",
+          "weight": 1,
+          "scale": "FREQUENCY_0_2",
+          "dimensions": [
+            {
+              "code": "USO_DE_ARTEFACTOS",
+              "name": "Uso de Artefactos",
+              "items": [
+                {
+                  "code": "Q000",
+                  "statement": "¿Utiliza adecuadamente la Ficha de Iniciativa para documentar el contexto, el problema y la propuesta de solución?"
+                },
+                {
+                  "code": "Q001",
+                  "statement": "¿Emplea correctamente la Matriz RACI para identificar, clasificar e involucrar a los interesados clave?"
+                },
+                {
+                  "code": "Q002",
+                  "statement": "¿Ha realizado un análisis estructurado del problema utilizando herramientas Lean y comprende la causa raíz?"
+                },
+                {
+                  "code": "Q003",
+                  "statement": "¿Propone una visión de producto clara y alineada con los OKR estratégicos?"
+                },
+                {
+                  "code": "Q004",
+                  "statement": "¿Construye un \"Mapa de Historias de Usuario (USM) representativo del flujo de valor, promoviendo el pensamiento MVP?"
+                },
+                {
+                  "code": "Q005",
+                  "statement": "¿Mantiene el Product Backlog visible, accesible y comprendido por todos los miembros del equipo?"
+                },
+                {
+                  "code": "Q006",
+                  "statement": "¿Actualiza y refina continuamente los ítems del backlog en colaboración con el equipo?"
+                },
+                {
+                  "code": "Q007",
+                  "statement": "¿Define y comunica claramente los criterios de aceptación de cada historia de usuario?"
+                },
+                {
+                  "code": "Q008",
+                  "statement": "¿Aplica consistentemente la Definición de Listo (DoR) antes de la planificación del Sprint?"
+                },
+                {
+                  "code": "Q009",
+                  "statement": "¿Se asegura de que el incremento del producto cumple con la Definición de Terminado (DoD)?"
+                },
+                {
+                  "code": "Q010",
+                  "statement": "¿Elabora e implementa un plan de despliegue que facilite la adopción progresiva del producto por los usuarios?"
+                },
+                {
+                  "code": "Q011",
+                  "statement": "¿Utiliza métricas de producto relevantes para guiar la toma de decisiones?"
+                },
+                {
+                  "code": "Q012",
+                  "statement": "¿Utiliza Jira u otra herramienta digital de gestión para mantener el backlog actualizado y ordenado? (aplica para iniciativas digitales)"
+                }
+              ]
+            },
+            {
+              "code": "MANEJO_DE_EVENTOS",
+              "name": "Manejo de eventos",
+              "items": [
+                {
+                  "code": "Q013",
+                  "statement": "¿Realiza Gemba Walks para observar y comprender directamente el problema en el lugar donde ocurre?"
+                },
+                {
+                  "code": "Q014",
+                  "statement": "¿Participa activamente en todos los eventos operativos del Sprint: Planificación, Sincronización, Revisión y Retrospectiva?"
+                },
+                {
+                  "code": "Q015",
+                  "statement": "¿Prepara y facilita la planificación del Sprint con una visión clara del objetivo a lograr?"
+                },
+                {
+                  "code": "Q016",
+                  "statement": "¿Conduce la revisión del Sprint conectando los entregables con el valor entregado al negocio?"
+                },
+                {
+                  "code": "Q017",
+                  "statement": "¿Contribuye de manera constructiva en la retrospectiva del equipo y participa al menos una vez por trimestre?"
+                }
+              ]
+            },
+            {
+              "code": "PRACTICAS_LEAN_AGILE",
+              "name": "Prácticas Lean Agile",
+              "items": [
+                {
+                  "code": "Q018",
+                  "statement": "¿Tiene claridad sobre el propósito del producto y lo comunica efectivamente a los involucrados?"
+                },
+                {
+                  "code": "Q019",
+                  "statement": "¿Identifica correctamente problemas u oportunidades, sus síntomas e impacto en el negocio?"
+                },
+                {
+                  "code": "Q020",
+                  "statement": "¿Aplica técnicas de priorización orientadas a maximizar la entrega de valor?"
+                },
+                {
+                  "code": "Q021",
+                  "statement": "¿Participa activamente en las pruebas del producto, validando que se cumplan los criterios de aceptación definidos?"
+                },
+                {
+                  "code": "Q022",
+                  "statement": "¿Monitorea las métricas clave del producto para asegurar la entrega continua de valor y el cumplimiento de objetivos?"
+                },
+                {
+                  "code": "Q023",
+                  "statement": "¿Gestiona proactivamente los riesgos que puedan comprometer el cumplimiento del objetivo del producto?"
+                },
+                {
+                  "code": "Q024",
+                  "statement": "¿Diseña e implementa un plan de capacitación para facilitar la adopción efectiva del producto por los usuarios?"
+                },
+                {
+                  "code": "Q025",
+                  "statement": "¿Promueve la sostenibilidad del producto mediante la actualización de estándares, procedimientos e instructivos necesarios?"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sourceId": "MAT-06",
+      "name": "Dueño de Producto (Lean)",
+      "sections": [
+        {
+          "code": "INTEGRAL",
+          "name": "Evaluación integral",
+          "type": "INTEGRAL",
+          "weight": 1,
+          "scale": "FREQUENCY_0_2",
+          "dimensions": [
+            {
+              "code": "GESTION",
+              "name": "Gestión",
+              "items": [
+                {
+                  "code": "Q000",
+                  "statement": "¿Utiliza adecuadamente la Ficha de Iniciativa para documentar el contexto, el problema y la propuesta de solución?"
+                },
+                {
+                  "code": "Q001",
+                  "statement": "¿Las iniciativas están alineadas a la estrategia a través de un OKR?"
+                }
+              ]
+            },
+            {
+              "code": "STAKEHOLDERS",
+              "name": "Stakeholders",
+              "items": [
+                {
+                  "code": "Q002",
+                  "statement": "¿Identifica a los interesados y asegura su participación activa en el desarrollo de las iniciativas?"
+                }
+              ]
+            },
+            {
+              "code": "DEFINIR",
+              "name": "Definir",
+              "items": [
+                {
+                  "code": "Q003",
+                  "statement": "¿Identifica correctamente el problema u oportunidad, así como sus síntomas e impacto?"
+                },
+                {
+                  "code": "Q004",
+                  "statement": "¿Ha realizado visitas presenciales (Gemba) para entender el problema?"
+                }
+              ]
+            },
+            {
+              "code": "MEDIR",
+              "name": "Medir",
+              "items": [
+                {
+                  "code": "Q005",
+                  "statement": "¿Ha identificado las métricas de éxito del proyecto y definido la línea base y la meta?"
+                }
+              ]
+            },
+            {
+              "code": "ANALIZAR",
+              "name": "Analizar",
+              "items": [
+                {
+                  "code": "Q006",
+                  "statement": "¿Ha realizado un correcto análisis del problema utilizando herramientas Lean y comprende la causa raíz?"
+                }
+              ]
+            },
+            {
+              "code": "MEJORAR",
+              "name": "Mejorar",
+              "items": [
+                {
+                  "code": "Q007",
+                  "statement": "¿Ha desarrollado un plan de actividades debidamente priorizado que mitiga o elimina las causas raíz, garantizando su ejecución?"
+                }
+              ]
+            },
+            {
+              "code": "RIESGOS",
+              "name": "Riesgos",
+              "items": [
+                {
+                  "code": "Q008",
+                  "statement": "¿Realiza una adecuada gestión de riesgos que podrían afectar el cumplimiento del objetivo del proyecto?"
+                }
+              ]
+            },
+            {
+              "code": "CONTROLAR",
+              "name": "Controlar",
+              "items": [
+                {
+                  "code": "Q009",
+                  "statement": "¿Monitorea y asegura la entrega de valor a partir de métricas para garantizar el éxito del producto?"
+                },
+                {
+                  "code": "Q010",
+                  "statement": "¿Realiza inspecciones con la frecuencia establecida, recibe retroalimentación y la incorpora en la solución?"
+                }
+              ]
+            },
+            {
+              "code": "SOSTENIBILIDAD",
+              "name": "Sostenibilidad",
+              "items": [
+                {
+                  "code": "Q011",
+                  "statement": "¿Ha garantizado la sostenibilidad mediante la actualización de estándares, procedimientos e instructivos?"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "sourceId": "MAT-07",
+      "name": "ATF",
+      "sections": [
+        {
+          "code": "TECHNICAL",
+          "name": "Técnica",
+          "type": "TECHNICAL",
+          "weight": 0.6,
+          "scale": "BINARY_COMPLIANCE",
+          "dimensions": [
+            {
+              "code": "AGILE_PRACTITIONER",
+              "name": "Agile Practitioner",
+              "items": [
+                {
+                  "code": "AGILE_PRACTITIONER_01",
+                  "statement": "Reconoce los valores y principios ágiles.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_02",
+                  "statement": "Participa en capacitaciones sobre marcos ágiles como Scrum, Kanban, Design Thinking y Lean Inception.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_03",
+                  "statement": "Demuestra curiosidad por explorar cómo estas herramientas pueden resolver problemas reales.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_04",
+                  "statement": "Aplica los principios ágiles en iniciativas con acompañamiento.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_05",
+                  "statement": "Facilita los eventos del modelo de gobierno ágil.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_06",
+                  "statement": "Utiliza tableros Kanban para organizar tareas individuales o del equipo, identificando cuellos de botella en el flujo de trabajo y proponiendo mejoras simples.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_07",
+                  "statement": "Facilita sesiones de Ideación con acompañamiento, tomando como referencia Design Thinking.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_08",
+                  "statement": "Participa activamente en sesiones de Lean Inception, colaborando con los participantes en las actividades y contribuyendo en discusiones para identificar el MVP con acompañamiento.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_09",
+                  "statement": "Aplica los principios ágiles en iniciativas complejas, sin requerir acompañamiento directo.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_10",
+                  "statement": "Facilita los eventos Scrum poniendo foco en el Objetivo del Sprint, garantizando una colaboración efectiva y la resolución de impedimentos. Aplica métricas clave como el velocity.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_11",
+                  "statement": "Facilita discusiones para optimizar continuamente el flujo de trabajo, aplicando métricas clave como througput, lead time y cycle time.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_12",
+                  "statement": "Facilita talleres estructurados de Ideación sin acompañamiento directo, con equipos diversos, guiando a los participantes a través de todas las fases del proceso y priorizando el valor.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_13",
+                  "statement": "Lidera talleres completos de Lean Inception, facilitando todas las dinámicas necesarias para definir MVPs y priorizar funcionalidades sin acompañamiento directo; garantizando la participación activa de stakeholders clave y la alineación de expectativas.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_14",
+                  "statement": "Actúa como mentor y referente para equipos y líderes, enseñando y adaptando prácticas ágiles según las necesidades del contexto.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_15",
+                  "statement": "Adapta el marco Scrum a contextos complejos, escalándolo o integrándolo con otras prácticas según las necesidades del equipo o la organización.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_16",
+                  "statement": "Adapta Kanban a contextos organizacionales complejos, asegurando su integración con otros marcos y metodologías según las necesidades del negocio.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_17",
+                  "statement": "Promueve la sesiones de Ideación a nivel organizacional e integra otras metodologías ágiles para maximizar resultados.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "AGILE_PRACTITIONER_18",
+                  "statement": "Adapta el formato de Lean Inception a contextos complejos, integrándolo con otras prácticas ágiles.",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "LEAN_PRACTITIONER",
+              "name": "Lean Practitioner",
+              "items": [
+                {
+                  "code": "LEAN_PRACTITIONER_01",
+                  "statement": "Maneja con claridad los conceptos lean, tales como su definición, principios, enfoque, aplicación, alcance y beneficios.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_02",
+                  "statement": "Ha participado en capacitaciones de: 1. Marcos de trabajo como Lean Manfacturing, Lean Office, Lean Six Sigma 2. Herramientas como 5S, VSM, ADV, Analisis GAP, SolEP 3. Metodologías de mejora como DMAIC, A3, PDCA",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_03",
+                  "statement": "Tuvo inducción general en el negocio que acompaña.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_04",
+                  "statement": "Ha investigado como estos marcos/herramientas/metodologías impactan en el procesos y como se desarrollan en el mismo",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_05",
+                  "statement": "En colaboración con el Coach elabora capacitaciones/talleres de formación en Lean direccionado a sus equipos de trabajo",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_06",
+                  "statement": "Garantiza que el portafolio de iniciativas Lean esté correctamente estructurado, asegurando que cada equipo tenga la problemática que enfrente, el plan de actividades de cada una, así como los impactos y riesgos.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_07",
+                  "statement": "Lleva a cabo los eventos de inspección lean asegurando elevar impedimentos, levantar observaciones y resolviendo dudas",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_08",
+                  "statement": "En compañía del coach, participa en sesiones de ideación con los equipos ayudándolos a enfocarse en las brechas mas significativas del negocio (OJO: Esto se repite arriba, considero que las sesiones de ideación son promoviendo la mejora, no estaría asociada necesariamente a filosofia lean o agile, mas bien de la sesión pueden salir iniciativas lean o agile)",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_09",
+                  "statement": "Realiza capacitaciones/talleres Lean a sus equipos de trabajo, tanto programadas como a demanda, manejando con dinamismo el material establecido.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_10",
+                  "statement": "Se encuentra en la capacidad de cuestionar y asegurar el correcto planteamiento de las problematicas enfrentadas, así como de observar la eficacia de las actividades y el impacto.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_11",
+                  "statement": "Se encuentra en la capacidad de retar a los equipos a ir por nuevos caminos elaborando propuestas enfocadas en los negocios que brindan servicio. (proponer iniciativas)",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_12",
+                  "statement": "Lídera sesiones de ideación teniendo la capacidad de guiar al los equipos enfocándose en las principales aristas del negocio que acomañan (Según modelo de negocio)",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_13",
+                  "statement": "Elabora material y prepara estructuras de capacitación, priorizando las necesidades y brechas de sus equipos de trabajo, midiendo los resultados del crecimiento en los participantes",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_14",
+                  "statement": "Propone nuevas formas de manejar la implementación y aplicación de metodologías, marcos de trabajo y/o herramientas.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_15",
+                  "statement": "Acompaña y forma nuevos facilitadores",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "LEAN_PRACTITIONER_16",
+                  "statement": "Amplía su conocimiento hacia diferentes unidades de negocio o áreas de enfoque",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "FACILITACION",
+              "name": "Facilitación",
+              "items": [
+                {
+                  "code": "FACILITACION_01",
+                  "statement": "Reconoce la importancia de la facilitación en reuniones y actividades del equipo.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "FACILITACION_02",
+                  "statement": "Participa en capacitaciones introductorias sobre herramientas y técnicas de facilitación.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "FACILITACION_03",
+                  "statement": "Observa a facilitadores experimentados para aprender buenas prácticas.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "FACILITACION_04",
+                  "statement": "Facilita reuniones del equipo asegurando que los objetivos sean claros y alcanzables.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "FACILITACION_05",
+                  "statement": "Aplica herramientas de facilitación simples y promueve un ambiente colaborativo.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "FACILITACION_06",
+                  "statement": "Maneja conflictos menores dentro del equipo durante las sesiones facilitadas.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "FACILITACION_07",
+                  "statement": "Facilita talleres o eventos ágiles complejas con múltiples stakeholders.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "FACILITACION_08",
+                  "statement": "Utiliza técnicas avanzadas de facilitación para fomentar la colaboración y el alineamiento.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "FACILITACION_09",
+                  "statement": "Evalúa la efectividad de las sesiones facilitadas, ajusta las estrategias según sea necesario y resuelve conflictos asegurando que las discusiones se mantengan productivas y alineadas con los objetivos.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "FACILITACION_10",
+                  "statement": "Diseña y lidera programas de capacitación en facilitación para otros líderes y facilitadores.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "FACILITACION_11",
+                  "statement": "Actúa como mentor para facilitadores emergentes en la organización.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "FACILITACION_12",
+                  "statement": "Promueve una cultura de facilitación efectiva y colaborativa a nivel organizacional.",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "ENSENANZA",
+              "name": "Enseñanza",
+              "items": [
+                {
+                  "code": "ENSENANZA_01",
+                  "statement": "Reconoce la importancia de adaptar el estilo de enseñanza según el público.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "ENSENANZA_02",
+                  "statement": "Participa en capacitaciones básicas sobre técnicas de enseñanza.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "ENSENANZA_03",
+                  "statement": "Realiza actividades de preparación básicas, como elaborar materiales simples",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "ENSENANZA_04",
+                  "statement": "Diseña e imparte sesiones/talleres básicas con acompañamiento.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "ENSENANZA_05",
+                  "statement": "Utiliza ejemplos prácticos y recursos básicos para facilitar la comprensión de los temas enseñados, considerando materiales exclusivamente generados por la Oficina de Transformación.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "ENSENANZA_06",
+                  "statement": "Promueve la participación activa de los asistentes mediante preguntas y dinámicas sencillas.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "ENSENANZA_07",
+                  "statement": "El objetivo de aprendizaje es validado con la conclusión del taller y retroalimentación del grado de entendimiento emitido por el grupo.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "ENSENANZA_08",
+                  "statement": "Integra tecnología y métodos innovadores en sus sesiones de enseñanza.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "ENSENANZA_09",
+                  "statement": "Proporciona retroalimentación personalizada para potenciar el aprendizaje.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "ENSENANZA_10",
+                  "statement": "Adapto los materiales oficiales de la Oficina de Transformación e incremento las experiencias de aprendizaje con nuevas prácticas.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "ENSENANZA_11",
+                  "statement": "El objetivo del aprendizaje se logra durante el taller a través de la ejecución eficaz de los ejercicios.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "ENSENANZA_12",
+                  "statement": "Diseña y lidera talleres a nivel organizacional utilizando practicas disruptivas para promever experiencias inmersivas como Traning From the Back of The Room.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "ENSENANZA_13",
+                  "statement": "Actúa como mentor para otros instructores o facilitadores.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "ENSENANZA_14",
+                  "statement": "Evalúa y mejora continuamente los enfoques de enseñanza en la organización.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "ENSENANZA_15",
+                  "statement": "El objetivo de aprendizaje es incrementado por el conocimiento emergente del grupo.",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "MAESTRIA_DE_NEGOCIO",
+              "name": "Maestría de Negocio",
+              "items": [
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_01",
+                  "statement": "Participa en sesiones introductorias sobre la operación del negocio.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_02",
+                  "statement": "Muestra curiosidad por entender los procesos y operaciones básicas de la organización.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_03",
+                  "statement": "Conoce superficialmente el Negocio de la empresa y con profundidad los aspectos dentro del alcance de su función.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_04",
+                  "statement": "Se apoya completamente en el conocimiento de los Sponsors y Expertos responsables por el negocio.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_05",
+                  "statement": "Desarrolla el conocimiento de manera empírica mientras la iniciativa avanza.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_06",
+                  "statement": "Conoce los aspectos generales del Negocio a nivel tactico y operativo.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_07",
+                  "statement": "Aprende de manera proactiva con el objetivo de potencializar el acompañamiento de las iniciativas.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_08",
+                  "statement": "Desarrolla el conocimiento de manera intencional y planificada.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_09",
+                  "statement": "Comprende el Negocio desde la estrategia hacia la operación.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_10",
+                  "statement": "Entiende el mercado, sus principales actores y los critérios de éxito del negocio de la empresa.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_11",
+                  "statement": "Direcciona las conversaciones a los aspectos importantes del negocio.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "MAESTRIA_DE_NEGOCIO_12",
+                  "statement": "Tiene la capacidad de apoyar a los dueños del Negocio en la evolución y elaboración de un plan integral de negocio.",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO",
+              "name": "Maestría de desarrollo tecnológico",
+              "items": [
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_01",
+                  "statement": "Participa en capacitaciones introductorias sobre herramientas y plataformas digitales relevantes.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_02",
+                  "statement": "Muestra curiosidad por entender cómo la tecnología impacta los procesos y resultados de negocio.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_03",
+                  "statement": "Acompaña iniciativas tecnologicas sin embago no tiene conocimiento profundo sobre las las etapas de desarrollo de software.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_04",
+                  "statement": "Conoce conceptualmente el proceso de ciclo de vida de desarrollo de Software (SDLC).",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_05",
+                  "statement": "Conoce conceptualmente enfoques como Test Driven Development, Behavior Driven Development, Slicing, Design emergente de Software.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_06",
+                  "statement": "Es capaz de apoyar en el desarrollo de prototipos de baja fidelidad.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_07",
+                  "statement": "Acompaña y participa activamente en iniciativas de desarrollo de software.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_08",
+                  "statement": "Entiendo el SLDC y conceptos avanzados de software y tecnologia como Cloud Computing, Plataformas, SaaS, Arquitectura Distribuída, Automación, No code.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_09",
+                  "statement": "Es capaz de Transmitir el concepto general de DevOps.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_10",
+                  "statement": "Es capaz de apoyar en el desarrollo de prototipos de alta fidelidad.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_11",
+                  "statement": "Promueve una cultura de excelencia técnica en la organización.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_12",
+                  "statement": "Es mentor para la adopción de prácticas emergentes para el desarrollo como Pair Programming, Mob programming u otras.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "MAESTRIA_DE_DESARROLLO_TECNOLOGICO_13",
+                  "statement": "Facilita con eficiencia conversaciones sobre dominios y aspectos de calidad tecnica.",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO",
+              "name": "Transformación y Gestión de cambio",
+              "items": [
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_01",
+                  "statement": "Reconoce la importancia de la gestión del cambio en iniciativas organizacionales.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_02",
+                  "statement": "Participa en capacitaciones introductorias sobre marcos de transformación y modelos de escalamiento.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_03",
+                  "statement": "Muestra interés por entender cómo el cambio afecta a las personas y procesos.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_04",
+                  "statement": "Cumple en el modelo de gestión de cambio propuesto por la Oficina de Transformación: gestión de stakeholders, estrategias de cambio, pruebas, capacitaciones y captura de valor de los productos con acompañamiento.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_05",
+                  "statement": "Participa activamente en iniciativas para identificar y gestionar resistencias al cambio, con acompañamiento.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_06",
+                  "statement": "Colabora con los equipos para facilitar la adopción de nuevos procesos o tecnologías.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_07",
+                  "statement": "Co-facilita Clínicas Agiles a nivel de Programa con aconpañamiento.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_08",
+                  "statement": "Lidera iniciativas de gestión del cambio, incluyendo la definición y ejecución de estrategias de cambio adaptadas a las necesidades de la organización; complementando con métodos estructurados como Lean Change Management, ADKAR.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_09",
+                  "statement": "Diseña y facilita talleres de cambio para alinear a los stakeholders y resolver resistencias complejas.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_10",
+                  "statement": "Monitorea métricas clave de adopción y ajuste organizacional, realizando ajustes proactivos según los resultados.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_11",
+                  "statement": "Lidera Clínicas Agiles a nivel de Programa.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_12",
+                  "statement": "Actúa como mentor para líderes y equipos en la implementación de estrategias de gestión del cambio.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_13",
+                  "statement": "Adapta modelos de gestión del cambio a contextos organizacionales complejos, garantizando su efectividad y sostenibilidad.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_14",
+                  "statement": "Promueve una cultura organizacional adaptable y orientada a la mejora continua.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "TRANSFORMACION_Y_GESTION_DE_CAMBIO_15",
+                  "statement": "Propone mejoras y modifica el modelo de gobierno.",
+                  "level": "MAESTRO"
+                }
+              ]
+            },
+            {
+              "code": "GOBIERNO_Y_ALINEAMIENTO",
+              "name": "Gobierno y Alineamiento",
+              "items": [
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_01",
+                  "statement": "Reconoce la importancia de los OKR y la gestión de portafolio para la alineación estratégica.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_02",
+                  "statement": "Participa en capacitaciones básicas sobre definición de OKR y conceptos de portafolio.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_03",
+                  "statement": "Muestra curiosidad por entender cómo los OKR y las iniciativas estratégicas impactan en los objetivos organizacionales.",
+                  "level": "POSTULANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_04",
+                  "statement": "Participa en la definición y seguimiento de OKR para equipos o áreas específicas con supervisión.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_05",
+                  "statement": "Apoya en la elaboración de reportes sobre el estado del portafolio de iniciativas.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_06",
+                  "statement": "Colabora en la priorización de iniciativas estratégicas según criterios establecidos.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_07",
+                  "statement": "Busca retroalimentación para mejorar su comprensión y habilidades en estas áreas.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_08",
+                  "statement": "Conoce y aplica las políticas y artefactos de la APMO.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_09",
+                  "statement": "Hace seguimiento de los riegos de las iniciativas que acompaña.",
+                  "level": "PRINCIPIANTE"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_10",
+                  "statement": "Lidera la definición y monitoreo de OKR en equipos multifuncionales, asegurando su alineación con los objetivos estratégicos.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_11",
+                  "statement": "Diseña estrategias para la administración del portafolio de iniciativas, priorizando según impacto, complejidad y capacidad de recursos.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_12",
+                  "statement": "Facilita reuniones con stakeholders para garantizar la transparencia y la alineación en la toma de decisiones.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_13",
+                  "statement": "Realiza análisis continuos de datos para ajustar OKR y portafolio según sea necesario.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_14",
+                  "statement": "Actua de manera proactiva en la gestión de riesgos e impedimientos de las iniciativas que acompaña, garantizando la disponibilidad acordada para las iniciativas.",
+                  "level": "OFICIAL"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_15",
+                  "statement": "Actúa como mentor para líderes y equipos en la implementación avanzada de OKR y gestión de portafolio.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_16",
+                  "statement": "Diseña programas organizacionales para integrar OKR y portafolio como herramientas clave de alineamiento estratégico.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_17",
+                  "statement": "Adapta prácticas, eventos, artefactos a contextos organizacionales complejos, asegurando su escalabilidad y sostenibilidad.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_18",
+                  "statement": "Fomento una cultura de gestión de riesgos en la organización, logrando que sus equipos gestionen sus riesgos e impedimentos proactivamente.",
+                  "level": "MAESTRO"
+                },
+                {
+                  "code": "GOBIERNO_Y_ALINEAMIENTO_19",
+                  "statement": "Contribuye activamente a la comunidad de práctica mediante publicaciones, charlas y mentorías.",
+                  "level": "MAESTRO"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "code": "SOFT",
+          "name": "Blanda",
+          "type": "SOFT",
+          "weight": 0.4,
+          "scale": "COMPETENCY_0_2",
+          "dimensions": [
+            {
+              "code": "COMPROMISO",
+              "name": "Compromiso",
+              "items": [
+                {
+                  "code": "SOFT_01",
+                  "statement": "Califica tu nivel de compromiso."
+                }
+              ]
+            },
+            {
+              "code": "COMUNICACION_ASERTIVA",
+              "name": "Comunicación Asertiva",
+              "items": [
+                {
+                  "code": "SOFT_02",
+                  "statement": "Califica tu nivel de comunicación asertiva."
+                }
+              ]
+            },
+            {
+              "code": "INNOVACION",
+              "name": "Innovación",
+              "items": [
+                {
+                  "code": "SOFT_03",
+                  "statement": "Califica tu nivel de innovación."
+                }
+              ]
+            },
+            {
+              "code": "PROACTIVIDAD",
+              "name": "Proactividad",
+              "items": [
+                {
+                  "code": "SOFT_04",
+                  "statement": "Califica tu nivel de proactividad."
+                }
+              ]
+            },
+            {
+              "code": "TRABAJO_EN_EQUIPO",
+              "name": "Trabajo en equipo",
+              "items": [
+                {
+                  "code": "SOFT_05",
+                  "statement": "Califica tu nivel de trabajo en equipo."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

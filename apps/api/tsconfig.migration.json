@@ -8,6 +8,7 @@
   },
   "include": [
     "prisma/import-legacy.ts",
+    "src/database/environment-guard.ts",
     "src/database/postgres-options.ts"
   ]
 }

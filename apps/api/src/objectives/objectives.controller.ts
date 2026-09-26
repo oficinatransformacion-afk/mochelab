@@ -1,18 +1,18 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { ObjectivesRepository } from "./objectives.repository";
 import { RequirePermission } from "../access/access.decorators";
-import { AccessService, type ProfileCode } from "../access/access.service";
+import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 
 @RequirePermission("OBJETIVOS","view")
 @Controller("objectives")
 export class ObjectivesController {
   constructor(private readonly repository: ObjectivesRepository,private readonly access:AccessService) {}
-  private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO"}
+  private profile(profile?:string):ProfileCode{return profileCode(profile)}
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(this.profile(profile),email)}
 
   @Get()
-  async list(@Query("year") year?: string, @Query("search") search?: string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
-    return this.repository.list(year ? Number(year) : undefined, search,await this.scope(profile,email));
+  async list(@Query("years") years?:string,@Query("year") legacyYear?: string, @Query("search") search?: string,@Query("teamIds") teamIds?:string,@Query("cycleIds") cycleIds?:string,@Query("statusIds") statusIds?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    const ids=(value?:string)=>value?.split(",").filter(Boolean)??[],selectedYears=ids(years??legacyYear).map(Number);return this.repository.list(selectedYears, search,await this.scope(profile,email),page?{selectedTeamIds:ids(teamIds),cycleIds:ids(cycleIds),statusIds:ids(statusIds),page:Number(page),pageSize:Number(pageSize)||10}:undefined);
   }
 
   @Get("options")

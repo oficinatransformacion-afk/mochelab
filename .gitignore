@@ -2,8 +2,10 @@ node_modules/
 .pnpm-store/
 dist/
 dist-migration/
+dist-seed-local/
 *.tsbuildinfo
 .tmp-export/
+.local-logs/
 .artifact-work/
 outputs/
 database/staging/

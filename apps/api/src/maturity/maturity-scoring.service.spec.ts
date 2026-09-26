@@ -17,8 +17,8 @@ describe("MaturityScoringService", () => {
   });
 
   it.each([
-    [0.49, "POSTULANTE"],
-    [0.5, "PRINCIPIANTE"],
+    [0.99, "POSTULANTE"],
+    [1, "PRINCIPIANTE"],
     [1.49, "PRINCIPIANTE"],
     [1.5, "OFICIAL"],
     [2, "OFICIAL"],

@@ -1,31 +1,40 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { AdminOnly, RequirePermission } from "../access/access.decorators";
-import { AccessService, type ProfileCode } from "../access/access.service";
+import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 import { DirectoryRepository } from "./directory.repository";
 
 @Controller()
 export class DirectoryController {
   constructor(private readonly repository: DirectoryRepository,private readonly access:AccessService) {}
 
-  private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode,email)}
+  private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profileCode(profile),email)}
+  private ids(value?:string){return value?.split(",").map(item=>item.trim()).filter(Boolean)??[]}
 
   @Get("people")
   @RequirePermission("PERSONAS","view")
-  async listPeople(@Query("search") search?: string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
-    return this.repository.listPeople(search,await this.scope(profile,email));
+  async listPeople(@Query("search") search?: string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Query("companies") companies?:string,@Query("units") units?:string,@Query("statuses") statuses?:string,@Query("assignment") assignment?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    const identity=profileCode(profile),[scope,personId]=await Promise.all([this.scope(profile,email),this.access.getPersonId(identity,email)]),self=identity==="COLABORADOR"?personId??undefined:undefined;
+    if(!page)return this.repository.listPeople(search,scope,self);
+    return this.repository.listPeoplePage({search,companies:this.ids(companies),units:this.ids(units),statuses:this.ids(statuses),assignment:this.ids(assignment),page:Number(page),pageSize:Number(pageSize)||20,personId:self},scope);
   }
+
+  @Get("people-filter-options") @RequirePermission("PERSONAS","view")
+  async peopleFilterOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.peopleFilterOptions(await this.scope(profile,email))}
 
   @Get("people/:id/profile")
   @RequirePermission("PERSONAS","view")
   async personProfile(@Param("id") id:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){
+    const identity=profileCode(profile),ownPersonId=await this.access.getPersonId(identity,email);
+    if(identity==="COLABORADOR"&&ownPersonId!==id)throw new ForbiddenException("El perfil Colaborador solo puede consultar su propio Perfil 360");
     return this.repository.getPersonProfile(id,await this.scope(profile,email));
   }
 
   @Get("teams")
   @RequirePermission("EQUIPOS","view")
-  async listTeams(@Query("search") search?: string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
-    return this.repository.listTeams(search,await this.scope(profile,email));
+  async listTeams(@Query("search") search?: string,@Query("roles") roles?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+    const scope=await this.scope(profile,email);if(!page)return this.repository.listTeams(search,scope);return this.repository.listTeamsPage(search,this.ids(roles),Number(page)||1,Number(pageSize)||20,scope);
   }
+  @Get("team-filter-options") @RequirePermission("EQUIPOS","view") async teamFilterOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.teamFilterOptions(await this.scope(profile,email))}
 
   @Get("assignment-options")
   @RequirePermission("ASIGNACIONES","view")
@@ -54,24 +63,25 @@ export class DirectoryController {
 
   @RequirePermission("ASIGNACIONES","create")
   @Post("person-role-assignments")
-  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string; modelIds?:string[]; withoutDevelopmentPath?:boolean; developmentExclusionReason?:string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (!body.personId || !body.roleId || !body.teamId) throw new BadRequestException("Persona, rol y equipo son obligatorios");
-    const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;
+    const identity=profileCode(profile);
+    if(body.withoutDevelopmentPath&&identity!=="ADMIN"&&identity!=="SYSTEM")throw new ForbiddenException("Solo un administrador puede crear una asignación sin ruta de desarrollo");
     const scope=await this.access.getTeamScope(identity,email);
     if(scope!==null&&!scope.includes(body.teamId))throw new ForbiddenException("No puedes asignar roles fuera de tus equipos autorizados");
-    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope);
+    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope,{withoutDevelopmentPath:Boolean(body.withoutDevelopmentPath),reason:body.developmentExclusionReason,modelIds:Array.isArray(body.modelIds)?body.modelIds:[]});
   }
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments/:id")
-  async updateAssignment(@Param("id") id:string,@Body() body:Record<string,unknown>,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;return this.repository.updateAssignment(id,body,await this.access.getUserId(identity,email),await this.access.getTeamScope(identity,email))}
+  async updateAssignment(@Param("id") id:string,@Body() body:Record<string,unknown>,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profileCode(profile);return this.repository.updateAssignment(id,body,await this.access.getUserId(identity,email),await this.access.getTeamScope(identity,email))}
 
   @RequirePermission("ASIGNACIONES","view") @Get("person-role-assignments")
-  async listAssignments(@Query("search") search?:string,@Query("teamId") teamId?:string,@Query("roleId") roleId?:string,@Query("statusId") statusId?:string,@Query("onboardingStatusId") onboardingStatusId?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.listAssignments({search,teamId,roleId,statusId,onboardingStatusId},await this.scope(profile,email))}
+  async listAssignments(@Query("search") search?:string,@Query("teamIds") teamIds?:string,@Query("roleIds") roleIds?:string,@Query("statusIds") statusIds?:string,@Query("statusCodes") statusCodes?:string,@Query("onboardingStatusIds") onboardingStatusIds?:string,@Query("developmentPathModes") developmentPathModes?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.listAssignments({search,teamIds:this.ids(teamIds),roleIds:this.ids(roleIds),statusIds:this.ids(statusIds),statusCodes:this.ids(statusCodes),onboardingStatusIds:this.ids(onboardingStatusIds),developmentPathModes:this.ids(developmentPathModes),page:page?Number(page):undefined,pageSize:Number(pageSize)||25},await this.scope(profile,email))}
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments")
   async bulkUpdateAssignments(@Body() body:{ids?:string[];statusId?:string;onboardingStatusId?:string;endDate?:string},@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){
     if(!Array.isArray(body.ids)||!body.ids.length)throw new BadRequestException("Selecciona al menos una asignación");
-    const identity=profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO" as ProfileCode;
+    const identity=profileCode(profile);
     return this.repository.bulkUpdateAssignments({...body,ids:body.ids},await this.access.getUserId(identity,email),await this.access.getTeamScope(identity,email));
   }
 }
