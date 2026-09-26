@@ -9,9 +9,18 @@ function readEnvValue(filePath, key) {
   return line.slice(key.length + 1).trim().replace(/^"|"$/g, "");
 }
 
-function developmentUrl() {
+function targetDatabase() {
+  const argument = process.argv.find((item) => item.startsWith("--database="));
+  const database = argument?.slice("--database=".length) || "mochelab_dev";
+  if (!["mochelab_dev", "mochelab_prod"].includes(database)) {
+    throw new Error(`BLOQUEADO: ${database} no es un destino permitido para esta auditoría`);
+  }
+  return database;
+}
+
+function targetUrl(database) {
   const url = new URL(readEnvValue(path.resolve(".env"), "DATABASE_URL"));
-  url.pathname = "/mochelab_dev";
+  url.pathname = `/${database}`;
   url.searchParams.delete("sslmode");
   url.searchParams.delete("sslcert");
   url.searchParams.delete("sslkey");
@@ -22,7 +31,7 @@ function developmentUrl() {
 const source = JSON.parse(fs.readFileSync(path.resolve(".artifact-work/atf-responses.local.json"), "utf8"));
 const dnis = source.people.map((person) => person.dni);
 const pool = new Pool({
-  connectionString: developmentUrl(),
+  connectionString: targetUrl(targetDatabase()),
   ssl: {
     ca: fs.readFileSync(path.resolve(".certs/ca.pem"), "utf8"),
     rejectUnauthorized: true,
@@ -30,13 +39,50 @@ const pool = new Pool({
 });
 
 async function main() {
+  const expectedDatabase = targetDatabase();
   const database = await pool.query("select current_database() as name");
-  if (database.rows[0]?.name !== "mochelab_dev") {
-    throw new Error(`BLOQUEADO: se esperaba mochelab_dev y se obtuvo ${database.rows[0]?.name ?? "desconocida"}`);
+  if (database.rows[0]?.name !== expectedDatabase) {
+    throw new Error(`BLOQUEADO: se esperaba ${expectedDatabase} y se obtuvo ${database.rows[0]?.name ?? "desconocida"}`);
   }
 
   await pool.query("begin read only");
   try {
+    const requiredTables = [
+      "assessment_model", "assessment_model_version", "assessment_section",
+      "assessment_dimension_version", "assessment_item_version", "period_assessment_model",
+      "assessment_result_detail", "role_self_assessment", "role_maturity",
+    ];
+    const schemaTables = await pool.query(
+      `select table_name from information_schema.tables where table_schema = 'public' and table_name = any($1::text[])`,
+      [requiredTables],
+    );
+    const schemaColumns = await pool.query(
+      `select table_name, column_name from information_schema.columns
+        where table_schema = 'public'
+          and ((table_name = 'person_role' and column_name = 'development_path_mode')
+            or (table_name = 'role_self_assessment' and column_name in ('person_id','role_id','model_version_id','submission_mode'))
+            or (table_name = 'role_maturity' and column_name in ('person_id','role_id','model_version_id')))`,
+    );
+    const foundTables = new Set(schemaTables.rows.map((row) => row.table_name));
+    const foundColumns = new Set(schemaColumns.rows.map((row) => `${row.table_name}.${row.column_name}`));
+    const requiredColumns = [
+      "person_role.development_path_mode", "role_self_assessment.person_id", "role_self_assessment.role_id",
+      "role_self_assessment.model_version_id", "role_self_assessment.submission_mode",
+      "role_maturity.person_id", "role_maturity.role_id", "role_maturity.model_version_id",
+    ];
+    const missingTables = requiredTables.filter((table) => !foundTables.has(table));
+    const missingColumns = requiredColumns.filter((column) => !foundColumns.has(column));
+    if (missingTables.length || missingColumns.length) {
+      console.log(JSON.stringify({
+        environment: expectedDatabase === "mochelab_prod" ? "PRODUCCIÓN" : "PRUEBAS",
+        database: database.rows[0].name,
+        readyForAtfImport: false,
+        missingTables,
+        missingColumns,
+        nextStep: "Desplegar primero las migraciones validadas en PRUEBAS y repetir esta auditoría",
+      }, null, 2));
+      return;
+    }
     const roles = await pool.query(
       `select id, source_id as "sourceId", name
          from role
@@ -134,7 +180,7 @@ async function main() {
 
     const foundDnis = new Set(people.rows.map((person) => person.dni));
     const report = {
-      environment: "PRUEBAS",
+      environment: expectedDatabase === "mochelab_prod" ? "PRODUCCIÓN" : "PRUEBAS",
       database: database.rows[0].name,
       source: {
         modelVersion: source.modelVersion,
@@ -158,7 +204,7 @@ async function main() {
       const stamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
       const directory = path.resolve(".artifact-work/backups");
       fs.mkdirSync(directory, { recursive: true });
-      const backupPath = path.join(directory, `mochelab_dev_atf_202608_before_${stamp}.json`);
+      const backupPath = path.join(directory, `${expectedDatabase}_atf_202608_before_${stamp}.json`);
       fs.writeFileSync(backupPath, JSON.stringify(report, null, 2), "utf8");
       report.backupPath = backupPath;
     }

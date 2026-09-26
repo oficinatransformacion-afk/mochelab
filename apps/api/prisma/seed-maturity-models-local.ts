@@ -7,15 +7,20 @@ import { postgresOptions } from "../src/database/postgres-options";
 import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
 const developmentMode = process.argv.includes("--confirm-development");
+const productionMode = process.argv.includes("--confirm-production");
+if (developmentMode && productionMode) throw new Error("Seleccione solo un entorno remoto");
+const remoteMode = developmentMode || productionMode;
 const allRoles = process.argv.includes("--all-roles");
-config({ path: resolve(process.cwd(), developmentMode ? "../../.env" : "../../.env.local"), quiet: true });
+config({ path: resolve(process.cwd(), remoteMode ? "../../.env" : "../../.env.local"), quiet: true });
 const configuredDatabaseUrl = process.env.DATABASE_URL;
 if (!configuredDatabaseUrl) throw new Error("DATABASE_URL no configurada");
 const targetUrl = new URL(configuredDatabaseUrl);
 if (developmentMode) targetUrl.pathname = "/mochelab_dev";
+if (productionMode) targetUrl.pathname = "/mochelab_prod";
 const databaseUrl = targetUrl.toString();
 const databaseName = assertSafeDatabaseWrite(databaseUrl, "seed");
-if (databaseName !== (developmentMode ? "mochelab_dev" : "mochelab_local")) throw new Error(`Destino no permitido: ${databaseName}`);
+const expectedDatabase = productionMode ? "mochelab_prod" : developmentMode ? "mochelab_dev" : "mochelab_local";
+if (databaseName !== expectedDatabase) throw new Error(`Destino no permitido: ${databaseName}`);
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });
 
@@ -49,14 +54,14 @@ async function catalogValueId(catalogCode: string, valueCode: string) {
 
 async function main() {
   const source = JSON.parse(await readFile(resolve(process.cwd(), "prisma/data/maturity-models.local.json"), "utf8")) as ModelFile;
-  const roleDefinitions = developmentMode && !allRoles ? source.roles.filter(role => role.name === "ATF") : source.roles;
-  if (developmentMode && !allRoles && roleDefinitions.length !== 1) throw new Error("No se encontró exactamente una definición ATF");
+  const roleDefinitions = remoteMode && !allRoles ? source.roles.filter(role => role.name === "ATF") : source.roles;
+  if (remoteMode && !allRoles && roleDefinitions.length !== 1) throw new Error("No se encontró exactamente una definición ATF");
   const [roleTypeId, roleStatusId, assignmentStatusId, onboardingStatusId, periodStatusId] = await Promise.all([
     catalogValueId("TIPO_ROL", "3_OPERATIVO"), catalogValueId("ESTADO_ROL", "ACTIVO"),
     catalogValueId("ESTADO_ASIGNACION", "ACTIVO"), catalogValueId("ESTADO_ONBOARDING", "NO_APLICA"),
-    developmentMode ? Promise.resolve(null) : catalogValueId("ESTADO_PERIODO_MADUREZ", "AUTOEVALUACION"),
+    remoteMode ? Promise.resolve(null) : catalogValueId("ESTADO_PERIODO_MADUREZ", "AUTOEVALUACION"),
   ]);
-  if (developmentMode) {
+  if (remoteMode) {
     const maturityCatalog = await prisma.catalog.findUnique({ where: { code: "NIVEL_MADUREZ" }, select: { id: true } });
     if (!maturityCatalog) throw new Error("Falta el catálogo NIVEL_MADUREZ");
     await prisma.catalogValue.upsert({
@@ -85,7 +90,7 @@ async function main() {
 
   let person = null;
   let team = null;
-  if (!developmentMode) {
+  if (!remoteMode) {
     const user = await prisma.user.findUnique({ where: { email: "usuario.prueba@example.invalid" }, include: { person: true, teams: true } });
     person = user?.person ?? await prisma.person.findFirst({ where: { status: { code: "ACTIVO" } }, orderBy: { createdAt: "asc" } });
     team = user?.teams[0] ? await prisma.team.findUnique({ where: { id: user.teams[0].teamId } }) : await prisma.team.findFirst({ where: { status: { code: "ACTIVO" } }, orderBy: { createdAt: "asc" } });
@@ -98,7 +103,7 @@ async function main() {
     });
   }
 
-  const period = developmentMode
+  const period = remoteMode
     ? await prisma.period.findUnique({ where: { code: "202608" } })
     : await prisma.period.upsert({
       where: { code: "LOCAL-MAD-2026" },
@@ -108,10 +113,10 @@ async function main() {
   if (!period) throw new Error("No existe el período 202608 en PRUEBAS");
 
   for (const [roleIndex, definition] of roleDefinitions.entries()) {
-    const sourceRoleId = developmentMode
+    const sourceRoleId = remoteMode
       ? officialRoleSourceIds[definition.sourceId]
       : definition.sourceId;
-    const role = developmentMode
+    const role = remoteMode
       ? await prisma.role.findFirst({ where: sourceRoleId ? { sourceId: sourceRoleId } : { name: { equals: "ATF", mode: "insensitive" } } })
       : await prisma.role.upsert({
         where: { sourceId: definition.sourceId },
@@ -119,7 +124,7 @@ async function main() {
         update: { name: definition.name, typeId: roleTypeId, statusId: roleStatusId },
       });
     if (!role) throw new Error("No existe el rol ATF en PRUEBAS");
-    if (!developmentMode && person && team) await prisma.personRole.upsert({
+    if (!remoteMode && person && team) await prisma.personRole.upsert({
       where: { personId_roleId_teamId: { personId: person.id, roleId: role.id, teamId: team.id } },
       create: { personId: person.id, roleId: role.id, teamId: team.id, statusId: assignmentStatusId, onboardingStatusId },
       update: { statusId: assignmentStatusId, onboardingStatusId },
@@ -184,7 +189,7 @@ async function main() {
     });
   }
 
-  console.log(`${developmentMode ? "PRUEBAS" : "LOCAL"} listo: ${roleDefinitions.length} modelo(s) publicado(s) en ${period.code}${person ? ` para ${person.names}` : ""}.`);
+  console.log(`${productionMode ? "PRODUCCIÓN" : developmentMode ? "PRUEBAS" : "LOCAL"} listo: ${roleDefinitions.length} modelo(s) publicado(s) en ${period.code}${person ? ` para ${person.names}` : ""}.`);
 }
 
 main().finally(async () => prisma.$disconnect());

@@ -1,3 +1,4 @@
+import { existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { config } from "dotenv";
@@ -7,14 +8,26 @@ import { postgresOptions } from "../src/database/postgres-options";
 import { assertSafeDatabaseWrite } from "../src/database/environment-guard";
 
 const developmentMode = process.argv.includes("--confirm-development");
-config({ path: resolve(process.cwd(), developmentMode ? "../../.env" : "../../.env.local"), quiet: true });
+const productionMode = process.argv.includes("--confirm-production");
+if (developmentMode && productionMode) throw new Error("Seleccione solo un entorno remoto");
+const remoteMode = developmentMode || productionMode;
+config({ path: resolve(process.cwd(), remoteMode ? "../../.env" : "../../.env.local"), quiet: true });
 const configuredDatabaseUrl = process.env.DATABASE_URL;
 if (!configuredDatabaseUrl) throw new Error("DATABASE_URL no configurada");
 const targetUrl = new URL(configuredDatabaseUrl);
 if (developmentMode) targetUrl.pathname = "/mochelab_dev";
+if (productionMode) targetUrl.pathname = "/mochelab_prod";
 const databaseUrl = targetUrl.toString();
 const databaseName = assertSafeDatabaseWrite(databaseUrl, "seed");
-if (databaseName !== (developmentMode ? "mochelab_dev" : "mochelab_local")) throw new Error(`Destino no permitido: ${databaseName}`);
+const expectedDatabase = productionMode ? "mochelab_prod" : developmentMode ? "mochelab_dev" : "mochelab_local";
+if (databaseName !== expectedDatabase) throw new Error(`Destino no permitido: ${databaseName}`);
+if (productionMode) {
+  const backupArg = process.argv.find(argument => argument.startsWith("--backup-file="));
+  const backupPath = backupArg?.slice("--backup-file=".length);
+  if (!backupPath) throw new Error("BLOQUEADO: PRODUCCIÓN requiere --backup-file=<respaldo verificado>");
+  if (!existsSync(resolve(backupPath))) throw new Error("BLOQUEADO: no existe el respaldo indicado para PRODUCCIÓN");
+  if (statSync(resolve(backupPath)).size === 0) throw new Error("BLOQUEADO: el respaldo de PRODUCCIÓN está vacío");
+}
 const prisma = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });
 
 type Answer = { sectionCode: string; dimensionCode: string; itemCode: string; value: number; source: string };
@@ -33,20 +46,20 @@ async function main() {
   const inputPath = process.env.ATF_RESPONSES_JSON ?? resolve(process.cwd(), "../../.artifact-work/atf-responses.local.json");
   const source = JSON.parse(await readFile(inputPath, "utf8")) as SourceFile;
   const [company, team, role, period] = await Promise.all([
-    developmentMode ? Promise.resolve(null) : prisma.company.findUnique({ where: { code: "DEMO_DANPER" } }),
-    developmentMode ? Promise.resolve(null) : prisma.team.findUnique({ where: { sourceId: "DEMO-TEAM-001" } }),
-    developmentMode ? prisma.role.findFirst({ where: { name: { equals: "ATF", mode: "insensitive" } } }) : prisma.role.findUnique({ where: { sourceId: "MAT-07" } }),
-    prisma.period.findUnique({ where: { code: developmentMode ? "202608" : "LOCAL-MAD-2026" }, include: { status: true } }),
+    remoteMode ? Promise.resolve(null) : prisma.company.findUnique({ where: { code: "DEMO_DANPER" } }),
+    remoteMode ? Promise.resolve(null) : prisma.team.findUnique({ where: { sourceId: "DEMO-TEAM-001" } }),
+    remoteMode ? prisma.role.findFirst({ where: { name: { equals: "ATF", mode: "insensitive" } } }) : prisma.role.findUnique({ where: { sourceId: "MAT-07" } }),
+    prisma.period.findUnique({ where: { code: remoteMode ? "202608" : "LOCAL-MAD-2026" }, include: { status: true } }),
   ]);
-  if (!role || !period || (!developmentMode && (!company || !team))) throw new Error("Falta la configuración de empresa, equipo, rol ATF o período");
-  if (!developmentMode && period.status.code !== "AUTOEVALUACION") throw new Error("LOCAL-MAD-2026 no está abierto para autoevaluación");
-  const importActor = developmentMode
+  if (!role || !period || (!remoteMode && (!company || !team))) throw new Error("Falta la configuración de empresa, equipo, rol ATF o período");
+  if (!remoteMode && period.status.code !== "AUTOEVALUACION") throw new Error("LOCAL-MAD-2026 no está abierto para autoevaluación");
+  const importActor = remoteMode
     ? await prisma.user.findFirst({
       where: { profile: { code: { in: ["SYSTEM", "ADMIN"] } }, status: { code: "ACTIVO" } },
       orderBy: [{ profile: { code: "asc" } }, { email: "asc" }],
     })
     : null;
-  if (developmentMode && !importActor) throw new Error("No existe un usuario SYSTEM o ADMIN activo para registrar la carga excepcional");
+  if (remoteMode && !importActor) throw new Error("No existe un usuario SYSTEM o ADMIN activo para registrar la carga excepcional");
 
   const periodModel = await prisma.periodAssessmentModel.findFirst({
     where: { periodId: period.id, roleId: role.id, active: true },
@@ -57,7 +70,7 @@ async function main() {
   const configuredItems = periodModel.modelVersion.sections.flatMap(section => section.dimensions.flatMap(dimension => dimension.items.map(item => ({ section, dimension, item, scale: item.responseScale ?? section.responseScale }))));
   if (configuredItems.length !== 125) throw new Error(`El modelo ATF publicado tiene ${configuredItems.length} preguntas; se esperaban 125`);
   const itemByKey = new Map(configuredItems.map(entry => [`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`, entry]));
-  if (developmentMode) {
+  if (remoteMode) {
     const statusCatalog = await prisma.catalog.upsert({
       where: { code: "ESTADO_AUTOEVALUACION" },
       create: { code: "ESTADO_AUTOEVALUACION", name: "Estado de autoevaluación", active: true },
@@ -78,7 +91,7 @@ async function main() {
   for (const sourcePerson of source.people) {
     const supplied = new Map(sourcePerson.answers.map(answer => [`${answer.sectionCode}|${answer.dimensionCode}|${answer.itemCode}`, answer]));
     if (supplied.size !== configuredItems.length || configuredItems.some(entry => !supplied.has(`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`))) throw new Error(`Las respuestas de ${sourcePerson.dni} no corresponden exactamente al modelo ATF`);
-    const person = developmentMode
+    const person = remoteMode
       ? await prisma.person.findFirst({ where: { dni: sourcePerson.dni } })
       : await prisma.person.upsert({
         where: { dni_companyId: { dni: sourcePerson.dni, companyId: company!.id } },
@@ -86,7 +99,7 @@ async function main() {
         update: { names: sourcePerson.name, email: sourcePerson.email, statusId: personStatusId },
       });
     if (!person) throw new Error(`No existe la persona con DNI ${sourcePerson.dni} en PRUEBAS`);
-    const assignment = developmentMode
+    const assignment = remoteMode
       ? (await prisma.personRole.findMany({ where: { personId: person.id, roleId: role.id, status: { code: "ACTIVO" }, developmentPathMode: "STANDARD" }, include: { team: true }, orderBy: { team: { sourceId: "asc" } } }))[0]
       : await prisma.personRole.upsert({
         where: { personId_roleId_teamId: { personId: person.id, roleId: role.id, teamId: team!.id } },
@@ -94,7 +107,7 @@ async function main() {
         update: { statusId: assignmentStatusId, onboardingStatusId, developmentPathMode: "STANDARD" },
       });
     if (!assignment) throw new Error(`El DNI ${sourcePerson.dni} no tiene una asignación ATF activa con ruta de desarrollo`);
-    const existing = developmentMode
+    const existing = remoteMode
       ? await prisma.roleSelfAssessment.findFirst({ where: { periodId: period.id, personId: person.id, roleId: role.id, modelVersionId: periodModel.modelVersion.id }, include: { responses: true } })
       : await prisma.roleSelfAssessment.findFirst({ where: { personId: person.id, roleId: role.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id }, include: { responses: true } });
     if (existing && !(existing.responses.length === 125 && existing.responses.every(response => response.comments?.startsWith("Importado desde ")))) throw new Error(`El DNI ${sourcePerson.dni} ya tiene una autoevaluación que no será sobrescrita`);
@@ -145,13 +158,13 @@ async function main() {
       const assessment = await transaction.roleSelfAssessment.create({ data: {
         personId:person.id,roleId:role.id,personRoleId: assignment.id, periodId: period.id, statusId: submittedStatusId, modelVersionId: periodModel.modelVersion.id,
         configurationVersion: source.modelVersion, calculatedScore: score, submittedAt: new Date(),
-        submissionMode: developmentMode ? "ADMIN_ASSISTED" : "SELF",
+        submissionMode: remoteMode ? "ADMIN_ASSISTED" : "SELF",
         submittedById: importActor?.id ?? null,
-        assistanceReason: developmentMode ? "Carga excepcional autorizada de autoevaluaciones ATF desde archivo consolidado" : null,
-        assistanceMethod: developmentMode ? "IMPORTACION_EXCEL" : null,
-        assistedAt: developmentMode ? new Date() : null,
-        assistanceNotes: developmentMode ? "Fuente: Consolidado_Evaluacion_ATF_Recalculado (1).xlsx" : null,
-        respondentConfirmed: !developmentMode,
+        assistanceReason: remoteMode ? "Carga excepcional autorizada de autoevaluaciones ATF desde archivo consolidado" : null,
+        assistanceMethod: remoteMode ? "IMPORTACION_EXCEL" : null,
+        assistedAt: remoteMode ? new Date() : null,
+        assistanceNotes: remoteMode ? "Fuente: Consolidado_Evaluacion_ATF_Recalculado (1).xlsx" : null,
+        respondentConfirmed: !remoteMode,
         responses: { create: configuredItems.map(entry => {
           const answer = supplied.get(`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`)!;
           const option = entry.scale.options.find(candidate => Number(candidate.numericValue) === answer.value);
@@ -164,7 +177,7 @@ async function main() {
         create: { personId:person.id,roleId:role.id,personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id, selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, levelId },
         update: { selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, calibratedScore: null, calibratedAt: null, calibratedById: null, calibrationComments: null, levelId },
       });
-      if (developmentMode) await transaction.audit.create({ data: {
+      if (remoteMode) await transaction.audit.create({ data: {
         occurredAt: new Date(), userId: importActor!.id, action: "IMPORT_ASSISTED_ASSESSMENT",
         entity: "ROLE_SELF_ASSESSMENT", recordId: assessment.id,
         newValue: { personId: person.id, dni: sourcePerson.dni, roleId: role.id, periodId: period.id, modelVersion: source.modelVersion, score, responseCount: configuredItems.length },
@@ -174,7 +187,7 @@ async function main() {
     console.log(`Importado ${sourcePerson.dni} · ${sourcePerson.name} · ${score.toFixed(4)} · ${levelCode}`);
   }
 
-  if (developmentMode) {
+  if (remoteMode) {
     const calibrationStatus = await prisma.catalogValue.findFirst({
       where: { code: "CALIBRACION", active: true, catalog: { code: "ESTADO_PERIODO_MADUREZ", active: true } },
       select: { id: true },
