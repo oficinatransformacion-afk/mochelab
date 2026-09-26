@@ -9,7 +9,7 @@ import { endDemoSession } from "../access/demoSession";
 import { useCapabilities } from "../access/CapabilitiesContext";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
-type Profile = "USUARIO" | "ADMIN" | "SYSTEM";
+type Profile = "COLABORADOR" | "FACILITADOR" | "ADMIN" | "SYSTEM";
 type Link = { label: string; href: string; icon: Icon; module: string; profiles?: Profile[] };
 const groups: { label: string; links: Link[]; profiles?: Profile[] }[] = [
   { label: "Principal", links: [
@@ -20,7 +20,7 @@ const groups: { label: string; links: Link[]; profiles?: Profile[] }[] = [
     { label: "Rutas de aprendizaje", href: "/rutas", icon: GraduationCap, module: "CURSOS" },
   ] },
   { label: "Madurez", links: [
-    { label: "Autoevaluación", href: "/madurez", icon: ListChecks, module: "MADUREZ" }, { label: "Calibraciones", href: "/madurez/calibraciones", icon: Award, module: "MADUREZ", profiles: ["ADMIN","SYSTEM"] }, { label: "Madurez", href: "/madurez/equipos", icon: Gauge, module: "MADUREZ" },
+    { label: "Autoevaluación", href: "/madurez", icon: ListChecks, module: "MADUREZ" }, { label: "Evaluación asistida", href: "/madurez/asistida", icon: ListChecks, module: "MADUREZ", profiles:["FACILITADOR","ADMIN","SYSTEM"] }, { label: "Calibraciones", href: "/madurez/calibraciones", icon: Award, module: "MADUREZ", profiles: ["ADMIN","SYSTEM"] }, { label: "Madurez", href: "/madurez/equipos", icon: Gauge, module: "MADUREZ",profiles:["FACILITADOR","ADMIN","SYSTEM"] },
   ] },
   { label: "Estrategia", links: [
     { label: "Objetivos y KR", href: "/objetivos", icon: Target, module: "OBJETIVOS" }, { label: "Portafolio", href: "/portafolio", icon: BriefcaseBusiness, module: "PORTAFOLIO" }, { label: "Metas", href: "/objetivos/metas", icon: BarChart3, module: "METAS" },
@@ -67,14 +67,14 @@ export function GlobalNavigation() {
           const sectionOpen = collapsed || (expanded[group.label] ?? false);
           return links.length ? <section key={group.label} className="app-nav-group">
             <button type="button" className="app-nav-heading" aria-expanded={sectionOpen} aria-controls={`nav-${group.label}`} onClick={() => toggle(group.label)}><span>{group.label}</span><span className={`app-nav-chevron ${sectionOpen ? "open" : ""}`}>⌄</span></button>
-            <div id={`nav-${group.label}`} className={`app-nav-links ${sectionOpen ? "open" : ""}`}>{links.map(link => {
+            <div id={`nav-${group.label}`} className={`app-nav-links ${sectionOpen ? "open" : ""}`}>{links.map(original => {const link=access?.profile==="COLABORADOR"&&original.href==="/personas"&&access.personId?{...original,label:"Mi Perfil 360",href:`/personas/${access.personId}`} : original;
               const Icon = link.icon;
               return <a key={link.href} href={link.href} className={isActive(link.href) ? "active" : ""} title={collapsed ? link.label : undefined} aria-label={link.label}><span className="app-nav-icon" aria-hidden="true"><Icon size={16} strokeWidth={2.1} /></span><span className="app-nav-label">{link.label}</span></a>;
             })}</div>
           </section> : null;
         })}
       </nav>
-      <div className="app-profile"><div className="app-sidebar-account"><span className="app-account-avatar" aria-hidden="true">{accountEmail.charAt(0).toUpperCase() || "U"}</span><div className="app-profile-copy min-w-0"><span>{access?.profile === "SYSTEM" ? "System" : access?.profile === "ADMIN" ? "Admin" : "Usuario"}</span><small title={accountEmail}>{accountEmail || "Permisos aplicados"}</small></div></div><div className="app-account-actions"><a href="/cuenta/contrasena" className="app-account-action" title={collapsed ? "Cambiar contraseña" : undefined} aria-label="Cambiar contraseña"><KeyRound size={16}/><span className="app-account-label">Cambiar contraseña</span></a><button type="button" className="app-account-action app-account-action-danger" onClick={logout} title={collapsed ? "Cerrar sesión" : undefined} aria-label="Cerrar sesión"><LogOut size={16}/><span className="app-account-label">Cerrar sesión</span></button></div></div>
+      <div className="app-profile"><div className="app-sidebar-account"><span className="app-account-avatar" aria-hidden="true">{accountEmail.charAt(0).toUpperCase() || "U"}</span><div className="app-profile-copy min-w-0"><span>{access?.profile === "SYSTEM" ? "System" : access?.profile === "ADMIN" ? "Admin" : access?.profile==="FACILITADOR"?"Facilitador":"Colaborador"}</span><small title={accountEmail}>{accountEmail || "Permisos aplicados"}</small></div></div><div className="app-account-actions"><a href="/cuenta/contrasena" className="app-account-action" title={collapsed ? "Cambiar contraseña" : undefined} aria-label="Cambiar contraseña"><KeyRound size={16}/><span className="app-account-label">Cambiar contraseña</span></a><button type="button" className="app-account-action app-account-action-danger" onClick={logout} title={collapsed ? "Cerrar sesión" : undefined} aria-label="Cerrar sesión"><LogOut size={16}/><span className="app-account-label">Cerrar sesión</span></button></div></div>
     </aside>
   </>;
 }

@@ -3,7 +3,7 @@ export const DEMO_PROFILE_KEY = "mochelab_demo_profile";
 export const DEMO_EMAIL_KEY = "mochelab_demo_email";
 export const SESSION_TOKEN_KEY = "mochelab_session_token";
 
-export type DemoProfile = "USUARIO" | "ADMIN" | "SYSTEM";
+export type DemoProfile = "COLABORADOR" | "FACILITADOR" | "ADMIN" | "SYSTEM";
 
 export function hasDemoSession() {
   return sessionStorage.getItem(DEMO_SESSION_KEY) === "active";

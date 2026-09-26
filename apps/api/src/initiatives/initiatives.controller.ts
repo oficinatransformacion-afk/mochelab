@@ -1,13 +1,13 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { InitiativesRepository } from "./initiatives.repository";
 import { RequirePermission } from "../access/access.decorators";
-import { AccessService, type ProfileCode } from "../access/access.service";
+import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 
 @RequirePermission("PORTAFOLIO","view")
 @Controller("initiatives")
 export class InitiativesController {
  constructor(private readonly repository:InitiativesRepository,private readonly access:AccessService){}
- private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO"}
+ private profile(profile?:string):ProfileCode{return profileCode(profile)}
  private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(this.profile(profile),email)}
  @Get() async list(@Query("search") search?:string,@Query("year") year?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.list(search,year?Number(year):undefined,await this.scope(profile,email))}
  @Get("options") async options(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.options(await this.scope(profile,email))}

@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Optional, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { REQUIRED_PERMISSION_KEY, REQUIRED_PROFILE_KEY, type PermissionAction } from "./access.decorators";
-import { AccessService, type ProfileCode } from "./access.service";
+import { AccessService,profileCode,type ProfileCode } from "./access.service";
 import { LocalAuthService } from "../auth/local-auth.service";
 
 interface RequestWithHeaders {
@@ -34,7 +34,7 @@ export class AccessGuard implements CanActivate {
       throw new ForbiddenException("El perfil no tiene acceso a esta operación");
     }
     if(requiredPermission&&typeof requiredPermission==="object"){
-      const profile:ProfileCode=rawProfile==="SYSTEM"?"SYSTEM":rawProfile==="ADMIN"?"ADMIN":"USUARIO";
+      const profile:ProfileCode=profileCode(rawProfile);
       const module=(await this.accessService.getCapabilities(profile)).modules.find(item=>item.code===requiredPermission.moduleCode);
       const property={view:"canView",create:"canCreate",edit:"canEdit",delete:"canDelete"}[requiredPermission.action] as "canView"|"canCreate"|"canEdit"|"canDelete";
       if(!module?.[property])throw new ForbiddenException("El perfil no tiene permiso para esta función");

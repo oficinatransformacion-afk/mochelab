@@ -48,7 +48,8 @@ export const ModuleCapabilitySchema = z.object({
 export type ModuleCapability = z.infer<typeof ModuleCapabilitySchema>;
 
 export const UserCapabilitiesSchema = z.object({
-  profile: z.enum(["USUARIO", "ADMIN", "SYSTEM"]),
+  profile: z.enum(["COLABORADOR", "FACILITADOR", "ADMIN", "SYSTEM"]),
+  personId: z.uuid().nullable().optional(),
   modules: z.array(ModuleCapabilitySchema),
 });
 

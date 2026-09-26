@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, UnauthorizedException } from "@nestjs/common";
 import type { UserCapabilities } from "@mochelab/shared";
-import { AccessService, type ProfileCode } from "./access.service";
+import { AccessService,profileCode,type ProfileCode } from "./access.service";
 import { AdminOnly } from "./access.decorators";
 import { LocalAuthService } from "../auth/local-auth.service";
 
@@ -9,17 +9,18 @@ export class AccessController {
   constructor(private readonly accessService: AccessService,private readonly auth:LocalAuthService) {}
 
   @Get("capabilities")
-  getCapabilities(
+  async getCapabilities(
     @Headers("x-mochelab-demo-profile") requestedProfile?: string,
+    @Headers("x-mochelab-demo-user-email") requestedEmail?: string,
     @Headers("authorization") authorization?:string,
   ): Promise<UserCapabilities> {
     const token=authorization?.replace(/^Bearer\s+/i,"");
     const claims=token?this.auth.verifySession(token):null;
     if(process.env.NODE_ENV==="production"&&!claims)throw new UnauthorizedException("Debes iniciar sesión");
     const raw=(claims?.profile??requestedProfile)?.toUpperCase();
-    const profile: ProfileCode = raw === "SYSTEM" ? "SYSTEM" : raw === "ADMIN" ? "ADMIN" : "USUARIO";
-
-    return this.accessService.getCapabilities(profile);
+    const profile: ProfileCode = profileCode(raw);
+    const personId=await this.accessService.getPersonId(profile,claims?.email??requestedEmail);
+    return {...await this.accessService.getCapabilities(profile),personId};
   }
 }
 @AdminOnly()

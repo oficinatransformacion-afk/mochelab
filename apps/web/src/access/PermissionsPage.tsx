@@ -20,7 +20,7 @@ const menuNames = (code:string) => menuOptions.filter(([, , module]) => module =
 
 export function PermissionsPage() {
   const [profiles,setProfiles]=useState<Profile[]>([]);
-  const [selected,setSelected]=useState("USUARIO");
+  const [selected,setSelected]=useState("COLABORADOR");
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
   const [pending,setPending]=useState<{module:Module;key:typeof labels[number][0]}|null>(null);

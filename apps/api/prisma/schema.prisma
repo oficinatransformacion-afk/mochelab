@@ -35,6 +35,12 @@ enum AssessmentResultScope {
   TOTAL
 }
 
+enum SelfAssessmentSubmissionMode {
+  SELF
+  ADMIN_ASSISTED
+  FACILITATOR_ASSISTED
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -638,6 +644,13 @@ model RoleSelfAssessment {
   configurationVersion String              @map("configuration_version") @db.VarChar(80)
   startedAt       DateTime                 @default(now()) @map("started_at") @db.Timestamptz(3)
   submittedAt     DateTime?                @map("submitted_at") @db.Timestamptz(3)
+  submissionMode  SelfAssessmentSubmissionMode @default(SELF) @map("submission_mode")
+  submittedById   String?                  @map("submitted_by_id") @db.Uuid
+  assistanceReason String?                 @map("assistance_reason")
+  assistanceMethod String?                 @map("assistance_method") @db.VarChar(80)
+  assistedAt      DateTime?                @map("assisted_at") @db.Timestamptz(3)
+  assistanceNotes String?                  @map("assistance_notes")
+  respondentConfirmed Boolean             @default(false) @map("respondent_confirmed")
   person          Person                   @relation("PersonMaturityAssessments", fields: [personId], references: [id])
   role            Role                     @relation("RoleMaturityAssessments", fields: [roleId], references: [id])
   personRole      PersonRole               @relation(fields: [personRoleId], references: [id])
@@ -647,6 +660,7 @@ model RoleSelfAssessment {
   resultDetails   AssessmentResultDetail[]
   modelVersion    AssessmentModelVersion?  @relation(fields: [modelVersionId], references: [id])
   maturity        RoleMaturity?
+  submittedBy     User?                    @relation("SelfAssessmentSubmitter", fields: [submittedById], references: [id])
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -944,6 +958,7 @@ model User {
   calibratedMaturities RoleMaturity[] @relation("MaturityCalibrator")
   masteryReviews RoleMasteryQualification[] @relation("MasteryReviewer")
   requestedCommunications Communication[] @relation("CommunicationRequester")
+  submittedAssessments RoleSelfAssessment[] @relation("SelfAssessmentSubmitter")
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 

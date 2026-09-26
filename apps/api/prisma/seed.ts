@@ -20,7 +20,8 @@ const catalogs = [
     code: "PERFIL_USUARIO",
     name: "Perfil de usuario",
     values: [
-      ["USUARIO", "Usuario"],
+      ["COLABORADOR", "Colaborador"],
+      ["FACILITADOR", "Facilitador"],
       ["ADMIN", "Admin"],
       ["SYSTEM", "System"],
     ],
@@ -210,7 +211,7 @@ async function seedPreparedCatalogs() {
 
 async function seedModules() {
   const profiles = await prisma.catalogValue.findMany({
-    where: { catalog: { code: "PERFIL_USUARIO" }, code: { in: ["USUARIO", "ADMIN", "SYSTEM"] } },
+    where: { catalog: { code: "PERFIL_USUARIO" }, code: { in: ["COLABORADOR", "FACILITADOR", "ADMIN", "SYSTEM"] } },
   });
   for (const [code, name, route, icon, sortOrder] of modules) {
     const module = await prisma.systemModule.upsert({
@@ -219,22 +220,22 @@ async function seedModules() {
       update: { name, route, icon, sortOrder, active: true },
     });
     for (const profile of profiles) {
-      const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM";
-      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code);
-      const visible = administrator || !["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code);
+      const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM",facilitator=profile.code==="FACILITADOR";
+      const writable = facilitator&&["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "METAS", "PORTAFOLIO"].includes(code)||profile.code==="COLABORADOR"&&code==="MADUREZ";
+      const visible = administrator || facilitator&&!["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code)||profile.code==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(code);
       await prisma.profileModule.upsert({
         where: { profileId_moduleId: { profileId: profile.id, moduleId: module.id } },
         create: {
           profileId: profile.id, moduleId: module.id, canView: visible,
           canCreate: code !== "INICIO" && (administrator || writable),
           canEdit: code !== "INICIO" && (administrator || writable),
-          canDelete: administrator && !["INICIO", "AUDITORIA"].includes(code),
+          canDelete: profile.code === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(code),
         },
         update: {
           canView: visible,
           canCreate: code !== "INICIO" && (administrator || writable),
           canEdit: code !== "INICIO" && (administrator || writable),
-          canDelete: administrator && !["INICIO", "AUDITORIA"].includes(code),
+          canDelete: profile.code === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(code),
         },
       });
     }
@@ -266,7 +267,7 @@ async function seedRepresentativeData() {
     catalogValue("ESTADO_AUTOEVALUACION", "ENVIADA"),
     catalogValue("NIVEL_MADUREZ", "OFICIAL"),
     catalogValue("PERFIL_USUARIO", "ADMIN"),
-    catalogValue("PERFIL_USUARIO", "USUARIO"),
+    catalogValue("PERFIL_USUARIO", "COLABORADOR"),
     catalogValue("PERFIL_USUARIO", "SYSTEM"),
     catalogValue("ESTADO_USUARIO", "ACTIVO"),
   ]);

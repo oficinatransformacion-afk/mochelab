@@ -1,13 +1,13 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import { ObjectivesRepository } from "./objectives.repository";
 import { RequirePermission } from "../access/access.decorators";
-import { AccessService, type ProfileCode } from "../access/access.service";
+import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 
 @RequirePermission("OBJETIVOS","view")
 @Controller("objectives")
 export class ObjectivesController {
   constructor(private readonly repository: ObjectivesRepository,private readonly access:AccessService) {}
-  private profile(profile?:string):ProfileCode{return profile?.toUpperCase()==="SYSTEM"?"SYSTEM":profile?.toUpperCase()==="ADMIN"?"ADMIN":"USUARIO"}
+  private profile(profile?:string):ProfileCode{return profileCode(profile)}
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(this.profile(profile),email)}
 
   @Get()

@@ -40,10 +40,11 @@ export class DirectoryRepository {
       })),
     }))}
 
-  async listPeople(search = "",teamIds:string[]|null=null) {
+  async listPeople(search = "",teamIds:string[]|null=null,personId?:string) {
     const term = search.trim();
     const people = await this.prisma.person.findMany({
       where: {
+        id:personId,
         assignments:teamIds===null?undefined:{some:{teamId:{in:teamIds}}},
         OR:term ? [
           { dni: { contains: term, mode: "insensitive" } },
@@ -64,12 +65,13 @@ export class DirectoryRepository {
     return this.mapPeople(people);
   }
 
-  async listPeoplePage(filters:{search?:string;companies?:string[];units?:string[];statuses?:string[];assignment?:string[];page?:number;pageSize?:number},teamIds:string[]|null=null){
+  async listPeoplePage(filters:{search?:string;companies?:string[];units?:string[];statuses?:string[];assignment?:string[];page?:number;pageSize?:number;personId?:string},teamIds:string[]|null=null){
     const term=filters.search?.trim();const page=Math.max(1,filters.page??1);const pageSize=Math.min(100,Math.max(1,filters.pageSize??20));
     const assignmentConditions:any[]=[];
     if(filters.assignment?.length===1&&filters.assignment[0]==="CON_ROL")assignmentConditions.push({assignments:{some:{}}});
     if(filters.assignment?.length===1&&filters.assignment[0]==="SIN_ROL")assignmentConditions.push({assignments:{none:{}}});
     const where:any={
+      id:filters.personId,
       company:filters.companies?.length?{name:{in:filters.companies}}:undefined,
       organizationalUnit:filters.units?.length?{name:{in:filters.units}}:undefined,
       status:filters.statuses?.length?{name:{in:filters.statuses}}:undefined,
@@ -90,11 +92,11 @@ export class DirectoryRepository {
   async getPersonProfile(id:string,teamIds:string[]|null=null){
     const person=await this.prisma.person.findFirst({
       where:{id,assignments:teamIds===null?undefined:{some:{teamId:{in:teamIds}}}},
-      include:{company:true,organizationalUnit:true,management:true,division:true,businessPartner:true,businessPartnerValue:true,occupationLevel:true,status:true,maturityResults:{where:teamIds===null?undefined:{role:{assignments:{some:{personId:id,teamId:{in:teamIds}}}}},include:{period:true,level:true,role:true,modelVersion:{select:{version:true,assessmentModel:{select:{name:true}}}}},orderBy:{evaluatedAt:"desc"}},assignments:{where:teamIds===null?undefined:{teamId:{in:teamIds}},include:{role:true,team:{include:{program:true}},status:true,onboardingStatus:true,courses:{include:{course:{include:{module:true}},status:true},orderBy:{course:{name:"asc"}}}},orderBy:{startDate:"desc"}}},
+      include:{company:true,organizationalUnit:true,management:true,division:true,businessPartner:true,businessPartnerValue:true,occupationLevel:true,status:true,maturityResults:{where:teamIds===null?undefined:{role:{assignments:{some:{personId:id,teamId:{in:teamIds}}}}},include:{period:true,level:true,role:true,selfAssessment:{select:{submissionMode:true}},modelVersion:{select:{version:true,assessmentModel:{select:{name:true}}}}},orderBy:{evaluatedAt:"desc"}},assignments:{where:teamIds===null?undefined:{teamId:{in:teamIds}},include:{role:true,team:{include:{program:true}},status:true,onboardingStatus:true,courses:{include:{course:{include:{module:true}},status:true},orderBy:{course:{name:"asc"}}}},orderBy:{startDate:"desc"}}},
     });
     if(!person)throw new NotFoundException("No se encontró la persona o no pertenece a tus equipos");
     const values=await this.prisma.catalogValue.findMany({where:{id:{in:[person.managementId,person.divisionId].filter((x):x is string=>Boolean(x))}},select:{id:true,name:true}}),value=(id:string|null)=>values.find(x=>x.id===id)??null;
-    return{...person,management:value(person.managementId),division:value(person.divisionId),createdAt:person.createdAt.toISOString(),updatedAt:person.updatedAt.toISOString(),maturityResults:person.maturityResults.map(m=>({...m,score:m.score.toString(),selfAssessmentScore:m.selfAssessmentScore?.toString()??null,calibratedScore:m.calibratedScore?.toString()??null,evaluatedAt:m.evaluatedAt.toISOString().slice(0,10)})),assignments:person.assignments.map(a=>({...a,startDate:a.startDate?.toISOString().slice(0,10)??null,endDate:a.endDate?.toISOString().slice(0,10)??null,courses:a.courses.map(c=>({...c,score:c.score?.toString()??null,startDate:c.startDate?.toISOString().slice(0,10)??null,endDate:c.endDate?.toISOString().slice(0,10)??null}))}))};
+    return{...person,management:value(person.managementId),division:value(person.divisionId),createdAt:person.createdAt.toISOString(),updatedAt:person.updatedAt.toISOString(),maturityResults:person.maturityResults.map(m=>({...m,selfAssessment:m.selfAssessment??{submissionMode:"SELF" as const},score:m.score.toString(),selfAssessmentScore:m.selfAssessmentScore?.toString()??null,calibratedScore:m.calibratedScore?.toString()??null,evaluatedAt:m.evaluatedAt.toISOString().slice(0,10)})),assignments:person.assignments.map(a=>({...a,startDate:a.startDate?.toISOString().slice(0,10)??null,endDate:a.endDate?.toISOString().slice(0,10)??null,courses:a.courses.map(c=>({...c,score:c.score?.toString()??null,startDate:c.startDate?.toISOString().slice(0,10)??null,endDate:c.endDate?.toISOString().slice(0,10)??null}))}))};
   }
 
   async listAssignments(filters:{search?:string;teamIds?:string[];roleIds?:string[];statusIds?:string[];statusCodes?:string[];onboardingStatusIds?:string[];developmentPathModes?:string[];page?:number;pageSize?:number},teamIds:string[]|null=null){

@@ -516,7 +516,8 @@ async function applyImport(
     const email = validText(row.data.USUARIO)?.toLowerCase(); if (!email) { counts.usuario.omitted++; continue; }
     const candidates = [...peopleByDni.values()].flat().filter((person) => person.email === email); const personId = candidates.find((candidate) => !usedPeople.has(candidate.id))?.id;
     if (personId) usedPeople.add(personId);
-    users.push({ id: uuid("user", email), email, name: null, profileId: await cv("PERFIL_USUARIO", row.data.PERFIL, "USUARIO"), statusId: await cv("ESTADO_USUARIO", row.data.ESTADO, "ACTIVO"), personId, passwordHash: null });
+    const importedProfile = code(validText(row.data.PERFIL) ?? "COLABORADOR") === "USUARIO" ? "COLABORADOR" : row.data.PERFIL;
+    users.push({ id: uuid("user", email), email, name: null, profileId: await cv("PERFIL_USUARIO", importedProfile, "COLABORADOR"), statusId: await cv("ESTADO_USUARIO", row.data.ESTADO, "ACTIVO"), personId, passwordHash: null });
   }
   counts.usuario.written = await createMany(users, (rows) => tx.user.createMany({ data: rows, skipDuplicates: true }));
 
@@ -528,15 +529,18 @@ async function applyImport(
     ["CATALOGOS", "Catálogos", "/configuracion/catalogos", "list", 80], ["USUARIOS", "Usuarios", "/configuracion/usuarios", "user-cog", 90],
     ["MIGRACIONES", "Migraciones", "/configuracion/migraciones", "database", 100], ["AUDITORIA", "Auditoría", "/configuracion/auditoria", "history", 110],
   ] as const;
-  const profiles = await Promise.all([cv("PERFIL_USUARIO", "USUARIO"), cv("PERFIL_USUARIO", "ADMIN"), cv("PERFIL_USUARIO", "SYSTEM")]);
+  const profiles = await Promise.all([cv("PERFIL_USUARIO", "COLABORADOR"), cv("PERFIL_USUARIO", "FACILITADOR"), cv("PERFIL_USUARIO", "ADMIN"), cv("PERFIL_USUARIO", "SYSTEM")]);
   for (const [moduleCode, name, route, icon, sortOrder] of modules) {
     const module = await tx.systemModule.upsert({ where: { code: moduleCode }, create: { code: moduleCode, name, route, icon, sortOrder }, update: { name, route, icon, sortOrder, active: true } });
     for (const profileId of profiles) {
-      const profileCode = [...catalogCache.entries()].find(([entry, id]) => entry.startsWith("PERFIL_USUARIO|") && id === profileId)?.[0].split("|")[1] ?? "USUARIO";
+      const profileCode = [...catalogCache.entries()].find(([entry, id]) => entry.startsWith("PERFIL_USUARIO|") && id === profileId)?.[0].split("|")[1] ?? "COLABORADOR";
       const administrator = profileCode === "ADMIN" || profileCode === "SYSTEM";
-      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(moduleCode);
-      const canView = administrator || !["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(moduleCode);
-      await tx.profileModule.upsert({ where: { profileId_moduleId: { profileId, moduleId: module.id } }, create: { profileId, moduleId: module.id, canView, canCreate: moduleCode !== "INICIO" && (administrator || writable), canEdit: moduleCode !== "INICIO" && (administrator || writable), canDelete: administrator && !["INICIO", "AUDITORIA"].includes(moduleCode) }, update: { canView, canCreate: moduleCode !== "INICIO" && (administrator || writable), canEdit: moduleCode !== "INICIO" && (administrator || writable), canDelete: administrator && !["INICIO", "AUDITORIA"].includes(moduleCode) } });
+      const facilitator = profileCode === "FACILITADOR";
+      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "METAS", "PORTAFOLIO"].includes(moduleCode);
+      const canView = administrator || facilitator && !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(moduleCode) || profileCode === "COLABORADOR" && ["PERSONAS", "MADUREZ"].includes(moduleCode);
+      const canWrite = moduleCode !== "INICIO" && (administrator || facilitator && writable || profileCode === "COLABORADOR" && moduleCode === "MADUREZ");
+      const canDelete = profileCode === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(moduleCode);
+      await tx.profileModule.upsert({ where: { profileId_moduleId: { profileId, moduleId: module.id } }, create: { profileId, moduleId: module.id, canView, canCreate: canWrite, canEdit: canWrite, canDelete }, update: { canView, canCreate: canWrite, canEdit: canWrite, canDelete } });
     }
   }
 

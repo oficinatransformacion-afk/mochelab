@@ -32,7 +32,7 @@ describe("MaturityRepository person-role identity", () => {
     const repository = new MaturityRepository(prisma as never, new MaturityScoringService(), {} as never);
     vi.spyOn(repository as unknown as {versionedModel:()=>Promise<unknown>}, "versionedModel").mockResolvedValue(null);
 
-    await expect(repository.submitSelfAssessment({ personRoleId, periodId, configurationVersion:"v1", answers:[] }))
+    await expect(repository.submitSelfAssessment({ personRoleId, periodId, configurationVersion:"v1", answers:[] },{mode:"SELF",submittedById:"33333333-3333-4333-8333-333333333333"}))
       .rejects.toThrow("La autoevaluación de esta persona, rol y modelo ya fue enviada para el período");
     expect(prisma.roleSelfAssessment.findFirst).toHaveBeenCalledWith({ where:{ periodId, personId:"person-1", roleId:"role-1", modelVersionId:null }, select:{ id:true } });
   });

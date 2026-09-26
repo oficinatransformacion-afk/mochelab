@@ -38,8 +38,8 @@ describe("maturity controllers", () => {
     const access={getTeamScope:vi.fn().mockResolvedValue(scopedTeams)};
     const controller=new SelfAssessmentController(scopedRepository as never,access as never);
 
-    await controller.overviewOptions("USUARIO","persona@danper.com");
-    await controller.overviewHistory(firstId,secondId,"USUARIO","persona@danper.com");
+    await controller.overviewOptions("COLABORADOR","persona@danper.com");
+    await controller.overviewHistory(firstId,secondId,"COLABORADOR","persona@danper.com");
 
     expect(access.getTeamScope).toHaveBeenCalledTimes(2);
     expect(scopedRepository.teamMaturityOptions).toHaveBeenCalledWith(scopedTeams);

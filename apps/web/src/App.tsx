@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 const SelfAssessmentPage = lazy(() => import("./maturity/SelfAssessmentPage").then(module => ({ default: module.SelfAssessmentPage })));
+const AssistedAssessmentPage = lazy(() => import("./maturity/AssistedAssessmentPage").then(module => ({ default: module.AssistedAssessmentPage })));
 const CalibrationPage = lazy(() => import("./maturity/CalibrationPage").then(module => ({ default: module.CalibrationPage })));
 const CalibrationQueuePage = lazy(() => import("./maturity/CalibrationQueuePage").then(module => ({ default: module.CalibrationQueuePage })));
 const MaturityConfigurationPage = lazy(() => import("./maturity/MaturityConfigurationPage").then(module => ({ default: module.MaturityConfigurationPage })));
@@ -42,6 +43,7 @@ function AppContent() {
   if(status==="loading"||status==="idle")return <StatePage title="Preparando tu espacio" detail="Estamos consultando tus permisos y módulos disponibles."/>;
   if(status==="error")return <StatePage title="No pudimos cargar tus accesos" detail={error} action={reload}/>;
   const administrator=access?.profile==="ADMIN"||access?.profile==="SYSTEM";
+  if(access?.profile==="COLABORADOR"&&window.location.pathname==="/"&&access.personId){window.location.replace(`/personas/${access.personId}`);return null}
   const administratorRoute=isAdministratorPath(window.location.pathname);
   if(!administrator&&administratorRoute)return <StatePage title="Acceso restringido" detail="Tu perfil no tiene autorización para ingresar a esta sección."/>;
   const requiredModule=moduleForPath(window.location.pathname);
@@ -84,6 +86,8 @@ function AppContent() {
   if (window.location.pathname === "/madurez/calibraciones") {
     return <CalibrationQueuePage />;
   }
+
+  if(window.location.pathname==="/madurez/asistida")return <AssistedAssessmentPage/>;
 
   if (window.location.pathname === "/madurez/calibracion") {
     return <CalibrationPage />;
