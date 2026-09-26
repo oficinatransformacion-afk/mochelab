@@ -148,7 +148,7 @@ export function CalibrationQueuePage() {
   const roleOptions = [...new Map(periodScopedRows.map((row) => [row.roleId, { id: row.roleId, label: row.role }])).values()].sort((a, b) => a.label.localeCompare(b.label, "es"));
   const teamOptions = [...new Set(periodScopedRows.filter((row) => !roleIds.length || roleIds.includes(row.roleId)).flatMap((row) => row.team.split(", ")))].sort((a, b) => a.localeCompare(b, "es"));
   const term = search.trim().toLocaleLowerCase("es");
-  const summaryRows = periodScopedRows.filter((row) => (!roleIds.length || roleIds.includes(row.roleId)) && (team === "TODOS" || row.team === team) && (!term || [row.person, row.role, row.team].some((value) => value.toLocaleLowerCase("es").includes(term))));
+  const summaryRows = periodScopedRows.filter((row) => (!roleIds.length || roleIds.includes(row.roleId)) && (team === "TODOS" || row.team.split(", ").includes(team)) && (!term || [row.person, row.role, row.team].some((value) => value.toLocaleLowerCase("es").includes(term))));
   const calibrated = summaryRows.filter((row) => row.status === "CALIBRADA").length;
   const pending = summaryRows.filter((row) => row.status === "PENDIENTE").length;
   const selectedPeriod = periods.find((item) => item.name === period);
@@ -195,7 +195,7 @@ export function CalibrationQueuePage() {
 
       <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-5 lg:grid-cols-[minmax(15rem,22rem)_1fr] lg:items-center">
-          <label className="text-sm font-bold text-slate-700">Período de evaluación<select value={period} onChange={(event) => { setPeriod(event.target.value); setRoleIds([]); setTeam("TODOS"); }} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal"><option value="TODOS">Todos los períodos</option>{[...new Set(assessments.map((row) => row.period))].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label className="text-sm font-bold text-slate-700">Período de evaluación<select value={period} onChange={(event) => { setPeriod(event.target.value); setRoleIds([]); setTeam("TODOS"); }} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal"><option value="TODOS">Todos los períodos</option>{periods.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
           <ol className="grid grid-cols-4 gap-2" aria-label="Etapas del período">{stages.map((stage, index) => <li key={stage} className={`rounded-xl px-3 py-3 text-center text-xs font-bold sm:text-sm ${index < activeStage ? "bg-emerald-50 text-emerald-800" : index === activeStage ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-400"}`}>{index < activeStage && <CheckCircle2 size={14} className="mr-1 inline"/>}{stage}</li>)}</ol>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-sky-50 p-4"><p className="text-sm font-semibold text-sky-800">Recibidas</p><strong className="mt-1 block text-2xl">{summaryRows.length}</strong></div><div className="rounded-xl bg-emerald-50 p-4"><p className="text-sm font-semibold text-emerald-800">Calibradas</p><strong className="mt-1 block text-2xl">{calibrated}</strong></div><div className="rounded-xl bg-amber-50 p-4"><p className="text-sm font-semibold text-amber-800">Pendientes</p><strong className="mt-1 block text-2xl">{pending}</strong></div></div>
