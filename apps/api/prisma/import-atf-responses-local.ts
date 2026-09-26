@@ -40,6 +40,13 @@ async function main() {
   ]);
   if (!role || !period || (!developmentMode && (!company || !team))) throw new Error("Falta la configuración de empresa, equipo, rol ATF o período");
   if (!developmentMode && period.status.code !== "AUTOEVALUACION") throw new Error("LOCAL-MAD-2026 no está abierto para autoevaluación");
+  const importActor = developmentMode
+    ? await prisma.user.findFirst({
+      where: { profile: { code: { in: ["SYSTEM", "ADMIN"] } }, status: { code: "ACTIVO" } },
+      orderBy: [{ profile: { code: "asc" } }, { email: "asc" }],
+    })
+    : null;
+  if (developmentMode && !importActor) throw new Error("No existe un usuario SYSTEM o ADMIN activo para registrar la carga excepcional");
 
   const periodModel = await prisma.periodAssessmentModel.findFirst({
     where: { periodId: period.id, roleId: role.id, active: true },
@@ -138,6 +145,13 @@ async function main() {
       const assessment = await transaction.roleSelfAssessment.create({ data: {
         personId:person.id,roleId:role.id,personRoleId: assignment.id, periodId: period.id, statusId: submittedStatusId, modelVersionId: periodModel.modelVersion.id,
         configurationVersion: source.modelVersion, calculatedScore: score, submittedAt: new Date(),
+        submissionMode: developmentMode ? "ADMIN_ASSISTED" : "SELF",
+        submittedById: importActor?.id ?? null,
+        assistanceReason: developmentMode ? "Carga excepcional autorizada de autoevaluaciones ATF desde archivo consolidado" : null,
+        assistanceMethod: developmentMode ? "IMPORTACION_EXCEL" : null,
+        assistedAt: developmentMode ? new Date() : null,
+        assistanceNotes: developmentMode ? "Fuente: Consolidado_Evaluacion_ATF_Recalculado (1).xlsx" : null,
+        respondentConfirmed: !developmentMode,
         responses: { create: configuredItems.map(entry => {
           const answer = supplied.get(`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`)!;
           const option = entry.scale.options.find(candidate => Number(candidate.numericValue) === answer.value);
@@ -150,8 +164,33 @@ async function main() {
         create: { personId:person.id,roleId:role.id,personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id, selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, levelId },
         update: { selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, calibratedScore: null, calibratedAt: null, calibratedById: null, calibrationComments: null, levelId },
       });
+      if (developmentMode) await transaction.audit.create({ data: {
+        occurredAt: new Date(), userId: importActor!.id, action: "IMPORT_ASSISTED_ASSESSMENT",
+        entity: "ROLE_SELF_ASSESSMENT", recordId: assessment.id,
+        newValue: { personId: person.id, dni: sourcePerson.dni, roleId: role.id, periodId: period.id, modelVersion: source.modelVersion, score, responseCount: configuredItems.length },
+        result: "OK", origin: "AUTHORIZED_EXCEL_IMPORT",
+      } });
     });
     console.log(`Importado ${sourcePerson.dni} · ${sourcePerson.name} · ${score.toFixed(4)} · ${levelCode}`);
+  }
+
+  if (developmentMode) {
+    const calibrationStatus = await prisma.catalogValue.findFirst({
+      where: { code: "CALIBRACION", active: true, catalog: { code: "ESTADO_PERIODO_MADUREZ", active: true } },
+      select: { id: true },
+    });
+    if (!calibrationStatus) throw new Error("Falta configurar ESTADO_PERIODO_MADUREZ.CALIBRACION");
+    await prisma.$transaction(async transaction => {
+      await transaction.period.update({ where: { id: period.id }, data: { statusId: calibrationStatus.id, active: true } });
+      await transaction.audit.create({ data: {
+        occurredAt: new Date(), userId: importActor!.id, action: "REOPEN_FOR_CALIBRATION",
+        entity: "MATURITY_PERIOD", recordId: period.id,
+        oldValue: { code: period.code, status: period.status.code, active: period.active },
+        newValue: { code: period.code, status: "CALIBRACION", active: true, reason: "Carga excepcional autorizada de autoevaluaciones ATF" },
+        result: "OK", origin: "AUTHORIZED_EXCEL_IMPORT",
+      } });
+    });
+    console.log(`Período ${period.code} habilitado para calibración`);
   }
 }
 

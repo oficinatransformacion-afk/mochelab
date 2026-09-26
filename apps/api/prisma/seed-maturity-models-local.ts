@@ -108,7 +108,7 @@ async function main() {
   if (!period) throw new Error("No existe el período 202608 en PRUEBAS");
 
   for (const [roleIndex, definition] of roleDefinitions.entries()) {
-    const sourceRoleId = developmentMode && allRoles
+    const sourceRoleId = developmentMode
       ? officialRoleSourceIds[definition.sourceId]
       : definition.sourceId;
     const role = developmentMode
