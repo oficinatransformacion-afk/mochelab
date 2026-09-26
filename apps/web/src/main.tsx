@@ -8,11 +8,14 @@ import { CapabilitiesProvider } from "./access/CapabilitiesContext";
 
 const sessionActive = hasDemoSession();
 const isDevelopmentEnvironment = (import.meta.env.VITE_APP_ENV ?? "development") === "development";
+const environmentLabel = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  ? "Entorno local"
+  : "Entorno de pruebas";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <CapabilitiesProvider>
-      {isDevelopmentEnvironment && <div className="environment-badge" role="status">Entorno de pruebas</div>}
+      {isDevelopmentEnvironment && <div className="environment-badge" role="status">{environmentLabel}</div>}
       {sessionActive && window.location.pathname !== "/login" && <GlobalNavigation />}
       <App />
     </CapabilitiesProvider>
