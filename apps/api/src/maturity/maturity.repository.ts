@@ -24,12 +24,12 @@ export class MaturityRepository {
     const assignmentWhere={status:{code:"ACTIVO"},developmentPathMode:"STANDARD" as const,role:roleFilter};
     const [eligibleRows,submittedRows,resultRows]=await Promise.all([
       this.prisma.personRole.findMany({where:assignmentWhere,distinct:["personId","roleId"],select:{personId:true,roleId:true}}),
-      this.prisma.roleSelfAssessment.findMany({where:{periodId,personRole:{role:roleFilter}},select:{personRole:{select:{personId:true,roleId:true}}}}),
-      this.prisma.roleMaturity.findMany({where:{periodId,personRole:{role:roleFilter}},select:{calibratedAt:true,personRole:{select:{personId:true,roleId:true}}}}),
+      this.prisma.roleSelfAssessment.findMany({where:{periodId,role:roleFilter},select:{personId:true,roleId:true}}),
+      this.prisma.roleMaturity.findMany({where:{periodId,role:roleFilter},select:{calibratedAt:true,personId:true,roleId:true}}),
     ]);
-    const submitted=new Set(submittedRows.map(row=>`${row.personRole.personId}:${row.personRole.roleId}`)).size;
-    const results=new Set(resultRows.map(row=>`${row.personRole.personId}:${row.personRole.roleId}`));
-    const calibrated=new Set(resultRows.filter(row=>row.calibratedAt!==null).map(row=>`${row.personRole.personId}:${row.personRole.roleId}`)).size;
+    const submitted=new Set(submittedRows.map(row=>`${row.personId}:${row.roleId}`)).size;
+    const results=new Set(resultRows.map(row=>`${row.personId}:${row.roleId}`));
+    const calibrated=new Set(resultRows.filter(row=>row.calibratedAt!==null).map(row=>`${row.personId}:${row.roleId}`)).size;
     return{eligibleRoles:eligibleRows.length,submitted,pendingSubmission:Math.max(eligibleRows.length-submitted,0),results:results.size,calibrated,pendingCalibration:Math.max(results.size-calibrated,0)};
   }
 
@@ -361,8 +361,12 @@ export class MaturityRepository {
 
   async maturityHistory(filters:{periodId?:string;teamId?:string},teamIds:string[]|null=null){
     const teamId=teamIds===null?filters.teamId||undefined:{in:teamIds,...(filters.teamId?{equals:filters.teamId}:{})};
-    const[teams,roles]=await Promise.all([this.listTeamMaturities(filters,teamIds),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined,personRole:{teamId}},include:{period:true,level:true,personRole:{include:{person:true,role:true,team:true}}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}]})]);
-    return{teams:teams.map(x=>({id:x.id,teamId:x.teamId,team:x.team.sourceId,program:x.team.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles:roles.map(x=>({id:x.id,person:x.personRole.person.names,personDni:x.personRole.person.dni,roleId:x.personRole.roleId,role:x.personRole.role.name,teamId:x.personRole.teamId,team:x.personRole.team.sourceId,period:x.period.name,periodId:x.periodId,score:Number(x.score),selfAssessmentScore:x.selfAssessmentScore===null?null:Number(x.selfAssessmentScore),calibratedScore:x.calibratedScore===null?null:Number(x.calibratedScore),calibratedAt:x.calibratedAt?.toISOString()??null,legacyRecord:x.legacyRecord,level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10)}))};
+    const[teams,results]=await Promise.all([this.listTeamMaturities(filters,teamIds),this.prisma.roleMaturity.findMany({where:{periodId:filters.periodId||undefined},include:{period:true,level:true,person:true,role:true},orderBy:[{role:{name:"asc"}},{person:{names:"asc"}},{evaluatedAt:"desc"}]})]);
+    const assignments=await this.prisma.personRole.findMany({where:{status:{code:"ACTIVO"},developmentPathMode:"STANDARD",teamId},include:{team:true}});
+    const assignmentMap=new Map<string,typeof assignments>();
+    for(const assignment of assignments){const key=`${assignment.personId}|${assignment.roleId}`;assignmentMap.set(key,[...(assignmentMap.get(key)??[]),assignment])}
+    const roles=results.flatMap(result=>{const related=assignmentMap.get(`${result.personId}|${result.roleId}`)??[];return related.length?[{id:result.id,person:result.person.names,personDni:result.person.dni,roleId:result.roleId,role:result.role.name,teamId:related[0].teamId,teamIds:related.map(item=>item.teamId),team:related.map(item=>item.team.sourceId).join(", "),period:result.period.name,periodId:result.periodId,score:Number(result.score),selfAssessmentScore:result.selfAssessmentScore===null?null:Number(result.selfAssessmentScore),calibratedScore:result.calibratedScore===null?null:Number(result.calibratedScore),calibratedAt:result.calibratedAt?.toISOString()??null,legacyRecord:result.legacyRecord,level:result.level.name,evaluatedAt:result.evaluatedAt.toISOString().slice(0,10)}]:[]});
+    return{teams:teams.map(x=>({id:x.id,teamId:x.teamId,team:x.team.sourceId,program:x.team.name,period:x.period.name,periodId:x.periodId,score:Number(x.score),level:x.level.name,evaluatedAt:x.evaluatedAt.toISOString().slice(0,10),comments:x.comments})),roles};
   }
 
   async getCalibration(id: string) {
@@ -390,8 +394,8 @@ export class MaturityRepository {
       include: { status: true },
     }) ?? await this.prisma.period.findFirst({ orderBy: { startDate: "desc" }, include: { status: true } });
     if (!period) throw new NotFoundException("No existe un período de madurez configurado");
-    const submitted=await this.prisma.roleSelfAssessment.findMany({where:{periodId:period.id,personRoleId:{in:assignments.map(item=>item.id)}},select:{personRoleId:true,submittedAt:true,status:{select:{code:true,name:true}},personRole:{select:{roleId:true}}}});
-    const submittedByRole=new Map(submitted.map(item=>[item.personRole.roleId,item]));
+    const submitted=await this.prisma.roleSelfAssessment.findMany({where:{periodId:period.id,personId:assignment.personId},select:{roleId:true,submittedAt:true,status:{select:{code:true,name:true}}}});
+    const submittedByRole=new Map(submitted.map(item=>[item.roleId,item]));
     const configured=await this.versionedModel(period.id,assignment.roleId);
     if(configured?.active&&configured.modelVersion.status!=="DRAFT"){
       const dimensions=configured.modelVersion.sections.flatMap(section=>section.dimensions.map(dimension=>({
@@ -431,8 +435,8 @@ export class MaturityRepository {
     const configured=await this.versionedModel(period.id,personRole.roleId);
     const expectedVersion=configured?.active&&configured.modelVersion.status!=="DRAFT"?configured.modelVersion.version:period.configurationVersion;
     if (expectedVersion !== input.configurationVersion) throw new BadRequestException("La versión del formulario no corresponde al período y rol");
-    if(await this.prisma.roleSelfAssessment.findFirst({where:{periodId:input.periodId,personRole:{personId:personRole.personId,roleId:personRole.roleId}},select:{id:true}}))throw new BadRequestException("La autoevaluación de esta persona y rol ya fue enviada para el período");
-    const existingMaturity=await this.prisma.roleMaturity.findFirst({where:{periodId:input.periodId,personRole:{personId:personRole.personId,roleId:personRole.roleId}},select:{id:true}});
+    if(await this.prisma.roleSelfAssessment.findFirst({where:{periodId:input.periodId,personId:personRole.personId,roleId:personRole.roleId,modelVersionId:configured?.modelVersion.id??null},select:{id:true}}))throw new BadRequestException("La autoevaluación de esta persona, rol y modelo ya fue enviada para el período");
+    const existingMaturity=await this.prisma.roleMaturity.findFirst({where:{periodId:input.periodId,personId:personRole.personId,roleId:personRole.roleId,modelVersionId:configured?.modelVersion.id??null},select:{id:true}});
 
     if(configured?.active&&configured.modelVersion.status!=="DRAFT"){
       const items=configured.modelVersion.sections.flatMap(section=>section.dimensions.flatMap(dimension=>dimension.items.map(item=>({section,dimension,item,scale:item.responseScale??section.responseScale}))));
@@ -446,7 +450,7 @@ export class MaturityRepository {
       const levelGroups=new Map<string,{name:string;positive:number;total:number}>();for(const entry of items){if(!entry.item.maturityLevel)continue;const current=levelGroups.get(entry.item.maturityLevel.code)??{name:entry.item.maturityLevel.name,positive:0,total:0};current.total++;if(selectedOptions.get(entry.item.id)!.positive)current.positive++;levelGroups.set(entry.item.maturityLevel.code,current)}for(const [code,value] of levelGroups)details.push({scopeType:"LEVEL",scopeCode:code,scopeName:value.name,score:null,positiveCount:value.positive,responseCount:value.total,completionPercentage:Math.round(value.positive/value.total*10000)/10000,weight:1});
       const resultScore=Math.round(weightedTotal/totalSectionWeight*10000)/10000;details.push({scopeType:"TOTAL",scopeCode:"GLOBAL",scopeName:"Puntaje global",score:resultScore,positiveCount:null,responseCount:items.length,completionPercentage:null,weight:1});
       const [submittedStatusId,levelId]=await Promise.all([this.catalogValueId("ESTADO_AUTOEVALUACION","ENVIADA"),this.catalogValueId("NIVEL_MADUREZ",this.scoring.levelFor(resultScore))]);
-      return this.prisma.$transaction(async transaction=>{const assessment=await transaction.roleSelfAssessment.create({data:{personRoleId:input.personRoleId,periodId:input.periodId,statusId:submittedStatusId,modelVersionId:configured.modelVersion.id,configurationVersion:configured.modelVersion.version,calculatedScore:resultScore,submittedAt:new Date(),responses:{create:items.map(entry=>({behaviorId:entry.item.behaviorId,itemVersionId:entry.item.id,responseOptionId:selectedOptions.get(entry.item.id)!.id,score:answers.get(entry.item.behaviorId)!.score,comments:answers.get(entry.item.behaviorId)!.comments,behaviorStatement:entry.item.statement,behaviorWeight:entry.item.weight,dimensionCode:entry.dimension.code,dimensionName:entry.dimension.name,dimensionWeight:entry.dimension.weight}))},resultDetails:{create:details}}});const maturityData={personRoleId:input.personRoleId,periodId:input.periodId,selfAssessmentId:assessment.id,evaluatedAt:new Date(),score:resultScore,selfAssessmentScore:resultScore,calibratedScore:null,calibratedAt:null,calibratedById:null,calibrationComments:null,levelId};const maturity=existingMaturity?await transaction.roleMaturity.update({where:{id:existingMaturity.id},data:maturityData}):await transaction.roleMaturity.create({data:maturityData});return{assessmentId:assessment.id,roleMaturityId:maturity.id,score:resultScore,level:this.scoring.levelFor(resultScore),dimensionScores:details.filter(detail=>detail.scopeType==="DIMENSION").map(detail=>detail.score)}});
+      return this.prisma.$transaction(async transaction=>{const assessment=await transaction.roleSelfAssessment.create({data:{personId:personRole.personId,roleId:personRole.roleId,personRoleId:input.personRoleId,periodId:input.periodId,statusId:submittedStatusId,modelVersionId:configured.modelVersion.id,configurationVersion:configured.modelVersion.version,calculatedScore:resultScore,submittedAt:new Date(),responses:{create:items.map(entry=>({behaviorId:entry.item.behaviorId,itemVersionId:entry.item.id,responseOptionId:selectedOptions.get(entry.item.id)!.id,score:answers.get(entry.item.behaviorId)!.score,comments:answers.get(entry.item.behaviorId)!.comments,behaviorStatement:entry.item.statement,behaviorWeight:entry.item.weight,dimensionCode:entry.dimension.code,dimensionName:entry.dimension.name,dimensionWeight:entry.dimension.weight}))},resultDetails:{create:details}}});const maturityData={personId:personRole.personId,roleId:personRole.roleId,modelVersionId:configured.modelVersion.id,personRoleId:input.personRoleId,periodId:input.periodId,selfAssessmentId:assessment.id,evaluatedAt:new Date(),score:resultScore,selfAssessmentScore:resultScore,calibratedScore:null,calibratedAt:null,calibratedById:null,calibrationComments:null,levelId};const maturity=existingMaturity?await transaction.roleMaturity.update({where:{id:existingMaturity.id},data:maturityData}):await transaction.roleMaturity.create({data:maturityData});return{assessmentId:assessment.id,roleMaturityId:maturity.id,score:resultScore,level:this.scoring.levelFor(resultScore),dimensionScores:details.filter(detail=>detail.scopeType==="DIMENSION").map(detail=>detail.score)}});
     }
 
     const behaviors = await this.prisma.observableBehavior.findMany({
@@ -477,6 +481,8 @@ export class MaturityRepository {
     return this.prisma.$transaction(async (transaction) => {
       const assessment = await transaction.roleSelfAssessment.create({
         data: {
+          personId: personRole.personId,
+          roleId: personRole.roleId,
           personRoleId: input.personRoleId,
           periodId: input.periodId,
           statusId: submittedStatusId,
@@ -499,6 +505,9 @@ export class MaturityRepository {
       });
 
       const maturityData = {
+        personId: personRole.personId,
+        roleId: personRole.roleId,
+        modelVersionId: null,
         personRoleId: input.personRoleId,
         periodId: input.periodId,
         selfAssessmentId: assessment.id,
@@ -529,7 +538,7 @@ export class MaturityRepository {
     if(!maturity.selfAssessment.modelVersionId)throw new BadRequestException("No se puede calibrar porque no se identificó la versión del modelo utilizada");
     if(maturity.period.status.code!=="CALIBRACION")throw new BadRequestException("El período no se encuentra en etapa de calibración");
     if(maturity.calibratedAt)throw new BadRequestException("Esta autoevaluación ya fue calibrada");
-    const existingCalibration=await this.prisma.roleMaturity.findFirst({where:{id:{not:maturity.id},periodId:maturity.periodId,calibratedAt:{not:null},personRole:{personId:maturity.personRole.personId,roleId:maturity.personRole.roleId}},select:{id:true}});
+    const existingCalibration=await this.prisma.roleMaturity.findFirst({where:{id:{not:maturity.id},periodId:maturity.periodId,modelVersionId:maturity.modelVersionId,calibratedAt:{not:null},personId:maturity.personId,roleId:maturity.roleId},select:{id:true}});
     if(existingCalibration)throw new BadRequestException("Esta persona y rol ya tienen una calibración final para el período");
     if (Number(maturity.selfAssessmentScore ?? maturity.score) !== input.calibratedScore && !input.comments?.trim()) {
       throw new BadRequestException("Se requiere un comentario para modificar el puntaje");

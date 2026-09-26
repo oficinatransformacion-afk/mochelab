@@ -88,8 +88,8 @@ async function main() {
       });
     if (!assignment) throw new Error(`El DNI ${sourcePerson.dni} no tiene una asignación ATF activa con ruta de desarrollo`);
     const existing = developmentMode
-      ? await prisma.roleSelfAssessment.findFirst({ where: { periodId: period.id, personRole: { personId: person.id, roleId: role.id } }, include: { responses: true } })
-      : await prisma.roleSelfAssessment.findFirst({ where: { personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id }, include: { responses: true } });
+      ? await prisma.roleSelfAssessment.findFirst({ where: { periodId: period.id, personId: person.id, roleId: role.id, modelVersionId: periodModel.modelVersion.id }, include: { responses: true } })
+      : await prisma.roleSelfAssessment.findFirst({ where: { personId: person.id, roleId: role.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id }, include: { responses: true } });
     if (existing && !(existing.responses.length === 125 && existing.responses.every(response => response.comments?.startsWith("Importado desde ")))) throw new Error(`El DNI ${sourcePerson.dni} ya tiene una autoevaluación que no será sobrescrita`);
 
     const details: { scopeType: "SECTION" | "DIMENSION" | "LEVEL" | "TOTAL"; scopeCode: string; scopeName: string; score: number | null; positiveCount: number | null; responseCount: number; completionPercentage: number | null; weight: number }[] = [];
@@ -136,7 +136,7 @@ async function main() {
 
     await prisma.$transaction(async transaction => {
       const assessment = await transaction.roleSelfAssessment.create({ data: {
-        personRoleId: assignment.id, periodId: period.id, statusId: submittedStatusId, modelVersionId: periodModel.modelVersion.id,
+        personId:person.id,roleId:role.id,personRoleId: assignment.id, periodId: period.id, statusId: submittedStatusId, modelVersionId: periodModel.modelVersion.id,
         configurationVersion: source.modelVersion, calculatedScore: score, submittedAt: new Date(),
         responses: { create: configuredItems.map(entry => {
           const answer = supplied.get(`${entry.section.code}|${entry.dimension.code}|${entry.item.code}`)!;
@@ -146,8 +146,8 @@ async function main() {
         }) }, resultDetails: { create: details },
       } });
       await transaction.roleMaturity.upsert({
-        where: { personRoleId_periodId_modelVersionId: { personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id } },
-        create: { personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id, selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, levelId },
+        where: { personId_roleId_periodId_modelVersionId: { personId:person.id,roleId:role.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id } },
+        create: { personId:person.id,roleId:role.id,personRoleId: assignment.id, periodId: period.id, modelVersionId: periodModel.modelVersion.id, selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, levelId },
         update: { selfAssessmentId: assessment.id, evaluatedAt: new Date(), score, selfAssessmentScore: score, calibratedScore: null, calibratedAt: null, calibratedById: null, calibrationComments: null, levelId },
       });
     });

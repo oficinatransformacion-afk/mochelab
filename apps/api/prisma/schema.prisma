@@ -202,6 +202,8 @@ model Person {
   businessPartner       BusinessPartner?    @relation(fields: [businessPartnerId], references: [id])
   status                CatalogValue        @relation("PersonStatus", fields: [statusId], references: [id])
   assignments           PersonRole[]
+  maturityResults       RoleMaturity[]        @relation("PersonMaturityResults")
+  maturityAssessments   RoleSelfAssessment[]  @relation("PersonMaturityAssessments")
   user                  User?
   masteryTrainingRecipient RoleMasteryQualification[] @relation("MasteryTrainingRecipient")
   createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -222,6 +224,8 @@ model Role {
   type      CatalogValue  @relation("RoleType", fields: [typeId], references: [id])
   status    CatalogValue  @relation("RoleStatus", fields: [statusId], references: [id])
   assignments PersonRole[]
+  maturityResults RoleMaturity[]       @relation("RoleMaturityResults")
+  maturityAssessments RoleSelfAssessment[] @relation("RoleMaturityAssessments")
   roleCourses RoleCourse[]
   targets     IndicatorTarget[]
   observableBehaviors ObservableBehaviorRole[]
@@ -388,6 +392,8 @@ model Period {
 
 model RoleMaturity {
   id           String       @id @default(uuid()) @db.Uuid
+  personId     String       @map("person_id") @db.Uuid
+  roleId       String       @map("role_id") @db.Uuid
   personRoleId String       @map("person_role_id") @db.Uuid
   periodId     String       @map("period_id") @db.Uuid
   selfAssessmentId String?  @unique @map("self_assessment_id") @db.Uuid
@@ -402,6 +408,8 @@ model RoleMaturity {
   calibratedAt DateTime?    @map("calibrated_at") @db.Timestamptz(3)
   legacyRecord Boolean      @default(false) @map("legacy_record")
   sourceRow    Int?         @map("source_row")
+  person       Person       @relation("PersonMaturityResults", fields: [personId], references: [id])
+  role         Role         @relation("RoleMaturityResults", fields: [roleId], references: [id])
   personRole   PersonRole   @relation(fields: [personRoleId], references: [id])
   period       Period       @relation(fields: [periodId], references: [id])
   level        CatalogValue @relation("RoleMaturityLevel", fields: [levelId], references: [id])
@@ -413,7 +421,8 @@ model RoleMaturity {
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  @@unique([personRoleId, periodId, modelVersionId])
+  @@unique([personId, roleId, periodId, modelVersionId])
+  @@index([personId, roleId, periodId])
   @@map("role_maturity")
 }
 
@@ -619,6 +628,8 @@ model ObservableBehaviorRole {
 
 model RoleSelfAssessment {
   id              String                   @id @default(uuid()) @db.Uuid
+  personId        String                   @map("person_id") @db.Uuid
+  roleId          String                   @map("role_id") @db.Uuid
   personRoleId    String                   @map("person_role_id") @db.Uuid
   periodId        String                   @map("period_id") @db.Uuid
   statusId        String                   @map("status_id") @db.Uuid
@@ -627,6 +638,8 @@ model RoleSelfAssessment {
   configurationVersion String              @map("configuration_version") @db.VarChar(80)
   startedAt       DateTime                 @default(now()) @map("started_at") @db.Timestamptz(3)
   submittedAt     DateTime?                @map("submitted_at") @db.Timestamptz(3)
+  person          Person                   @relation("PersonMaturityAssessments", fields: [personId], references: [id])
+  role            Role                     @relation("RoleMaturityAssessments", fields: [roleId], references: [id])
   personRole      PersonRole               @relation(fields: [personRoleId], references: [id])
   period          Period                   @relation(fields: [periodId], references: [id])
   status          CatalogValue             @relation("SelfAssessmentStatus", fields: [statusId], references: [id])
@@ -637,7 +650,8 @@ model RoleSelfAssessment {
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  @@unique([personRoleId, periodId, modelVersionId])
+  @@unique([personId, roleId, periodId, modelVersionId])
+  @@index([personId, roleId, periodId])
   @@index([periodId, statusId])
   @@map("role_self_assessment")
 }

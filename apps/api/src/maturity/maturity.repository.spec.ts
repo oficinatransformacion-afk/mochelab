@@ -11,10 +11,10 @@ describe("MaturityRepository person-role identity", () => {
       periodAssessmentModel:{count:vi.fn().mockResolvedValue(1)},
       personRole:{findMany:vi.fn().mockResolvedValue([{personId:"person-1",roleId:"role-1"},{personId:"person-2",roleId:"role-1"}])},
       roleSelfAssessment:{findMany:vi.fn().mockResolvedValue([
-        {personRole:{personId:"person-1",roleId:"role-1"}},
-        {personRole:{personId:"person-1",roleId:"role-1"}},
+        {personId:"person-1",roleId:"role-1"},
+        {personId:"person-1",roleId:"role-1"},
       ])},
-      roleMaturity:{findMany:vi.fn().mockResolvedValue([{calibratedAt:null,personRole:{personId:"person-1",roleId:"role-1"}}])},
+      roleMaturity:{findMany:vi.fn().mockResolvedValue([{calibratedAt:null,personId:"person-1",roleId:"role-1"}])},
     };
     const repository = new MaturityRepository(prisma as never, new MaturityScoringService(), {} as never);
     const population=await (repository as unknown as {periodPopulation:(id:string)=>Promise<unknown>}).periodPopulation(periodId);
@@ -33,15 +33,15 @@ describe("MaturityRepository person-role identity", () => {
     vi.spyOn(repository as unknown as {versionedModel:()=>Promise<unknown>}, "versionedModel").mockResolvedValue(null);
 
     await expect(repository.submitSelfAssessment({ personRoleId, periodId, configurationVersion:"v1", answers:[] }))
-      .rejects.toThrow("La autoevaluación de esta persona y rol ya fue enviada para el período");
-    expect(prisma.roleSelfAssessment.findFirst).toHaveBeenCalledWith({ where:{ periodId, personRole:{ personId:"person-1", roleId:"role-1" } }, select:{ id:true } });
+      .rejects.toThrow("La autoevaluación de esta persona, rol y modelo ya fue enviada para el período");
+    expect(prisma.roleSelfAssessment.findFirst).toHaveBeenCalledWith({ where:{ periodId, personId:"person-1", roleId:"role-1", modelVersionId:null }, select:{ id:true } });
   });
 
   it("rejects a second final calibration for the same person, role and period", async () => {
     const prisma = {
       requireConnection:vi.fn(),
       roleMaturity:{
-        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, selfAssessment:{id:"assessment-2",modelVersionId:"model-v1"},period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
+        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", personId:"person-1",roleId:"role-1",modelVersionId:"model-v1", periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, selfAssessment:{id:"assessment-2",modelVersionId:"model-v1"},period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
         findFirst:vi.fn().mockResolvedValue({ id:"maturity-1" }),
       },
     };
@@ -55,7 +55,7 @@ describe("MaturityRepository person-role identity", () => {
     const prisma = {
       requireConnection:vi.fn(),
       roleMaturity:{
-        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, selfAssessment:{id:"assessment-2",modelVersionId:null},period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
+        findUnique:vi.fn().mockResolvedValue({ id:"maturity-2", personId:"person-1",roleId:"role-1",modelVersionId:null, periodId, calibratedAt:null, score:1.2, selfAssessmentScore:1.2, selfAssessment:{id:"assessment-2",modelVersionId:null},period:{status:{code:"CALIBRACION"}}, personRole:{personId:"person-1",roleId:"role-1",person:{},role:{},team:{}} }),
       },
     };
     const repository = new MaturityRepository(prisma as never, new MaturityScoringService(), {} as never);

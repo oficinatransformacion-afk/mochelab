@@ -189,6 +189,8 @@ async function main() {
         select: { id: true, legacyRecord: true },
       });
       const data = {
+        personId: assignment.personId,
+        roleId: assignment.roleId,
         evaluatedAt: new Date(Date.UTC(Number(row.period.slice(0, 4)), Number(row.period.slice(4)) - 1, 1)),
         score: row.score, levelId, comments: clean(row.data.COMENTARIOS) || null,
         legacyRecord: true, sourceRow: row._source_row,
