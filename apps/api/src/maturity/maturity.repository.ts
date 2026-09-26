@@ -319,26 +319,30 @@ export class MaturityRepository {
 
   async listPendingCalibrations() {
     this.prisma.requireConnection();
-    return this.prisma.roleMaturity.findMany({
+    const rows=await this.prisma.roleMaturity.findMany({
       where: { calibratedAt: null, selfAssessmentId: { not: null } },
-      orderBy: [{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],
+      orderBy: [{role:{name:"asc"}},{person:{names:"asc"}},{evaluatedAt:"desc"}],
       include: {
         level: { select: { code: true, name: true } },
         period: { select: { id: true, code: true, name: true } },
-        personRole: {
-          include: {
-            person: { select: { id: true, dni: true, names: true } },
-            role: { select: { id: true, sourceId: true, name: true } },
-            team: { select: { id: true, sourceId: true } },
-          },
-        },
+        person: { select: { id: true, dni: true, names: true } },
+        role: { select: { id: true, sourceId: true, name: true } },
       },
     });
+    return this.calibrationRows(rows);
   }
 
   async listCalibrations(){
     this.prisma.requireConnection();
-    return this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:[{personRole:{role:{name:"asc"}}},{personRole:{person:{names:"asc"}}},{evaluatedAt:"desc"}],include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true,status:{select:{code:true,name:true}}}},selfAssessment:{select:{configurationVersion:true,modelVersion:{select:{id:true,version:true,assessmentModel:{select:{name:true}}}}}},personRole:{include:{person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}},team:{select:{id:true,sourceId:true}}}}}});
+    const rows=await this.prisma.roleMaturity.findMany({where:{selfAssessmentId:{not:null}},orderBy:[{role:{name:"asc"}},{person:{names:"asc"}},{evaluatedAt:"desc"}],include:{level:{select:{code:true,name:true}},period:{select:{id:true,code:true,name:true,status:{select:{code:true,name:true}}}},selfAssessment:{select:{configurationVersion:true,modelVersion:{select:{id:true,version:true,assessmentModel:{select:{name:true}}}}}},person:{select:{id:true,dni:true,names:true}},role:{select:{id:true,sourceId:true,name:true}}}});
+    return this.calibrationRows(rows);
+  }
+
+  private async calibrationRows<T extends {personId:string;roleId:string}>(rows:T[]){
+    const assignments=await this.prisma.personRole.findMany({where:{status:{code:"ACTIVO"},OR:rows.map(row=>({personId:row.personId,roleId:row.roleId}))},include:{team:true}});
+    const teamsByPair=new Map<string,typeof assignments>();
+    for(const assignment of assignments){const key=`${assignment.personId}|${assignment.roleId}`;teamsByPair.set(key,[...(teamsByPair.get(key)??[]),assignment])}
+    return rows.map(row=>{const teams=teamsByPair.get(`${row.personId}|${row.roleId}`)??[];return{...row,teamIds:teams.map(item=>item.teamId),team:teams.map(item=>item.team.sourceId).join(", ")||"Sin equipo activo"}});
   }
 
   async teamMaturityOptions(teamIds:string[]|null=null){
@@ -370,15 +374,16 @@ export class MaturityRepository {
   }
 
   async getCalibration(id: string) {
-    const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: {include:{status:true}}, selfAssessment: { include: { modelVersion:{include:{assessmentModel:{select:{name:true}}}},responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] }, resultDetails: { orderBy: [{ scopeType: "asc" }, { scopeCode: "asc" }] } } }, personRole: { include: { person: true, role: true, team: true } } } });
+    const maturity = await this.prisma.roleMaturity.findUnique({ where: { id }, include: { level: true, period: {include:{status:true}}, person:true,role:true,selfAssessment: { include: { modelVersion:{include:{assessmentModel:{select:{name:true}}}},responses: { orderBy: [{ dimensionCode: "asc" }, { behaviorId: "asc" }] }, resultDetails: { orderBy: [{ scopeType: "asc" }, { scopeCode: "asc" }] } } } } });
     if (!maturity) throw new NotFoundException("No se encontró la calibración");
-    const [people, officialTeamMaturities] = await Promise.all([
+    const [people,relatedAssignments] = await Promise.all([
       this.prisma.person.findMany({ select: { id: true, names: true }, orderBy: { names: "asc" } }),
-      this.prisma.teamMaturity.findMany({ where: { teamId: maturity.personRole.teamId, periodId: maturity.periodId, level: { code: "OFICIAL" } }, select: { id: true } }),
+      this.prisma.personRole.findMany({where:{personId:maturity.personId,roleId:maturity.roleId,status:{code:"ACTIVO"}},include:{team:true},orderBy:{team:{sourceId:"asc"}}}),
     ]);
+    const officialTeamMaturities=await this.prisma.teamMaturity.findMany({ where: { teamId: {in:relatedAssignments.map(item=>item.teamId)}, periodId: maturity.periodId, level: { code: "OFICIAL" } }, select: { id: true,teamId:true } });
     const modelVersion=maturity.selfAssessment?.modelVersion;
     const integrityReason=!maturity.selfAssessment?"No existe una autoevaluación asociada":!modelVersion?"No se puede identificar la versión del modelo utilizada":maturity.period.status.code!=="CALIBRACION"?"El período no se encuentra en etapa de calibración":null;
-    return { id: maturity.id, personId:maturity.personRole.person.id,person: maturity.personRole.person.names, role: maturity.personRole.role.name, team: maturity.personRole.team.sourceId, period: maturity.period.name,periodStatus:maturity.period.status.code,model:modelVersion?{id:modelVersion.id,name:modelVersion.assessmentModel.name,version:modelVersion.version}:null,integrity:{canCalibrate:integrityReason===null,reason:integrityReason}, originalScore: Number(maturity.selfAssessmentScore ?? maturity.score), calibratedScore:maturity.calibratedScore===null?null:Number(maturity.calibratedScore),calibratedAt:maturity.calibratedAt,calibrationComments:maturity.calibrationComments, level: maturity.level.code, responses: maturity.selfAssessment?.responses.map((r) => ({ behaviorId: r.behaviorId, statement: r.behaviorStatement, score: Number(r.score), comments: r.comments, dimensionCode: r.dimensionCode, dimensionName: r.dimensionName })) ?? [], resultDetails:maturity.selfAssessment?.resultDetails.map(detail=>({scopeType:detail.scopeType,scopeCode:detail.scopeCode,scopeName:detail.scopeName,score:detail.score===null?null:Number(detail.score),positiveCount:detail.positiveCount,responseCount:detail.responseCount,completionPercentage:detail.completionPercentage===null?null:Number(detail.completionPercentage),weight:Number(detail.weight)}))??[], people:people.filter(person=>person.id!==maturity.personRole.person.id), officialTeamMaturities };
+    return { id: maturity.id, personId:maturity.person.id,person: maturity.person.names, role: maturity.role.name, team: relatedAssignments.map(item=>item.team.sourceId).join(", ")||"Sin equipo activo",teams:relatedAssignments.map(item=>({id:item.teamId,label:`${item.team.sourceId} · ${item.team.name}`})), period: maturity.period.name,periodStatus:maturity.period.status.code,model:modelVersion?{id:modelVersion.id,name:modelVersion.assessmentModel.name,version:modelVersion.version}:null,integrity:{canCalibrate:integrityReason===null,reason:integrityReason}, originalScore: Number(maturity.selfAssessmentScore ?? maturity.score), calibratedScore:maturity.calibratedScore===null?null:Number(maturity.calibratedScore),calibratedAt:maturity.calibratedAt,calibrationComments:maturity.calibrationComments, level: maturity.level.code, responses: maturity.selfAssessment?.responses.map((r) => ({ behaviorId: r.behaviorId, statement: r.behaviorStatement, score: Number(r.score), comments: r.comments, dimensionCode: r.dimensionCode, dimensionName: r.dimensionName })) ?? [], resultDetails:maturity.selfAssessment?.resultDetails.map(detail=>({scopeType:detail.scopeType,scopeCode:detail.scopeCode,scopeName:detail.scopeName,score:detail.score===null?null:Number(detail.score),positiveCount:detail.positiveCount,responseCount:detail.responseCount,completionPercentage:detail.completionPercentage===null?null:Number(detail.completionPercentage),weight:Number(detail.weight)}))??[], people:people.filter(person=>person.id!==maturity.person.id), officialTeamMaturities };
   }
 
   async getSelfAssessmentForm(personRoleId?: string,teamIds:string[]|null=null,personId:string|null=null) {
@@ -406,7 +411,7 @@ export class MaturityRepository {
           options:scale.options.map(option=>({id:option.id,code:option.code,label:option.label,value:Number(option.numericValue)})),
         }})
       })));
-      return { personRoleId: assignment.id, person: assignment.person.names, role: assignment.role.name, team: assignment.team.sourceId, period: { id: period.id, code: period.code, name: period.name, status: period.status.code, configurationVersion: configured.modelVersion.version }, modelVersion:{id:configured.modelVersion.id,version:configured.modelVersion.version}, canSubmit: period.status.code === "AUTOEVALUACION"&&!submittedByRole.has(assignment.roleId), dimensions,availableRoles:roleAssignments.map(item=>({personRoleId:item.id,role:item.role.name,team:item.team.sourceId,status:submittedByRole.get(item.roleId)?.status.name??"Pendiente",submitted:Boolean(submittedByRole.has(item.roleId))})),progress:{completed:submittedByRole.size,total:roleAssignments.length} };
+      return { personRoleId: assignment.id, person: assignment.person.names, role: assignment.role.name, team: assignments.filter(item=>item.roleId===assignment.roleId).map(item=>item.team.sourceId).join(", "), period: { id: period.id, code: period.code, name: period.name, status: period.status.code, configurationVersion: configured.modelVersion.version }, modelVersion:{id:configured.modelVersion.id,version:configured.modelVersion.version}, canSubmit: period.status.code === "AUTOEVALUACION"&&!submittedByRole.has(assignment.roleId), dimensions,availableRoles:roleAssignments.map(item=>({personRoleId:item.id,role:item.role.name,team:assignments.filter(candidate=>candidate.roleId===item.roleId).map(candidate=>candidate.team.sourceId).join(", "),status:submittedByRole.get(item.roleId)?.status.name??"Pendiente",submitted:Boolean(submittedByRole.has(item.roleId))})),progress:{completed:submittedByRole.size,total:roleAssignments.length} };
     }
     const behaviors = await this.prisma.observableBehavior.findMany({
       where: { active: true, dimension: { active: true }, roles: { some: { roleId: assignment.roleId, active: true } } },
@@ -414,7 +419,7 @@ export class MaturityRepository {
     });
     const grouped = new Map<string, { id: string; code: string; name: string; description: string | null; behaviors: { id: string; statement: string; helpText: string | null; options: { id: null; code: string; label: string; value: number }[] }[] }>();
     for (const item of behaviors) { const dimension = grouped.get(item.dimensionId) ?? { id: item.dimension.id, code: item.dimension.code, name: item.dimension.name, description: item.dimension.description, behaviors: [] }; dimension.behaviors.push({ id: item.id, statement: item.statement, helpText: item.helpText,options:[{id:null,code:"NOT_DEMONSTRATED",label:"No demostrado",value:0},{id:null,code:"WITH_SUPPORT",label:"Con apoyo",value:1},{id:null,code:"AUTONOMOUS",label:"Autónomo",value:2}] }); grouped.set(item.dimensionId, dimension); }
-    return { personRoleId: assignment.id, person: assignment.person.names, role: assignment.role.name, team: assignment.team.sourceId, period: { id: period.id, code: period.code, name: period.name, status: period.status.code, configurationVersion: period.configurationVersion }, canSubmit: period.status.code === "AUTOEVALUACION"&&!submittedByRole.has(assignment.roleId), dimensions: [...grouped.values()],availableRoles:roleAssignments.map(item=>({personRoleId:item.id,role:item.role.name,team:item.team.sourceId,status:submittedByRole.get(item.roleId)?.status.name??"Pendiente",submitted:Boolean(submittedByRole.has(item.roleId))})),progress:{completed:submittedByRole.size,total:roleAssignments.length} };
+    return { personRoleId: assignment.id, person: assignment.person.names, role: assignment.role.name, team: assignments.filter(item=>item.roleId===assignment.roleId).map(item=>item.team.sourceId).join(", "), period: { id: period.id, code: period.code, name: period.name, status: period.status.code, configurationVersion: period.configurationVersion }, canSubmit: period.status.code === "AUTOEVALUACION"&&!submittedByRole.has(assignment.roleId), dimensions: [...grouped.values()],availableRoles:roleAssignments.map(item=>({personRoleId:item.id,role:item.role.name,team:assignments.filter(candidate=>candidate.roleId===item.roleId).map(candidate=>candidate.team.sourceId).join(", "),status:submittedByRole.get(item.roleId)?.status.name??"Pendiente",submitted:Boolean(submittedByRole.has(item.roleId))})),progress:{completed:submittedByRole.size,total:roleAssignments.length} };
   }
 
   async submitSelfAssessment(input: SubmitSelfAssessment) {
@@ -531,7 +536,7 @@ export class MaturityRepository {
     this.prisma.requireConnection();
     const maturity = await this.prisma.roleMaturity.findUnique({
       where: { id: input.roleMaturityId },
-      include: { selfAssessment:{select:{id:true,modelVersionId:true}},personRole: { include: {person:true,role:true,team:true} },period:{include:{status:true}} },
+      include: { selfAssessment:{select:{id:true,modelVersionId:true}},person:true,role:true,period:{include:{status:true}} },
     });
     if (!maturity) throw new NotFoundException("No se encontró el resultado de madurez");
     if(!maturity.selfAssessment)throw new BadRequestException("No existe una autoevaluación asociada a este resultado");
@@ -540,6 +545,8 @@ export class MaturityRepository {
     if(maturity.calibratedAt)throw new BadRequestException("Esta autoevaluación ya fue calibrada");
     const existingCalibration=await this.prisma.roleMaturity.findFirst({where:{id:{not:maturity.id},periodId:maturity.periodId,modelVersionId:maturity.modelVersionId,calibratedAt:{not:null},personId:maturity.personId,roleId:maturity.roleId},select:{id:true}});
     if(existingCalibration)throw new BadRequestException("Esta persona y rol ya tienen una calibración final para el período");
+    const relatedAssignments=await this.prisma.personRole.findMany({where:{personId:maturity.personId,roleId:maturity.roleId,status:{code:"ACTIVO"}},include:{team:true}});
+    const relatedTeamIds=relatedAssignments.map(item=>item.teamId);
     if (Number(maturity.selfAssessmentScore ?? maturity.score) !== input.calibratedScore && !input.comments?.trim()) {
       throw new BadRequestException("Se requiere un comentario para modificar el puntaje");
     }
@@ -552,12 +559,12 @@ export class MaturityRepository {
       if (!mastery?.trainingVerified || !mastery.trainedPersonId || !mastery.trainingEvidence?.trim() || !mastery.campVerified || !mastery.campName || !mastery.campDate || !mastery.campEvidence?.trim() || !mastery.teamMaturityId) {
         throw new BadRequestException("Para Maestro deben acreditarse formación, sus evidencias, campamento y equipo Oficial");
       }
-      if(mastery.trainedPersonId===maturity.personRole.personId)throw new BadRequestException("La persona formada debe ser distinta de la persona evaluada");
+      if(mastery.trainedPersonId===maturity.personId)throw new BadRequestException("La persona formada debe ser distinta de la persona evaluada");
       const campDate=new Date(`${mastery.campDate}T00:00:00Z`);if(campDate>new Date())throw new BadRequestException("La fecha del campamento no puede estar en el futuro");
       const [teamMaturity,trainedPerson] = await Promise.all([this.prisma.teamMaturity.findFirst({
         where: {
           id: mastery.teamMaturityId,
-          teamId: maturity.personRole.teamId,
+          teamId: {in:relatedTeamIds},
           periodId: maturity.periodId,
           level: { code: "OFICIAL", catalog: { code: "NIVEL_MADUREZ" } },
         },
@@ -621,7 +628,7 @@ export class MaturityRepository {
       }
       await transaction.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CALIBRATE",entity:"ROLE_MATURITY",recordId:updated.id,oldValue:this.snapshot(maturity),newValue:this.snapshot(updated),result:"OK",origin:"WEB"}});
       const template=await transaction.communicationTemplate.findFirst({where:{code:"MATURITY_RESULT_AVAILABLE",active:true}});
-      if(template){const variables={personName:maturity.personRole.person.names,roleName:maturity.personRole.role.name,teamCode:maturity.personRole.team.sourceId,periodName:maturity.period.name,score:input.calibratedScore.toFixed(2),levelName:level};const subject=template.subjectTemplate.replace(/\{\{(\w+)\}\}/g,(_,key)=>String(variables[key as keyof typeof variables]??""));await transaction.communication.create({data:{eventType:"MATURITY_RESULT_AVAILABLE",recipient:maturity.personRole.person.email,subject,templateCode:template.code,variables,status:maturity.personRole.person.email?"PENDIENTE":"OMITIDA_SIN_CORREO",source:"AUTOMATICA",dedupeKey:`MATURITY_RESULT_AVAILABLE:${updated.id}`,personRoleId:maturity.personRoleId,periodId:maturity.periodId,requestedById:administratorId}})}
+      if(template){const variables={personName:maturity.person.names,roleName:maturity.role.name,teamCode:relatedAssignments.map(item=>item.team.sourceId).join(", ")||"Sin equipo activo",periodName:maturity.period.name,score:input.calibratedScore.toFixed(2),levelName:level};const subject=template.subjectTemplate.replace(/\{\{(\w+)\}\}/g,(_,key)=>String(variables[key as keyof typeof variables]??""));await transaction.communication.create({data:{eventType:"MATURITY_RESULT_AVAILABLE",recipient:maturity.person.email,subject,templateCode:template.code,variables,status:maturity.person.email?"PENDIENTE":"OMITIDA_SIN_CORREO",source:"AUTOMATICA",dedupeKey:`MATURITY_RESULT_AVAILABLE:${updated.id}`,personRoleId:maturity.personRoleId,periodId:maturity.periodId,requestedById:administratorId}})}
       return { id: updated.id, score: Number(updated.score), level, masteryQualified };
     });
   }

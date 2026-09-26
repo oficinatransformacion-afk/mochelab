@@ -38,18 +38,21 @@ export class DashboardRepository {
       status: { code: "ACTIVO" },
     };
 
-    const [teams, roles, people, assignments, courses, completed, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
+    const [teams, roles, people, assignments, courses, completed, eligibleMaturityAssignments, roleMaturities, teamMaturities, objectives, initiatives] = await Promise.all([
       this.prisma.team.findMany({ where: { status: { code: "ACTIVO" }, id: allowedTeams === null ? undefined : { in: allowedTeams } }, include: { program: true }, orderBy: { sourceId: "asc" } }),
       Promise.resolve(availableRoles),
       this.prisma.person.count({ where: { assignments: { some: assignmentWhere } } }),
       this.prisma.personRole.count({ where: assignmentWhere }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere } }),
       this.prisma.personCourse.count({ where: { personRole: assignmentWhere, status: { code: { in: ["TERMINADO", "APROBADO", "COMPLETADO"] } } } }),
-      currentPeriod ? this.prisma.roleMaturity.findMany({ where: { periodId: currentPeriod.id, personRole: { teamId: teamIds === null ? undefined : { in: teamIds }, role: { name: { in: roleNames } } } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
+      this.prisma.personRole.findMany({where:assignmentWhere,distinct:["personId","roleId"],select:{personId:true,roleId:true}}),
+      currentPeriod ? this.prisma.roleMaturity.findMany({ where: { periodId: currentPeriod.id, role: { name: { in: roleNames } } }, select: { personId:true,roleId:true,score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
       currentPeriod ? this.prisma.teamMaturity.findMany({ where: { periodId: currentPeriod.id, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { score: true, level: { select: { name: true } } } }) : Promise.resolve([]),
       this.prisma.objective.findMany({ where: { isSystemPlaceholder: false, year: currentYear, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { achievement: true, resultStatus: { select: { name: true } } } }),
       this.prisma.initiative.findMany({ where: { year: currentYear, type: { code: "ESTRATEGICA", catalog: { code: "TIPO_INICIATIVA" } }, teamId: teamIds === null ? undefined : { in: teamIds } }, select: { status: { select: { name: true } }, projectedEconomicBenefit: true, actualEconomicBenefit: true } }),
     ]);
+    const eligibleMaturityKeys=new Set(eligibleMaturityAssignments.map(item=>`${item.personId}|${item.roleId}`));
+    const visibleRoleMaturities=roleMaturities.filter(item=>eligibleMaturityKeys.has(`${item.personId}|${item.roleId}`));
 
     const average = (values: number[]) => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) * 100 / values.length) / 100 : 0;
     const group = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((result, value) => {
@@ -70,9 +73,9 @@ export class DashboardRepository {
         people, assignments, courses, completedCourses: completed,
         pendingCourses: courses - completed,
         learningCompletion: courses ? Math.round(completed * 10000 / courses) / 100 : 0,
-        roleMaturityAverage: average(roleMaturities.map(item => Number(item.score))),
+        roleMaturityAverage: average(visibleRoleMaturities.map(item => Number(item.score))),
         teamMaturityAverage: average(teamMaturities.map(item => Number(item.score))),
-        roleLevels: group(roleMaturities.map(item => item.level.name)),
+        roleLevels: group(visibleRoleMaturities.map(item => item.level.name)),
         teamLevels: group(teamMaturities.map(item => item.level.name)),
       },
       strategy: {

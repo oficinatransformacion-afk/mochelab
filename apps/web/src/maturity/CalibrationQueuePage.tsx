@@ -92,10 +92,10 @@ export function CalibrationQueuePage() {
       const calibrationRows = await calibrationsResponse.json();
       const rows: Assessment[] = calibrationRows.map((row: any) => ({
         id: row.id,
-        person: row.personRole.person.names,
-        roleId: row.personRole.role.id,
-        role: row.personRole.role.name,
-        team: row.personRole.team.sourceId,
+        person: row.person.names,
+        roleId: row.role.id,
+        role: row.role.name,
+        team: row.team,
         period: row.period.name,
         score: Number(row.selfAssessmentScore ?? row.score),
         submittedAt: new Date(row.evaluatedAt).toLocaleDateString("es-PE"),
@@ -115,7 +115,7 @@ export function CalibrationQueuePage() {
     const rows = assessments.filter((assessment) => {
       const matchesStatus = status === "TODAS" || assessment.status === status;
       const matchesSearch = !term || [assessment.person, assessment.role, assessment.team].some((value) => value.toLocaleLowerCase("es").includes(term));
-      return matchesStatus && matchesSearch && (period === "TODOS" || assessment.period === period) && (!roleIds.length || roleIds.includes(assessment.roleId)) && (team === "TODOS" || assessment.team === team);
+      return matchesStatus && matchesSearch && (period === "TODOS" || assessment.period === period) && (!roleIds.length || roleIds.includes(assessment.roleId)) && (team === "TODOS" || assessment.team.split(", ").includes(team));
     });
     if (sortMode === "PERSON") return rows.sort((a, b) => a.person.localeCompare(b.person, "es"));
     if (sortMode === "SCORE_ASC") return rows.sort((a, b) => a.score - b.score || a.person.localeCompare(b.person, "es"));
@@ -146,7 +146,7 @@ export function CalibrationQueuePage() {
 
   const periodScopedRows = assessments.filter((row) => period === "TODOS" || row.period === period);
   const roleOptions = [...new Map(periodScopedRows.map((row) => [row.roleId, { id: row.roleId, label: row.role }])).values()].sort((a, b) => a.label.localeCompare(b.label, "es"));
-  const teamOptions = [...new Set(periodScopedRows.filter((row) => !roleIds.length || roleIds.includes(row.roleId)).map((row) => row.team))].sort((a, b) => a.localeCompare(b, "es"));
+  const teamOptions = [...new Set(periodScopedRows.filter((row) => !roleIds.length || roleIds.includes(row.roleId)).flatMap((row) => row.team.split(", ")))].sort((a, b) => a.localeCompare(b, "es"));
   const term = search.trim().toLocaleLowerCase("es");
   const summaryRows = periodScopedRows.filter((row) => (!roleIds.length || roleIds.includes(row.roleId)) && (team === "TODOS" || row.team === team) && (!term || [row.person, row.role, row.team].some((value) => value.toLocaleLowerCase("es").includes(term))));
   const calibrated = summaryRows.filter((row) => row.status === "CALIBRADA").length;

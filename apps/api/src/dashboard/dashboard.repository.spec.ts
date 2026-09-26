@@ -11,7 +11,7 @@ function database(){
     team:{findMany:vi.fn().mockResolvedValue([])},
     role:{findMany:vi.fn().mockResolvedValue([{id:"33333333-3333-4333-8333-333333333333",name:"SPONSOR"}])},
     person:{count:vi.fn().mockResolvedValue(1)},
-    personRole:{count:vi.fn().mockResolvedValue(2)},
+    personRole:{count:vi.fn().mockResolvedValue(2),findMany:vi.fn().mockResolvedValue([])},
     personCourse:{count:vi.fn().mockResolvedValueOnce(4).mockResolvedValueOnce(3)},
     roleMaturity:{findMany:vi.fn().mockResolvedValue([])},
     teamMaturity:{findMany:vi.fn().mockResolvedValue([])},
