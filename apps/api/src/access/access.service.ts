@@ -18,8 +18,8 @@ export class AccessService {
     const modules: ModuleCapability[] = MODULES.map((module) => {
       const isAdministrator = profile === "ADMIN" || profile === "SYSTEM";
       const facilitator=profile==="FACILITADOR";
-      const canView = isAdministrator || facilitator&&!['CATALOGOS','USUARIOS','MIGRACIONES','AUDITORIA'].includes(module.code) || profile==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(module.code);
-      const canWrite = isAdministrator || facilitator&&USER_WRITABLE_MODULES.has(module.code) || profile==="COLABORADOR"&&module.code==="MADUREZ";
+      const canView = isAdministrator || facilitator&&!['METAS','CATALOGOS','USUARIOS','MIGRACIONES','AUDITORIA'].includes(module.code) || profile==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(module.code);
+      const canWrite = isAdministrator || facilitator&&module.code!=="METAS"&&USER_WRITABLE_MODULES.has(module.code) || profile==="COLABORADOR"&&module.code==="MADUREZ";
 
       return {
         ...module,

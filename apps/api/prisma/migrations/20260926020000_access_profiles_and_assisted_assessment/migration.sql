@@ -35,9 +35,9 @@ FROM "catalog" c WHERE cv."catalog_id"=c."id" AND c."code"='PERFIL_USUARIO' AND 
 
 INSERT INTO "profile_module" ("profile_id","module_id","can_view","can_create","can_edit","can_delete","created_at","updated_at")
 SELECT p."id",m."id",
-  (m."code" IN ('INICIO','PERSONAS','ASIGNACIONES','EQUIPOS','CURSOS','MADUREZ','OBJETIVOS','METAS','PORTAFOLIO')),
-  (m."code" IN ('ASIGNACIONES','MADUREZ','OBJETIVOS','METAS','PORTAFOLIO')),
-  (m."code" IN ('ASIGNACIONES','MADUREZ','OBJETIVOS','METAS','PORTAFOLIO')),
+  (m."code" IN ('INICIO','PERSONAS','ASIGNACIONES','EQUIPOS','CURSOS','MADUREZ','OBJETIVOS','PORTAFOLIO')),
+  (m."code" IN ('ASIGNACIONES','MADUREZ','OBJETIVOS','PORTAFOLIO')),
+  (m."code" IN ('ASIGNACIONES','MADUREZ','OBJETIVOS','PORTAFOLIO')),
   false,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
 FROM "catalog_value" p
 JOIN "catalog" c ON c."id"=p."catalog_id" AND c."code"='PERFIL_USUARIO'

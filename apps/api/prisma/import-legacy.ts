@@ -536,8 +536,8 @@ async function applyImport(
       const profileCode = [...catalogCache.entries()].find(([entry, id]) => entry.startsWith("PERFIL_USUARIO|") && id === profileId)?.[0].split("|")[1] ?? "COLABORADOR";
       const administrator = profileCode === "ADMIN" || profileCode === "SYSTEM";
       const facilitator = profileCode === "FACILITADOR";
-      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "METAS", "PORTAFOLIO"].includes(moduleCode);
-      const canView = administrator || facilitator && !["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(moduleCode) || profileCode === "COLABORADOR" && ["PERSONAS", "MADUREZ"].includes(moduleCode);
+      const writable = ["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(moduleCode);
+      const canView = administrator || facilitator && !["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(moduleCode) || profileCode === "COLABORADOR" && ["PERSONAS", "MADUREZ"].includes(moduleCode);
       const canWrite = moduleCode !== "INICIO" && (administrator || facilitator && writable || profileCode === "COLABORADOR" && moduleCode === "MADUREZ");
       const canDelete = profileCode === "SYSTEM" && !["INICIO", "AUDITORIA"].includes(moduleCode);
       await tx.profileModule.upsert({ where: { profileId_moduleId: { profileId, moduleId: module.id } }, create: { profileId, moduleId: module.id, canView, canCreate: canWrite, canEdit: canWrite, canDelete }, update: { canView, canCreate: canWrite, canEdit: canWrite, canDelete } });

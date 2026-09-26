@@ -221,8 +221,8 @@ async function seedModules() {
     });
     for (const profile of profiles) {
       const administrator = profile.code === "ADMIN" || profile.code === "SYSTEM",facilitator=profile.code==="FACILITADOR";
-      const writable = facilitator&&["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "METAS", "PORTAFOLIO"].includes(code)||profile.code==="COLABORADOR"&&code==="MADUREZ";
-      const visible = administrator || facilitator&&!["CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code)||profile.code==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(code);
+      const writable = facilitator&&["ASIGNACIONES", "MADUREZ", "OBJETIVOS", "PORTAFOLIO"].includes(code)||profile.code==="COLABORADOR"&&code==="MADUREZ";
+      const visible = administrator || facilitator&&!["METAS", "CATALOGOS", "USUARIOS", "MIGRACIONES", "AUDITORIA"].includes(code)||profile.code==="COLABORADOR"&&["PERSONAS","MADUREZ"].includes(code);
       await prisma.profileModule.upsert({
         where: { profileId_moduleId: { profileId: profile.id, moduleId: module.id } },
         create: {

@@ -48,6 +48,7 @@ describe("AccessService", () => {
   it("allows a facilitator to operate functional modules without deletion",async()=>{
     const result=await service.getCapabilities("FACILITADOR");
     expect(result.modules.find(module=>module.code==="ASIGNACIONES")).toMatchObject({canView:true,canCreate:true,canEdit:true,canDelete:false});
+    expect(result.modules.find(module=>module.code==="METAS")).toMatchObject({canView:false,canCreate:false,canEdit:false,canDelete:false});
     expect(result.modules.find(module=>module.code==="USUARIOS")?.canView).toBe(false);
   });
 
