@@ -6,7 +6,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { assertSafeDatabaseWrite, databaseName } from "../src/database/environment-guard";
 import { postgresOptions } from "../src/database/postgres-options";
 
-config({ path: resolve(process.cwd(), "../../.env.local"), quiet: true });
+const developmentMode = process.argv.includes("--confirm-development");
+config({ path: resolve(process.cwd(), developmentMode ? "../../.env" : "../../.env.local"), quiet: true });
 
 type LegacyRow = { _sheet: string; _source_row: number; data: Record<string, unknown> };
 type PreparedRole = LegacyRow & { dni: string; roleSourceId: string; period: string; score: number; level: string };
@@ -15,11 +16,13 @@ type PreparedTeam = LegacyRow & { teamSourceId: string; period: string; score: n
 const apply = process.argv.includes("--apply");
 const batchArgument = process.argv.slice(2).find((value) => !value.startsWith("--"))
   ?? "database/staging/final-f5cd07cfc136";
-const databaseUrl = process.env.DATABASE_URL ?? "";
-if (!databaseUrl) throw new Error("DATABASE_URL no configurada en .env.local");
-if (databaseName(databaseUrl) !== "mochelab_local") {
-  throw new Error(`BLOQUEADO: este importador es exclusivo para LOCAL; destino recibido: ${databaseName(databaseUrl)}`);
-}
+const configuredDatabaseUrl = process.env.DATABASE_URL ?? "";
+if (!configuredDatabaseUrl) throw new Error("DATABASE_URL no configurada");
+const targetUrl = new URL(configuredDatabaseUrl);
+if (developmentMode) targetUrl.pathname = "/mochelab_dev";
+const databaseUrl = targetUrl.toString();
+const expectedDatabase = developmentMode ? "mochelab_dev" : "mochelab_local";
+if (databaseName(databaseUrl) !== expectedDatabase) throw new Error(`Destino no permitido: ${databaseName(databaseUrl)}`);
 if (apply) assertSafeDatabaseWrite(databaseUrl, "legacy-import");
 
 const db = new PrismaClient({ adapter: new PrismaPg(postgresOptions(databaseUrl)) });
@@ -145,7 +148,7 @@ async function main() {
   const periodCodes = [...new Set([...mappedRoles.map(({ row }) => row.period), ...mappedTeams.map(({ row }) => row.period)])].sort();
 
   console.log(JSON.stringify({
-    mode: apply ? "APPLY_LOCAL" : "DRY_RUN_LOCAL",
+    mode: apply ? `APPLY_${expectedDatabase}` : `DRY_RUN_${expectedDatabase}`,
     database: databaseName(databaseUrl),
     source: manifest.source_file,
     sourceSha256: manifest.source_sha256,
