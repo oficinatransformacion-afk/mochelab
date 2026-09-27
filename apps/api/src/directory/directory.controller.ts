@@ -12,10 +12,10 @@ export class DirectoryController {
 
   @Get("people")
   @RequirePermission("PERSONAS","view")
-  async listPeople(@Query("search") search?: string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Query("companies") companies?:string,@Query("units") units?:string,@Query("statuses") statuses?:string,@Query("assignment") assignment?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+  async listPeople(@Query("search") search?: string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Query("companies") companies?:string,@Query("managements") managements?:string,@Query("divisions") divisions?:string,@Query("statuses") statuses?:string,@Query("assignment") assignment?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     const identity=profileCode(profile),[scope,personId]=await Promise.all([this.scope(profile,email),this.access.getPersonId(identity,email)]),self=identity==="COLABORADOR"?personId??undefined:undefined;
     if(!page)return this.repository.listPeople(search,scope,self);
-    return this.repository.listPeoplePage({search,companies:this.ids(companies),units:this.ids(units),statuses:this.ids(statuses),assignment:this.ids(assignment),page:Number(page),pageSize:Number(pageSize)||20,personId:self},scope);
+    return this.repository.listPeoplePage({search,companies:this.ids(companies),managements:this.ids(managements),divisions:this.ids(divisions),statuses:this.ids(statuses),assignment:this.ids(assignment),page:Number(page),pageSize:Number(pageSize)||20,personId:self},scope);
   }
 
   @Get("people-filter-options") @RequirePermission("PERSONAS","view")
@@ -63,13 +63,13 @@ export class DirectoryController {
 
   @RequirePermission("ASIGNACIONES","create")
   @Post("person-role-assignments")
-  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string; modelIds?:string[]; withoutDevelopmentPath?:boolean; developmentExclusionReason?:string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+  async assignPerson(@Body() body: { personId?: string; roleId?: string; teamId?: string; modelIds?:string[]; withoutDevelopmentPath?:boolean; developmentExclusionReasonCode?:string; developmentExclusionDetail?:string },@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     if (!body.personId || !body.roleId || !body.teamId) throw new BadRequestException("Persona, rol y equipo son obligatorios");
     const identity=profileCode(profile);
-    if(body.withoutDevelopmentPath&&identity!=="ADMIN"&&identity!=="SYSTEM")throw new ForbiddenException("Solo un administrador puede crear una asignación sin ruta de desarrollo");
+    if(body.withoutDevelopmentPath&&!(["ADMIN","SYSTEM","FACILITADOR"] as ProfileCode[]).includes(identity))throw new ForbiddenException("Tu perfil no puede crear una asignación sin ruta de desarrollo");
     const scope=await this.access.getTeamScope(identity,email);
     if(scope!==null&&!scope.includes(body.teamId))throw new ForbiddenException("No puedes asignar roles fuera de tus equipos autorizados");
-    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope,{withoutDevelopmentPath:Boolean(body.withoutDevelopmentPath),reason:body.developmentExclusionReason,modelIds:Array.isArray(body.modelIds)?body.modelIds:[]});
+    return this.repository.assignPerson(body.personId, body.roleId, body.teamId,await this.access.getUserId(identity,email),scope,{withoutDevelopmentPath:Boolean(body.withoutDevelopmentPath),reasonCode:body.developmentExclusionReasonCode,detail:body.developmentExclusionDetail,modelIds:Array.isArray(body.modelIds)?body.modelIds:[]});
   }
 
   @RequirePermission("ASIGNACIONES","edit") @Patch("person-role-assignments/:id")

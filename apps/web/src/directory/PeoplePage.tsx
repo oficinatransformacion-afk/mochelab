@@ -5,16 +5,18 @@ import { MultiSelect } from "../components/MultiSelect";
 type Assignment = { id:string;role:string;team:string;program:string;status:string;statusId:string;onboardingStatus:string;onboardingStatusId:string;startDate:string|null;endDate:string|null };
 type Person = { id: string; dni: string; names: string; email: string | null; company: string; organizationalUnit: string | null; status: string; assignments: Assignment[] };
 type PeopleResponse={items:Person[];total:number;page:number;pageSize:number;pages:number};
-type FilterOptions={companies:string[];units:string[];statuses:string[]};
+type FilterValue={id:string;label:string};
+type FilterOptions={companies:string[];managements:FilterValue[];divisions:FilterValue[];statuses:string[]};
 
 export function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [page,setPage]=useState(1);const pageSize=20;
   const [total,setTotal]=useState(0);const[pages,setPages]=useState(1);
-  const[options,setOptions]=useState<FilterOptions>({companies:[],units:[],statuses:[]});
+  const[options,setOptions]=useState<FilterOptions>({companies:[],managements:[],divisions:[],statuses:[]});
   const [search, setSearch] = useState("");
   const [companyFilter,setCompanyFilter]=useState<string[]>([]);
-  const [unitFilter,setUnitFilter]=useState<string[]>([]);
+  const [managementFilter,setManagementFilter]=useState<string[]>([]);
+  const [divisionFilter,setDivisionFilter]=useState<string[]>([]);
   const [statusFilter,setStatusFilter]=useState<string[]>(["ACTIVO"]);
   const [assignmentFilter,setAssignmentFilter]=useState<string[]>(["CON_ROL"]);
   const [loading, setLoading] = useState(true);
@@ -26,16 +28,16 @@ export function PeoplePage() {
     const timer = window.setTimeout(() => {
       setLoading(true); setError("");
       const query=new URLSearchParams({search,page:String(page),pageSize:String(pageSize)});
-      if(companyFilter.length)query.set("companies",companyFilter.join(","));if(unitFilter.length)query.set("units",unitFilter.join(","));if(statusFilter.length)query.set("statuses",statusFilter.join(","));if(assignmentFilter.length)query.set("assignment",assignmentFilter.join(","));
+      if(companyFilter.length)query.set("companies",companyFilter.join(","));if(managementFilter.length)query.set("managements",managementFilter.join(","));if(divisionFilter.length)query.set("divisions",divisionFilter.join(","));if(statusFilter.length)query.set("statuses",statusFilter.join(","));if(assignmentFilter.length)query.set("assignment",assignmentFilter.join(","));
       fetch(`${apiUrl}/api/people?${query}`, { headers: demoHeaders })
         .then(async (response) => { if (!response.ok) throw new Error("No se pudieron cargar las personas"); return response.json() as Promise<PeopleResponse>; })
         .then(data=>{setPeople(data.items);setTotal(data.total);setPages(data.pages)}).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Error inesperado"))
         .finally(() => setLoading(false));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search,page,companyFilter,unitFilter,statusFilter,assignmentFilter]);
+  }, [search,page,companyFilter,managementFilter,divisionFilter,statusFilter,assignmentFilter]);
 
-  useEffect(()=>setPage(1),[search,companyFilter,unitFilter,statusFilter,assignmentFilter]);
+  useEffect(()=>setPage(1),[search,companyFilter,managementFilter,divisionFilter,statusFilter,assignmentFilter]);
 
   return <DirectoryShell title="Personas" description="Consulta colaboradores por DNI y empresa, junto con sus roles y equipos." active="people">
     <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -43,9 +45,10 @@ export function PeoplePage() {
         <strong>{loading ? "Consultando…" : total===0?"0 personas":`${(page-1)*pageSize+1}–${Math.min(page*pageSize,total)} de ${total} personas`}</strong>
         <label className="block sm:w-96"><span className="sr-only">Buscar personas</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, DNI o empresa" className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600" /></label>
       </div>
-      <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-5 sm:grid-cols-2 xl:grid-cols-5">
         <MultiSelect label="Empresas" emptyLabel="Todas las empresas" value={companyFilter} onChange={setCompanyFilter} options={options.companies.map(value=>({id:value,label:value}))}/>
-        <MultiSelect label="Unidades" emptyLabel="Todas las unidades" value={unitFilter} onChange={setUnitFilter} options={options.units.map(value=>({id:value,label:value}))}/>
+        <MultiSelect label="Gerencias" emptyLabel="Todas las gerencias" value={managementFilter} onChange={setManagementFilter} options={options.managements}/>
+        <MultiSelect label="Divisiones" emptyLabel="Todas las divisiones" value={divisionFilter} onChange={setDivisionFilter} options={options.divisions}/>
         <MultiSelect label="Estados" emptyLabel="Todos los estados" value={statusFilter} onChange={setStatusFilter} options={options.statuses.map(value=>({id:value,label:value}))}/>
         <MultiSelect label="Asignación" emptyLabel="Con y sin rol" value={assignmentFilter} onChange={setAssignmentFilter} options={[{id:"CON_ROL",label:"Con rol asignado"},{id:"SIN_ROL",label:"Sin rol asignado"}]}/>
       </div>

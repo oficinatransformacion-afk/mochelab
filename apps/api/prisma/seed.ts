@@ -37,6 +37,17 @@ const catalogs = [
     values: [["NO_APLICA", "No aplica"]],
   },
   {
+    code: "MOTIVO_SIN_RUTA_DESARROLLO",
+    name: "Motivo sin ruta de desarrollo",
+    values: [
+      ["ROL_SIN_MODELO_PUBLICADO", "Rol sin modelo publicado"],
+      ["ASIGNACION_TEMPORAL", "Asignación temporal"],
+      ["PARTICIPACION_APOYO", "Participación de apoyo"],
+      ["ROL_SIN_RUTA_FORMATIVA", "Rol sin ruta formativa requerida"],
+      ["OTRO", "Otro"],
+    ],
+  },
+  {
     code: "ESTADO_PERIODO_MADUREZ",
     name: "Estado del período de madurez",
     values: [

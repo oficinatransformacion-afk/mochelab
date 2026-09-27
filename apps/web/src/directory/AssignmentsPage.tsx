@@ -12,6 +12,7 @@ import { MultiSelect } from "../components/MultiSelect";
 import { compareRoleThenPerson } from "../utils/ordering";
 import { SearchableSelect } from "../components/SearchableSelect";
 type Option = { id: string; label: string; code?: string };
+type RoleOption = Option & { modelCount:number };
 type Row = {
   id: string;
   person: { id: string; names: string; dni: string; company: { name: string } };
@@ -33,10 +34,11 @@ type MaturityModel = {
 };
 type Options = {
   people: Option[];
-  roles: Option[];
+  roles: RoleOption[];
   teams: Option[];
   assignmentStatuses: Option[];
   onboardingStatuses: Option[];
+  developmentExclusionReasons: Option[];
   maturityModels: MaturityModel[];
 };
 type AssignmentResponse = {
@@ -53,6 +55,7 @@ const emptyOptions: Options = {
   teams: [],
   assignmentStatuses: [],
   onboardingStatuses: [],
+  developmentExclusionReasons: [],
   maturityModels: [],
 };
 
@@ -99,7 +102,8 @@ export function AssignmentsPage() {
     [newTeamId, setNewTeamId] = useState(""),
     [modelIds, setModelIds] = useState<string[]>([]),
     [withoutDevelopmentPath, setWithoutDevelopmentPath] = useState(false),
-    [developmentReason, setDevelopmentReason] = useState(""),
+    [developmentReasonCode, setDevelopmentReasonCode] = useState(""),
+    [developmentDetail, setDevelopmentDetail] = useState(""),
     [saving, setSaving] = useState(false);
   const pageSize = 25,
     isAdmin = demoProfile === "ADMIN" || demoProfile === "SYSTEM";
@@ -226,8 +230,11 @@ export function AssignmentsPage() {
         teamId: newTeamId,
         modelIds,
         withoutDevelopmentPath,
-        developmentExclusionReason: withoutDevelopmentPath
-          ? developmentReason
+        developmentExclusionReasonCode: withoutDevelopmentPath
+          ? developmentReasonCode
+          : undefined,
+        developmentExclusionDetail: withoutDevelopmentPath
+          ? developmentDetail
           : undefined,
       }),
     });
@@ -248,7 +255,8 @@ export function AssignmentsPage() {
     setNewTeamId("");
     setModelIds([]);
     setWithoutDevelopmentPath(false);
-    setDevelopmentReason("");
+    setDevelopmentReasonCode("");
+    setDevelopmentDetail("");
     await load();
   }
   const applicableModels = options.maturityModels.filter(
@@ -444,13 +452,14 @@ export function AssignmentsPage() {
               </button>
             </div>
             <div className="mt-6 grid gap-4">
-              <SearchableSelect
-                label="Persona"
+                <SearchableSelect
+                  label="Persona"
                 value={personId}
                 onChange={setPersonId}
                 options={options.people}
-                placeholder="Selecciona una persona"
-              />
+                  placeholder="Busca por nombre, DNI, correo o empresa"
+                />
+              {!isAdmin&&<p className="-mt-2 text-xs text-slate-500">Puedes seleccionar cualquier persona activa de la organización. La asignación solo podrá realizarse en uno de tus equipos.</p>}
               <div className="grid gap-4 md:grid-cols-2">
                 <SearchableSelect
                   label="Rol"
@@ -459,7 +468,10 @@ export function AssignmentsPage() {
                     setRoleId(value);
                     setModelIds([]);
                   }}
-                  options={options.roles}
+                  options={options.roles.map(role=>({
+                    ...role,
+                    description:role.modelCount?`${role.modelCount} modelo(s) publicado(s)`:"Sin modelos publicados; disponible mediante Sin ruta de desarrollo",
+                  }))}
                   placeholder="Selecciona un rol"
                 />
                 <SearchableSelect
@@ -488,11 +500,7 @@ export function AssignmentsPage() {
                               type="checkbox"
                               checked={modelIds.includes(model.id)}
                               onChange={(event) =>
-                                setModelIds((current) =>
-                                  event.target.checked
-                                    ? [...current, model.id]
-                                    : current.filter((id) => id !== model.id),
-                                )
+                                {setModelIds((current) =>event.target.checked?[...current, model.id]:current.filter((id) => id !== model.id));if(event.target.checked){setWithoutDevelopmentPath(false);setDevelopmentReasonCode("");setDevelopmentDetail("")}}
                               }
                               className="mr-3 size-4"
                             />
@@ -506,8 +514,9 @@ export function AssignmentsPage() {
                     </div>
                   ) : (
                     <p className="mt-2 text-sm font-semibold text-amber-800">
-                      Este rol no tiene modelos publicados. Configura uno o usa
-                      Sin ruta de desarrollo.
+                      {isAdmin
+                        ? "Este rol no tiene modelos publicados. Publica uno o usa Sin ruta de desarrollo indicando un motivo."
+                        : "Este rol no tiene modelos publicados. Puedes usar Sin ruta de desarrollo indicando un motivo."}
                     </p>
                   )}
                   <p className="mt-3 text-sm text-slate-600">
@@ -516,7 +525,7 @@ export function AssignmentsPage() {
                   </p>
                 </section>
               )}
-              {isAdmin && (
+              {(isAdmin||demoProfile==="FACILITADOR") && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <label className="flex cursor-pointer items-start gap-3">
                     <input
@@ -525,7 +534,7 @@ export function AssignmentsPage() {
                       onChange={(event) => {
                         setWithoutDevelopmentPath(event.target.checked);
                         if (event.target.checked) setModelIds([]);
-                        if (!event.target.checked) setDevelopmentReason("");
+                        if (!event.target.checked) {setDevelopmentReasonCode("");setDevelopmentDetail("");}
                       }}
                       className="mt-1 size-5"
                     />
@@ -537,25 +546,10 @@ export function AssignmentsPage() {
                       </span>
                     </span>
                   </label>
-                  {withoutDevelopmentPath && (
-                    <label className="mt-4 block text-sm font-bold">
-                      Justificación <span className="text-red-700">*</span>
-                      <textarea
-                        value={developmentReason}
-                        onChange={(event) =>
-                          setDevelopmentReason(event.target.value)
-                        }
-                        maxLength={500}
-                        rows={3}
-                        placeholder="Indica por qué esta asignación no requiere ruta de desarrollo"
-                        className="control mt-2 resize-y font-normal"
-                      />
-                      <span className="mt-1 block text-xs font-normal text-slate-500">
-                        Mínimo 10 caracteres. Quedará registrada en la
-                        auditoría.
-                      </span>
-                    </label>
-                  )}
+                  {withoutDevelopmentPath && <div className="mt-4 grid gap-4">
+                    <SearchableSelect label="Motivo" value={developmentReasonCode} onChange={(value)=>{setDevelopmentReasonCode(value);setDevelopmentDetail("")}} options={options.developmentExclusionReasons.map(reason=>({id:reason.code??reason.id,label:reason.label}))} placeholder="Selecciona un motivo"/>
+                    {developmentReasonCode==="OTRO"&&<label className="block text-sm font-bold">Detalle <span className="text-red-700">*</span><textarea value={developmentDetail} onChange={event=>setDevelopmentDetail(event.target.value)} maxLength={400} rows={3} placeholder="Describe el motivo (mínimo 10 caracteres)" className="control mt-2 resize-y font-normal"/><span className="mt-1 block text-xs font-normal text-slate-500">Quedará registrado en la auditoría.</span></label>}
+                  </div>}
                 </div>
               )}
             </div>
@@ -573,8 +567,8 @@ export function AssignmentsPage() {
                   !newTeamId ||
                   saving ||
                   (!withoutDevelopmentPath && modelIds.length === 0) ||
-                  (withoutDevelopmentPath &&
-                    developmentReason.trim().length < 10)
+                  (withoutDevelopmentPath && !developmentReasonCode) ||
+                  (withoutDevelopmentPath && developmentReasonCode==="OTRO" && developmentDetail.trim().length < 10)
                 }
                 onClick={() => void createAssignment()}
                 className="brand-action rounded-xl px-6 py-3 font-bold disabled:opacity-40"

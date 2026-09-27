@@ -6,8 +6,8 @@ describe("DirectoryRepository assignment scope", () => {
   it("requires a meaningful reason for an assignment without a development path", async () => {
     const repository = new DirectoryRepository({} as never);
 
-    await expect(repository.assignPerson("person-1", "role-1", "team-1", "admin-1", null, { withoutDevelopmentPath: true, reason: "breve" }))
-      .rejects.toThrow("La justificación de Sin ruta de desarrollo debe tener al menos 10 caracteres");
+    await expect(repository.assignPerson("person-1", "role-1", "team-1", "admin-1", null, { withoutDevelopmentPath: true, reasonCode:"OTRO",detail: "breve" }))
+      .rejects.toThrow("El detalle para el motivo Otro debe tener al menos 10 caracteres");
   });
 
   it("paginates people in the database and returns the complete filtered total", async () => {
@@ -55,18 +55,45 @@ describe("DirectoryRepository assignment scope", () => {
     expect(team).toEqual(expect.objectContaining({ id: "team-1", focusAreaId: "focus-1", focusArea: "EAD" }));
   });
 
-  it("rejects assigning a person who is not an active member of the user's teams", async () => {
+  it("rejects assigning any person outside the user's authorized team", async () => {
     const prisma = {
-      person: { findUnique: vi.fn().mockResolvedValue({ id: "person-2" }) },
-      role: { findUnique: vi.fn().mockResolvedValue({ id: "role-1" }) },
-      team: { findUnique: vi.fn().mockResolvedValue({ id: "team-1" }) },
+      person: { findUnique: vi.fn().mockResolvedValue({ id: "person-2",status:{code:"ACTIVO"} }) },
+      role: { findUnique: vi.fn().mockResolvedValue({ id: "role-1",status:{code:"ACTIVO"} }) },
+      team: { findUnique: vi.fn().mockResolvedValue({ id: "team-2",status:{code:"ACTIVO"} }) },
       catalogValue: { findFirst: vi.fn().mockResolvedValue({ id: "state-1" }) },
-      personRole: { count: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1) },
     };
     const repository = new DirectoryRepository(prisma as never);
 
-    await expect(repository.assignPerson("person-2", "role-1", "team-1", "user-1", ["team-1"]))
-      .rejects.toThrow("La persona no pertenece a tus equipos autorizados");
+    await expect(repository.assignPerson("person-2", "role-1", "team-2", "user-1", ["team-1"]))
+      .rejects.toThrow("El equipo no pertenece a tu alcance autorizado");
+  });
+
+  it("filters the people directory independently by management and division", async () => {
+    const prisma = { person: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) } };
+    const repository = new DirectoryRepository(prisma as never);
+
+    await repository.listPeoplePage({ managements:["management-1"],divisions:["division-1"] });
+
+    expect(prisma.person.count).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({managementId:{in:["management-1"]},divisionId:{in:["division-1"]}})}));
+  });
+
+  it("offers every active person and role while keeping teams within facilitator scope", async () => {
+    const prisma = {
+      person: { findMany: vi.fn().mockResolvedValue([]) },
+      role: { findMany: vi.fn().mockResolvedValue([]) },
+      team: { findMany: vi.fn().mockResolvedValue([]) },
+      catalogValue: { findMany: vi.fn().mockResolvedValue([]) },
+      assessmentModel: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    const repository = new DirectoryRepository(prisma as never);
+
+    await repository.listAssignmentOptions(["team-1"]);
+
+    expect(prisma.person.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: { code: "ACTIVO" } } }));
+    expect(prisma.role.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: { code: "ACTIVO" } } }));
+    expect(prisma.team.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { status: { code: "ACTIVO" }, id: { in: ["team-1"] } },
+    }));
   });
 
   it("rejects updating an assignment outside the user's team scope", async () => {
