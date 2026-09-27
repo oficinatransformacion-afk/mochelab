@@ -32,6 +32,7 @@ import { JobsRepository } from "./jobs/jobs.repository";
 import { CommunicationsController } from "./communications/communications.controller";
 import { CommunicationsRepository } from "./communications/communications.repository";
 import { GmailService } from "./communications/gmail.service";
+import { AppsScriptEmailService } from "./communications/apps-script-email.service";
 import { DataQualityController } from "./dashboard/data-quality.controller";
 import { DataQualityRepository } from "./dashboard/data-quality.repository";
 import { AuthController } from "./auth/auth.controller";
@@ -59,6 +60,7 @@ import { GoogleFormsIntegrationService } from "./integrations/google-forms.servi
     JobsRepository,
     CommunicationsRepository,
     GmailService,
+    AppsScriptEmailService,
     DataQualityRepository,
     LocalAuthService,
     GoogleFormsIntegrationService,

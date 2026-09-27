@@ -2,17 +2,18 @@ import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post
 import { AdminOnly, RequirePermission } from "../access/access.decorators";
 import { AccessService } from "../access/access.service";
 import { CommunicationsRepository } from "./communications.repository";
-import { GmailService } from "./gmail.service";
+import { AppsScriptEmailService } from "./apps-script-email.service";
 
 @AdminOnly()
 @RequirePermission("MADUREZ","view")
 @Controller("communications")
 export class CommunicationsController {
-  constructor(private readonly repository:CommunicationsRepository,private readonly access:AccessService,private readonly gmail:GmailService){}
+  constructor(private readonly repository:CommunicationsRepository,private readonly access:AccessService,private readonly appsScript:AppsScriptEmailService){}
   private type(value:unknown){if(value!=="OPENING"&&value!=="REMINDER")throw new BadRequestException("El tipo debe ser OPENING o REMINDER");return value}
   @Get() list(@Query("status") status?:string,@Query("page") page?:string,@Query("pageSize") pageSize?:string){return this.repository.list(status,Number(page)||1,Number(pageSize)||25)}
   @Get("templates") templates(){return this.repository.listTemplates()}
-  @Get("provider-status") providerStatus(){return this.gmail.status()}
+  @Get("provider-status") providerStatus(){return this.appsScript.status()}
+  @Post("send-pending") async sendPending(@Body() body:{limit?:number},@Headers("x-mochelab-demo-user-email") email?:string){const status=this.appsScript.status();if(!status.enabled||!status.configured)throw new BadRequestException("El envío está en modo Solo cola hasta configurar Google Apps Script");return this.repository.deliverPending(Math.min(50,Math.max(1,Number(body.limit)||25)),await this.access.getUserId("ADMIN",email),(message)=>this.appsScript.send(message))}
   @Patch("templates/:id") async updateTemplate(@Param("id") id:string,@Body() body:{name?:string;subjectTemplate?:string;bodyTemplate?:string;senderName?:string;senderEmail?:string;active?:boolean},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.updateTemplate(id,body,await this.access.getUserId("ADMIN",email))}
   @Get("maturity/:periodId/preview") preview(@Param("periodId") periodId:string,@Query("type") type:string){return this.repository.preview(periodId,this.type(type))}
   @Post("maturity/:periodId") async prepare(@Param("periodId") periodId:string,@Body() body:{type?:string},@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.prepareMaturity(periodId,this.type(body.type),await this.access.getUserId("ADMIN",email))}
