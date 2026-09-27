@@ -6,6 +6,7 @@ export class DirectoryRepository {
   constructor(private readonly prisma: PrismaService) {}
   private snapshot(value:unknown){return JSON.parse(JSON.stringify(value,(_,item)=>typeof item==="bigint"?item.toString():item))}
   private text(input:Record<string,unknown>,key:string,required=true){const value=typeof input[key]==="string"?(input[key] as string).trim():"";if(required&&!value)throw new BadRequestException(`${key} es obligatorio`);return value||null}
+  private render(template:string,variables:Record<string,unknown>){return template.replace(/\{\{(\w+)\}\}/g,(_,key)=>variables[key]===null||variables[key]===undefined?"":String(variables[key]))}
 
   private mapPeople(people:any[]){return people.map((person) => ({
       id: person.id,
@@ -277,7 +278,9 @@ export class DirectoryRepository {
       if (pending && requiredCourses.length) await tx.personCourse.createMany({ data: requiredCourses.map((item) => {const prior=recognized.get(item.courseId);return prior?{personRoleId:assignment.id,courseId:item.courseId,statusId:prior.statusId,score:prior.score,startDate:prior.startDate,endDate:prior.endDate,recognizedFromId:prior.id}:{personRoleId:assignment.id,courseId:item.courseId,statusId:pending.id}}), skipDuplicates: true });
       const reusedCourses=recognized.size,generatedCourses=requiredCourses.length-reusedCourses;
       await tx.audit.create({data:{occurredAt:new Date(),userId:administratorId,action:"CREATE",entity:"PERSON_ROLE",recordId:assignment.id,newValue:{personId,roleId,teamId,modelIds:selectedModelIds,developmentPathMode:assignment.developmentPathMode,developmentExclusionReasonCode:exclusionReason?.code??null,developmentExclusionReason:assignment.developmentExclusionReason,generatedCourses,reusedCourses},result:"OK",origin:"WEB"}});
-      await tx.communication.create({data:{eventType:"ROLE_ASSIGNED",recipient:person.email,subject:`Nuevo rol asignado: ${role.name}`,templateCode:"ROLE_ASSIGNED",variables:{personName:person.names,roleName:role.name,teamCode:team.sourceId},status:person.email?"PENDIENTE":"OMITIDA_SIN_CORREO",source:"AUTOMATICA",dedupeKey:`ROLE_ASSIGNED:${assignment.id}`,personRoleId:assignment.id,requestedById:administratorId}});
+      const variables={personName:person.names,roleName:role.name,teamCode:team.sourceId,teamName:team.name,assignedAt:assignment.startDate?.toLocaleDateString("es-PE",{timeZone:"UTC"})??""};
+      const template=await tx.communicationTemplate.findFirst({where:{code:"ROLE_ASSIGNED",active:true}});
+      await tx.communication.create({data:{eventType:"ROLE_ASSIGNED",recipient:person.email,subject:template?this.render(template.subjectTemplate,variables):`Nuevo rol asignado: ${role.name}`,templateCode:"ROLE_ASSIGNED",variables,status:person.email?"PENDIENTE":"OMITIDA_SIN_CORREO",source:"AUTOMATICA",dedupeKey:`ROLE_ASSIGNED:${assignment.id}`,personRoleId:assignment.id,requestedById:administratorId}});
       return { id: assignment.id, generatedCourses, reusedCourses,withoutDevelopmentPath:development.withoutDevelopmentPath };
     });
   }

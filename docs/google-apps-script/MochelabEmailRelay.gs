@@ -22,8 +22,12 @@ function doPost(e) {
     const duplicate = sheet.getRange("B:B").createTextFinder(input.dedupeKey).matchEntireCell(true).findNext();
     if (duplicate) return jsonResponse({ ok: true, duplicate: true });
 
-    GmailApp.sendEmail(input.to, input.subject, input.text, {
-      name: input.senderName || "Oficina Transformación",
+    MailApp.sendEmail({
+      to: input.to,
+      subject: input.subject,
+      body: input.text,
+      htmlBody: input.html || input.text,
+      name: input.senderName || "Mochelab",
     });
     sheet.appendRow([new Date(), input.dedupeKey, input.communicationId || "", input.to, input.subject, "ENVIADA"]);
     return jsonResponse({ ok: true, duplicate: false });
@@ -43,4 +47,13 @@ function createLogSheet(spreadsheet) {
 
 function jsonResponse(value) {
   return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Ejecutar manualmente una sola vez para autorizar MailApp y SpreadsheetApp. */
+function authorizeServices() {
+  const properties = PropertiesService.getScriptProperties();
+  const spreadsheetId = properties.getProperty("SPREADSHEET_ID");
+  if (!spreadsheetId) throw new Error("Falta configurar SPREADSHEET_ID");
+  SpreadsheetApp.openById(spreadsheetId);
+  Logger.log("Servicios autorizados. Cuota diaria disponible: " + MailApp.getRemainingDailyQuota());
 }
