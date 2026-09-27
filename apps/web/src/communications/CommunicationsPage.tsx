@@ -5,7 +5,7 @@ import { apiUrl, demoHeaders } from "../directory/DirectoryShell";
 type Row={id:string;eventType:string;recipient:string|null;subject:string;status:string;createdAt:string;errorSummary?:string|null;personRole?:{person:{names:string};role:{name:string};team:{sourceId:string}}|null};
 type Response={items:Row[];total:number;page:number;pageSize:number;pages:number};
 type Provider={provider:string;enabled:boolean;configured:boolean;missing:string[];senderName:string;transport:string;mode:"ENVIO"|"SOLO_COLA";automatic?:{enabled:boolean;schedule:string;timeZone:string;nextRunAt:string|null;lastRunAt:string|null}};
-const labels:Record<string,string>={ROLE_ASSIGNED:"Rol asignado",ROLE_REACTIVATED:"Rol reactivado",ROLE_CLOSED:"Rol cerrado",SELF_ASSESSMENT_OPENED:"Apertura de autoevaluación",SELF_ASSESSMENT_REMINDER:"Recordatorio de autoevaluación",MATURITY_RESULT_AVAILABLE:"Resultado de madurez calibrado"};
+const labels:Record<string,string>={ROLE_ASSIGNED:"Rol asignado",ROLE_REACTIVATED:"Rol reactivado",ROLE_CLOSED:"Rol cerrado",SELF_ASSESSMENT_OPENED:"Apertura de autoevaluación",SELF_ASSESSMENT_REMINDER:"Recordatorio de autoevaluación",MATURITY_RESULT_AVAILABLE:"Resultado de madurez calibrado",COURSE_PENDING_REMINDER:"Recordatorio de cursos pendientes"};
 const statusLabels:Record<string,string>={PENDIENTE:"Pendiente",REINTENTO:"Reintento programado",EN_PROCESO:"En proceso",ENVIADA:"Enviada",FALLIDA:"Fallida",OMITIDA_SIN_CORREO:"Omitida: sin correo"};
 
 export function CommunicationsPage(){
