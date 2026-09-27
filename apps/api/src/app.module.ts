@@ -33,6 +33,7 @@ import { CommunicationsController } from "./communications/communications.contro
 import { CommunicationsRepository } from "./communications/communications.repository";
 import { GmailService } from "./communications/gmail.service";
 import { AppsScriptEmailService } from "./communications/apps-script-email.service";
+import { DailyCommunicationService } from "./communications/daily-communication.service";
 import { DataQualityController } from "./dashboard/data-quality.controller";
 import { DataQualityRepository } from "./dashboard/data-quality.repository";
 import { AuthController } from "./auth/auth.controller";
@@ -61,6 +62,7 @@ import { GoogleFormsIntegrationService } from "./integrations/google-forms.servi
     CommunicationsRepository,
     GmailService,
     AppsScriptEmailService,
+    DailyCommunicationService,
     DataQualityRepository,
     LocalAuthService,
     GoogleFormsIntegrationService,

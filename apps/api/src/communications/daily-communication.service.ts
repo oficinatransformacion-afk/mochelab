@@ -1,0 +1,24 @@
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { AppsScriptEmailService } from "./apps-script-email.service";
+import { CommunicationsRepository } from "./communications.repository";
+
+@Injectable()
+export class DailyCommunicationService implements OnModuleInit,OnModuleDestroy {
+  private readonly logger=new Logger(DailyCommunicationService.name);
+  private timer?:NodeJS.Timeout;
+  private nextRunAt:Date|null=null;
+  private lastRunAt:Date|null=null;
+  private running=false;
+  constructor(private readonly repository:CommunicationsRepository,private readonly email:AppsScriptEmailService){}
+
+  private integer(name:string,fallback:number,min:number,max:number){const parsed=Number(process.env[name]);return Number.isInteger(parsed)?Math.min(max,Math.max(min,parsed)):fallback}
+  private config(){return{enabled:process.env.COMMUNICATION_AUTO_SEND_ENABLED==="true",hour:this.integer("COMMUNICATION_AUTO_SEND_HOUR",8,0,23),minute:this.integer("COMMUNICATION_AUTO_SEND_MINUTE",0,0,59),timeZone:process.env.COMMUNICATION_AUTO_SEND_TIME_ZONE?.trim()||"America/Lima",batchSize:this.integer("COMMUNICATION_AUTO_SEND_BATCH_SIZE",25,1,50),dailyMax:this.integer("COMMUNICATION_AUTO_SEND_DAILY_MAX",500,1,5000),maxAttempts:this.integer("COMMUNICATION_MAX_ATTEMPTS",3,1,10)}}
+  private parts(date:Date,timeZone:string){const values=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date).filter(part=>part.type!=="literal").map(part=>[part.type,part.value]));return{hour:Number(values.hour),minute:Number(values.minute)}}
+  private nextOccurrence(){const config=this.config(),start=Math.ceil((Date.now()+1000)/60000)*60000;for(let offset=0;offset<48*60;offset++){const candidate=new Date(start+offset*60000),parts=this.parts(candidate,config.timeZone);if(parts.hour===config.hour&&parts.minute===config.minute)return candidate}throw new Error("No se pudo calcular la siguiente ejecución diaria")}
+
+  onModuleInit(){this.schedule()}
+  onModuleDestroy(){if(this.timer)clearTimeout(this.timer)}
+  private schedule(){if(this.timer)clearTimeout(this.timer);const config=this.config();if(!config.enabled){this.nextRunAt=null;this.logger.log("Envío automático diario deshabilitado");return}this.nextRunAt=this.nextOccurrence();const delay=Math.max(1000,this.nextRunAt.getTime()-Date.now());this.timer=setTimeout(()=>void this.run(),delay);this.timer.unref();this.logger.log(`Próximo envío automático: ${this.nextRunAt.toISOString()} (${config.timeZone})`)}
+  async run(){if(this.running)return;this.running=true;this.lastRunAt=new Date();this.schedule();try{const config=this.config(),provider=this.email.status();if(!provider.enabled||!provider.configured){this.logger.warn("Se omite el envío diario: Apps Script no está disponible");return}await this.repository.recoverStale();let processed=0;while(processed<config.dailyMax){const size=Math.min(config.batchSize,config.dailyMax-processed),result=await this.repository.deliverPending(size,null,message=>this.email.send(message),undefined,config.maxAttempts);processed+=result.requested;if(result.requested<size)break}this.logger.log(`Proceso diario completado: ${processed} comunicación(es) revisadas`)}catch(error){this.logger.error("Falló el proceso automático diario",error instanceof Error?error.stack:String(error))}finally{this.running=false}}
+  status(){const config=this.config();return{enabled:config.enabled,schedule:`${String(config.hour).padStart(2,"0")}:${String(config.minute).padStart(2,"0")}`,timeZone:config.timeZone,batchSize:config.batchSize,dailyMax:config.dailyMax,maxAttempts:config.maxAttempts,nextRunAt:this.nextRunAt?.toISOString()??null,lastRunAt:this.lastRunAt?.toISOString()??null,running:this.running}}
+}
