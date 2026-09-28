@@ -21,6 +21,8 @@ services:
         generateValue: true
       - key: GOOGLE_GMAIL_ENABLED
         value: "false"
+      - key: COURSE_REMINDER_ENABLED
+        value: "false"
       - key: GOOGLE_GMAIL_SENDER_NAME
         value: Oficina Transformación
       - key: GOOGLE_GMAIL_SENDER_EMAIL
