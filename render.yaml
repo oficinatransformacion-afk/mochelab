@@ -21,8 +21,10 @@ services:
         generateValue: true
       - key: GOOGLE_GMAIL_ENABLED
         value: "false"
+      - key: COURSE_REMINDER_ENABLED
+        value: "false"
       - key: GOOGLE_GMAIL_SENDER_NAME
-        value: Oficina Transformación
+        value: Oficina de Transformación
       - key: GOOGLE_GMAIL_SENDER_EMAIL
         value: oficinatransformacion@danper.com
 
@@ -64,9 +66,37 @@ services:
       - key: GOOGLE_GMAIL_ENABLED
         value: "false"
       - key: GOOGLE_GMAIL_SENDER_NAME
-        value: Oficina Transformación
+        value: Oficina de Transformación
       - key: GOOGLE_GMAIL_SENDER_EMAIL
         value: oficinatransformacion@danper.com
+      - key: APPS_SCRIPT_EMAIL_ENABLED
+        value: "true"
+      - key: APPS_SCRIPT_EMAIL_WEB_APP_URL
+        sync: false
+      - key: APPS_SCRIPT_EMAIL_SECRET
+        sync: false
+      - key: APPS_SCRIPT_EMAIL_SENDER_NAME
+        value: Oficina de Transformación
+      - key: COMMUNICATION_AUTO_SEND_ENABLED
+        value: "true"
+      - key: COMMUNICATION_AUTO_SEND_HOUR
+        value: "8"
+      - key: COMMUNICATION_AUTO_SEND_MINUTE
+        value: "0"
+      - key: COMMUNICATION_AUTO_SEND_TIME_ZONE
+        value: America/Lima
+      - key: COMMUNICATION_AUTO_SEND_BATCH_SIZE
+        value: "25"
+      - key: COMMUNICATION_AUTO_SEND_DAILY_MAX
+        value: "500"
+      - key: COMMUNICATION_MAX_ATTEMPTS
+        value: "3"
+      - key: COURSE_REMINDER_ENABLED
+        value: "true"
+      - key: COURSE_REMINDER_DAYS
+        value: MONDAY,WEDNESDAY,FRIDAY
+      - key: COURSE_REMINDER_RETENTION_DAYS
+        value: "30"
 
   - type: web
     name: mochelab-web

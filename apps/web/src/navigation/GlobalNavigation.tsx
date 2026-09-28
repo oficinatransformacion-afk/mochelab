@@ -27,7 +27,7 @@ const groups: { label: string; links: Link[]; profiles?: Profile[] }[] = [
   ] },
   { label: "Administración", profiles: ["ADMIN","SYSTEM"], links: [
     { label: "Maestros", href: "/configuracion/maestros", icon: Database, module: "CATALOGOS" }, { label: "Mallas por rol", href: "/configuracion/mallas", icon: Map, module: "CURSOS" }, { label: "Catálogos", href: "/configuracion/catalogos", icon: Settings2, module: "CATALOGOS" },
-    { label: "Permisos por perfil", href: "/configuracion/usuarios", icon: ShieldCheck, module: "USUARIOS" }, { label: "Cuentas y equipos", href: "/configuracion/cuentas", icon: Building2, module: "USUARIOS" }, { label: "Comunicaciones", href: "/configuracion/comunicaciones", icon: Mail, module: "USUARIOS" },
+    { label: "Permisos por perfil", href: "/configuracion/usuarios", icon: ShieldCheck, module: "USUARIOS" }, { label: "Cuentas y equipos", href: "/configuracion/cuentas", icon: Building2, module: "USUARIOS" }, { label: "Cola de comunicaciones", href: "/comunicaciones", icon: Mail, module: "USUARIOS" }, { label: "Plantillas de comunicaciones", href: "/configuracion/comunicaciones", icon: FileCog, module: "USUARIOS" },
     { label: "Auditoría", href: "/configuracion/auditoria", icon: FileCog, module: "AUDITORIA" }, { label: "Calidad de datos", href: "/calidad-datos", icon: Network, module: "AUDITORIA" }, { label: "Procesos", href: "/configuracion/jobs", icon: CalendarRange, module: "MIGRACIONES" },
   ] },
 ];

@@ -1050,6 +1050,10 @@ model Communication {
   requestedById  String?     @map("requested_by_id") @db.Uuid
   sentAt         DateTime?   @map("sent_at") @db.Timestamptz(3)
   errorSummary   String?     @map("error_summary") @db.VarChar(500)
+  attemptCount   Int         @default(0) @map("attempt_count")
+  lastAttemptAt  DateTime?   @map("last_attempt_at") @db.Timestamptz(3)
+  nextAttemptAt  DateTime?   @map("next_attempt_at") @db.Timestamptz(3)
+  lockedAt       DateTime?   @map("locked_at") @db.Timestamptz(3)
   personRole     PersonRole? @relation(fields: [personRoleId], references: [id])
   period         Period?     @relation(fields: [periodId], references: [id])
   requestedBy    User?       @relation("CommunicationRequester", fields: [requestedById], references: [id])
@@ -1057,6 +1061,7 @@ model Communication {
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([status, createdAt])
+  @@index([status, nextAttemptAt])
   @@index([eventType, periodId])
   @@index([personRoleId, createdAt])
   @@map("communication")
@@ -1068,7 +1073,7 @@ model CommunicationTemplate {
   name            String   @db.VarChar(180)
   subjectTemplate String   @map("subject_template") @db.VarChar(240)
   bodyTemplate    String   @map("body_template")
-  senderName      String   @default("Oficina Transformación") @map("sender_name") @db.VarChar(160)
+  senderName      String   @default("Oficina de Transformación") @map("sender_name") @db.VarChar(160)
   senderEmail     String   @default("oficinatransformacion@danper.com") @map("sender_email") @db.VarChar(254)
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
