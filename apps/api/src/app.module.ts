@@ -40,10 +40,12 @@ import { AuthController } from "./auth/auth.controller";
 import { LocalAuthService } from "./auth/local-auth.service";
 import { GoogleFormsIntegrationController } from "./integrations/google-forms.controller";
 import { GoogleFormsIntegrationService } from "./integrations/google-forms.service";
+import { PortfolioExportController } from "./integrations/portfolio-export.controller";
+import { PortfolioExportService } from "./integrations/portfolio-export.service";
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [HealthController, AuthController, GoogleFormsIntegrationController, AccessController, PermissionsController, MaturityController, SelfAssessmentController, DirectoryController, AcademyController, ObjectivesController, InitiativesController, CatalogsController, UsersController, AuditController, TargetsController, DashboardController, JobsController, CommunicationsController, DataQualityController],
+  controllers: [HealthController, AuthController, GoogleFormsIntegrationController, PortfolioExportController, AccessController, PermissionsController, MaturityController, SelfAssessmentController, DirectoryController, AcademyController, ObjectivesController, InitiativesController, CatalogsController, UsersController, AuditController, TargetsController, DashboardController, JobsController, CommunicationsController, DataQualityController],
   providers: [
     AccessService,
     MaturityScoringService,
@@ -66,6 +68,7 @@ import { GoogleFormsIntegrationService } from "./integrations/google-forms.servi
     DataQualityRepository,
     LocalAuthService,
     GoogleFormsIntegrationService,
+    PortfolioExportService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })
