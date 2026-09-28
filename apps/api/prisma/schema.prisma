@@ -1073,7 +1073,7 @@ model CommunicationTemplate {
   name            String   @db.VarChar(180)
   subjectTemplate String   @map("subject_template") @db.VarChar(240)
   bodyTemplate    String   @map("body_template")
-  senderName      String   @default("Oficina Transformación") @map("sender_name") @db.VarChar(160)
+  senderName      String   @default("Oficina de Transformación") @map("sender_name") @db.VarChar(160)
   senderEmail     String   @default("oficinatransformacion@danper.com") @map("sender_email") @db.VarChar(254)
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)

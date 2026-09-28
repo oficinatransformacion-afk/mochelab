@@ -3,7 +3,7 @@
 Solicitar a TI habilitar Gmail API en un proyecto de Google Cloud corporativo y crear un cliente OAuth 2.0 de tipo aplicación web.
 
 - Cuenta remitente: `oficinatransformacion@danper.com`
-- Nombre visible: `Oficina Transformación`
+- Nombre visible: `Oficina de Transformación`
 - Alcance único: `https://www.googleapis.com/auth/gmail.send`
 - URI de redirección local: `http://localhost:53682/oauth2/callback`
 - No se solicita lectura, modificación ni eliminación de correos.

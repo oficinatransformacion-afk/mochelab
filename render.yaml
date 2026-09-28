@@ -24,7 +24,7 @@ services:
       - key: COURSE_REMINDER_ENABLED
         value: "false"
       - key: GOOGLE_GMAIL_SENDER_NAME
-        value: Oficina Transformación
+        value: Oficina de Transformación
       - key: GOOGLE_GMAIL_SENDER_EMAIL
         value: oficinatransformacion@danper.com
 
@@ -66,7 +66,7 @@ services:
       - key: GOOGLE_GMAIL_ENABLED
         value: "false"
       - key: GOOGLE_GMAIL_SENDER_NAME
-        value: Oficina Transformación
+        value: Oficina de Transformación
       - key: GOOGLE_GMAIL_SENDER_EMAIL
         value: oficinatransformacion@danper.com
 
