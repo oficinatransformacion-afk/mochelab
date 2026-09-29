@@ -7,7 +7,7 @@ export class GoogleFormsIntegrationController {
 
   @Post("course-result")
   async registerCourseResult(
-    @Body() body: { email?: unknown; courseCode?: unknown; score?: unknown; completedAt?: unknown },
+    @Body() body: { email?: unknown; courseCode?: unknown; score?: unknown; completedAt?: unknown; submissionId?: unknown },
     @Headers("x-mochelab-integration-key") key?: string,
   ) {
     return this.integration.registerCourseResult(body, key);

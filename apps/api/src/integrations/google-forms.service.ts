@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import { PrismaService } from "../database/prisma.service";
 
-type CourseResultInput = { email?: unknown; courseCode?: unknown; score?: unknown; completedAt?: unknown };
+type CourseResultInput = { email?: unknown; courseCode?: unknown; score?: unknown; completedAt?: unknown; submissionId?: unknown };
 
 @Injectable()
 export class GoogleFormsIntegrationService {
@@ -36,8 +36,28 @@ export class GoogleFormsIntegrationService {
     return new Date(`${dateOnly}T12:00:00.000Z`);
   }
 
+  private submission(value: unknown) {
+    if (value === undefined || value === null || value === "") return null;
+    const submissionId = this.text(value, "submissionId");
+    if (submissionId.length > 500) throw new BadRequestException("submissionId no puede superar 500 caracteres");
+    return {
+      id: submissionId,
+      receipt: `GFCR:${createHash("sha256").update(submissionId).digest("hex")}`,
+    };
+  }
+
+  private duplicateResponse(value: unknown) {
+    const saved = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    return { ...saved, alreadyProcessed: true };
+  }
+
   async registerCourseResult(input: CourseResultInput, key?: string) {
     this.verifyKey(key);
+    const submission = this.submission(input.submissionId);
+    if (submission) {
+      const existing = await this.prisma.audit.findUnique({ where: { sourceId: submission.receipt }, select: { newValue: true } });
+      if (existing) return this.duplicateResponse(existing.newValue);
+    }
     const email = this.text(input.email, "email").toLowerCase();
     const courseCode = this.text(input.courseCode, "courseCode");
     const score = typeof input.score === "number" ? input.score : Number(input.score);
@@ -63,25 +83,49 @@ export class GoogleFormsIntegrationService {
     });
     if (!matches.length) throw new NotFoundException("La persona no tiene el curso en una asignación activa");
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const rows = [];
-      for (const current of matches) {
-        const row = await tx.personCourse.update({
-          where: { id: current.id },
-          data: { score, statusId: completedStatus.id, endDate: completedAt },
-        });
-        await tx.audit.create({
-          data: {
-            occurredAt: new Date(), action: "GOOGLE_FORM_COURSE_RESULT", entity: "PERSON_COURSE", recordId: row.id,
-            oldValue: this.snapshot(current), newValue: this.snapshot(row), result: "OK", origin: "GOOGLE_FORMS",
-            actorLegacy: email, legacyDetail: `courseCode=${course.sourceId}; dni=${person.dni}`,
-          },
-        });
-        rows.push(row.id);
-      }
-      return rows;
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const rows = [];
+        for (const current of matches) {
+          const row = await tx.personCourse.update({
+            where: { id: current.id },
+            data: { score, statusId: completedStatus.id, endDate: completedAt },
+          });
+          await tx.audit.create({
+            data: {
+              occurredAt: new Date(), action: "GOOGLE_FORM_COURSE_RESULT", entity: "PERSON_COURSE", recordId: row.id,
+              oldValue: this.snapshot(current), newValue: this.snapshot(row), result: "OK", origin: "GOOGLE_FORMS",
+              actorLegacy: email, legacyDetail: `courseCode=${course.sourceId}; dni=${person.dni}`,
+            },
+          });
+          rows.push(row.id);
+        }
 
-    return { personDni: person.dni, personName: person.names, courseCode: course.sourceId, courseName: course.name, score, status: "TERMINADO", completedAt: completedAt.toISOString().slice(0, 10), updatedRecords: updated.length };
+        const response = { personDni: person.dni, personName: person.names, courseCode: course.sourceId, courseName: course.name, score, status: "TERMINADO", completedAt: completedAt.toISOString().slice(0, 10), updatedRecords: rows.length, alreadyProcessed: false };
+        if (submission) {
+          await tx.audit.create({
+            data: {
+              sourceId: submission.receipt,
+              occurredAt: new Date(),
+              action: "GOOGLE_FORM_SUBMISSION_PROCESSED",
+              entity: "GOOGLE_FORM_SUBMISSION",
+              recordId: submission.receipt,
+              newValue: this.snapshot(response),
+              result: "OK",
+              origin: "GOOGLE_FORMS",
+              actorLegacy: email,
+              legacyDetail: `submissionId=${submission.id}; courseCode=${course.sourceId}`,
+            },
+          });
+        }
+        return response;
+      });
+    } catch (error: unknown) {
+      if (submission && typeof error === "object" && error && "code" in error && error.code === "P2002") {
+        const existing = await this.prisma.audit.findUnique({ where: { sourceId: submission.receipt }, select: { newValue: true } });
+        if (existing) return this.duplicateResponse(existing.newValue);
+      }
+      throw error;
+    }
   }
 }
