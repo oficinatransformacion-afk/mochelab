@@ -26,6 +26,13 @@ type Row = {
   _count: { courses: number };
 };
 type Result = { id: string; ok: boolean; message: string };
+type CreateError = {
+  message: string;
+  existingAssignmentId?: string;
+  personName?: string;
+  roleName?: string;
+  teamName?: string;
+};
 type MaturityModel = {
   id: string;
   roleId: string;
@@ -104,6 +111,9 @@ export function AssignmentsPage() {
     [withoutDevelopmentPath, setWithoutDevelopmentPath] = useState(false),
     [developmentReasonCode, setDevelopmentReasonCode] = useState(""),
     [developmentDetail, setDevelopmentDetail] = useState(""),
+    [createError, setCreateError] = useState<CreateError | null>(null),
+    [successToast, setSuccessToast] = useState(""),
+    [highlightedAssignmentId, setHighlightedAssignmentId] = useState(""),
     [saving, setSaving] = useState(false);
   const pageSize = 25,
     isAdmin = demoProfile === "ADMIN" || demoProfile === "SYSTEM";
@@ -220,7 +230,7 @@ export function AssignmentsPage() {
       return;
     }
     setSaving(true);
-    setMessage("");
+    setCreateError(null);
     const response = await fetch(`${apiUrl}/api/person-role-assignments`, {
       method: "POST",
       headers: { ...demoHeaders, "Content-Type": "application/json" },
@@ -241,13 +251,19 @@ export function AssignmentsPage() {
     const body = await response.json().catch(() => ({}));
     setSaving(false);
     if (!response.ok) {
-      setMessage(body.message ?? "No se pudo crear la asignación.");
+      setCreateError({
+        message: typeof body.message === "string" ? body.message : "No se pudo crear la asignación.",
+        existingAssignmentId: typeof body.existingAssignmentId === "string" ? body.existingAssignmentId : undefined,
+        personName: typeof body.personName === "string" ? body.personName : undefined,
+        roleName: typeof body.roleName === "string" ? body.roleName : undefined,
+        teamName: typeof body.teamName === "string" ? body.teamName : undefined,
+      });
       return;
     }
-    setMessage(
+    setSuccessToast(
       body.withoutDevelopmentPath
-        ? "Asignación creada sin ruta de desarrollo."
-        : `Asignación creada. ${body.generatedCourses ?? 0} curso(s) pendiente(s) y ${body.reusedCourses ?? 0} reutilizado(s).`,
+        ? "El rol fue asignado sin ruta de desarrollo; no generará cursos ni evaluaciones de madurez."
+        : `${body.generatedCourses ?? 0} curso(s) pendiente(s) y ${body.reusedCourses ?? 0} curso(s) reconocido(s).`,
     );
     setShowCreate(false);
     setPersonId("");
@@ -310,12 +326,42 @@ export function AssignmentsPage() {
     () => setPage(1),
     [search, teamIds, roleFilters, filterStatuses, onboardingFilters],
   );
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = window.setTimeout(() => setSuccessToast(""), 7000);
+    return () => window.clearTimeout(timer);
+  }, [successToast]);
+  useEffect(() => {
+    if (!highlightedAssignmentId || !rows.some((item) => item.id === highlightedAssignmentId)) return;
+    document.querySelector(`[data-assignment-id="${highlightedAssignmentId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = window.setTimeout(() => setHighlightedAssignmentId(""), 6000);
+    return () => window.clearTimeout(timer);
+  }, [highlightedAssignmentId, rows]);
+  function viewExistingAssignment() {
+    if (!createError?.existingAssignmentId) return;
+    setHighlightedAssignmentId(createError.existingAssignmentId);
+    setSearch(createError.personName ?? "");
+    setTeamIds([]);
+    setRoleFilters([]);
+    setFilterStatuses([]);
+    setOnboardingFilters([]);
+    setPage(1);
+    setFiltersOpen(false);
+    setShowCreate(false);
+    setCreateError(null);
+  }
   return (
     <DirectoryShell
       title="Personas"
       description="Consulta colaboradores y gestiona sus roles, equipos y estado de incorporación."
       active="assignments"
     >
+      {successToast && (
+        <div role="status" aria-live="polite" className="fixed right-5 top-5 z-[100] max-w-md rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 font-semibold text-emerald-900 shadow-xl">
+          <strong className="block">Asignación creada correctamente</strong>
+          <span className="mt-1 block text-sm font-normal">{successToast}</span>
+        </div>
+      )}
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <AssignmentKpi
           label="Asignaciones activas"
@@ -412,7 +458,7 @@ export function AssignmentsPage() {
         </button>
         {capability?.canCreate && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => { setCreateError(null); setShowCreate(true); }}
             className="brand-action rounded-xl px-5 py-2 font-bold"
           >
             Nueva asignación
@@ -553,28 +599,44 @@ export function AssignmentsPage() {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex justify-end gap-3 border-t pt-5">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="rounded-xl px-5 py-3 font-bold text-slate-600"
-              >
-                Cancelar
-              </button>
-              <button
-                disabled={
-                  !personId ||
-                  !roleId ||
-                  !newTeamId ||
-                  saving ||
-                  (!withoutDevelopmentPath && modelIds.length === 0) ||
-                  (withoutDevelopmentPath && !developmentReasonCode) ||
-                  (withoutDevelopmentPath && developmentReasonCode==="OTRO" && developmentDetail.trim().length < 10)
-                }
-                onClick={() => void createAssignment()}
-                className="brand-action rounded-xl px-6 py-3 font-bold disabled:opacity-40"
-              >
-                {saving ? "Guardando…" : "Crear asignación"}
-              </button>
+            <div className="mt-6 flex flex-wrap justify-end gap-3 border-t pt-5">
+              {createError && (
+                <div role="alert" aria-live="assertive" className="mb-2 w-full rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                  <strong className="block">{createError.existingAssignmentId ? "Esta asignación ya existe" : "No se pudo crear la asignación"}</strong>
+                  <p className="mt-1 text-sm">
+                    {createError.existingAssignmentId
+                      ? `La persona ya tiene el rol “${createError.roleName ?? "seleccionado"}” en el equipo “${createError.teamName ?? "seleccionado"}”. Puedes consultar la asignación existente para revisar su estado, modelos y ruta de desarrollo.`
+                      : createError.message}
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <button type="button" onClick={() => setCreateError(null)} className="rounded-lg border border-amber-400 bg-white px-4 py-2 font-bold">Cerrar</button>
+                    {createError.existingAssignmentId && <button type="button" onClick={viewExistingAssignment} className="brand-action rounded-lg px-4 py-2 font-bold">Ver asignación existente</button>}
+                  </div>
+                </div>
+              )}
+              {!createError?.existingAssignmentId && <>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="rounded-xl px-5 py-3 font-bold text-slate-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={
+                    !personId ||
+                    !roleId ||
+                    !newTeamId ||
+                    saving ||
+                    (!withoutDevelopmentPath && modelIds.length === 0) ||
+                    (withoutDevelopmentPath && !developmentReasonCode) ||
+                    (withoutDevelopmentPath && developmentReasonCode==="OTRO" && developmentDetail.trim().length < 10)
+                  }
+                  onClick={() => void createAssignment()}
+                  className="brand-action rounded-xl px-6 py-3 font-bold disabled:opacity-40"
+                >
+                  {saving ? "Guardando…" : "Crear asignación"}
+                </button>
+              </>}
             </div>
           </section>
         </div>
@@ -645,7 +707,7 @@ export function AssignmentsPage() {
       <section className="mt-6 overflow-hidden rounded-2xl border bg-white">
         <div className="divide-y md:hidden">
           {visible.map((x) => (
-            <article key={x.id} className="p-5">
+            <article key={x.id} data-assignment-id={x.id} className={`p-5 transition ${highlightedAssignmentId === x.id ? "bg-amber-50 ring-2 ring-inset ring-amber-400" : ""}`}>
               <div className="flex items-start gap-3">
                 <input
                   className="mt-1 size-5 shrink-0"
@@ -744,7 +806,7 @@ export function AssignmentsPage() {
             </thead>
             <tbody>
               {visible.map((x) => (
-                <tr key={x.id} className="border-t">
+                <tr key={x.id} data-assignment-id={x.id} className={`border-t transition ${highlightedAssignmentId === x.id ? "bg-amber-50 ring-2 ring-inset ring-amber-400" : ""}`}>
                   <td className="p-4">
                     <input
                       aria-label={`Seleccionar ${x.person.names}`}

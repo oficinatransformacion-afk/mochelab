@@ -265,8 +265,17 @@ export class DirectoryRepository {
       if(!teamIds.includes(teamId))throw new ForbiddenException("El equipo no pertenece a tu alcance autorizado");
     }
     if(!development.withoutDevelopmentPath&&selectedModelIds.length===0)throw new BadRequestException("Selecciona al menos un modelo de madurez aplicable");
-    const existing = await this.prisma.personRole.findUnique({ where: { personId_roleId_teamId: { personId, roleId, teamId } } });
-    if (existing) throw new ConflictException("La persona ya tiene ese rol en el equipo");
+    const existing = await this.prisma.personRole.findUnique({
+      where: { personId_roleId_teamId: { personId, roleId, teamId } },
+      include: { person: { select: { names: true } }, role: { select: { name: true } }, team: { select: { sourceId: true, name: true } } },
+    });
+    if (existing) throw new ConflictException({
+      message: "La persona ya tiene ese rol en el equipo",
+      existingAssignmentId: existing.id,
+      personName: existing.person.names,
+      roleName: existing.role.name,
+      teamName: existing.team.name || existing.team.sourceId,
+    });
     return this.prisma.$transaction(async (tx) => {
       const storedReason=development.withoutDevelopmentPath?`${exclusionReason!.name}${detail?`: ${detail}`:""}`:null;
       const assignment = await tx.personRole.create({ data: { personId, roleId, teamId, statusId: status.id, onboardingStatusId: onboarding.id, startDate: new Date(),developmentPathMode:development.withoutDevelopmentPath?"EXEMPT":"STANDARD",developmentExclusionReason:storedReason,developmentPathChangedAt:development.withoutDevelopmentPath?new Date():null,developmentPathChangedBy:development.withoutDevelopmentPath?administratorId:null,maturityModels:development.withoutDevelopmentPath?undefined:{create:selectedModelIds.map(assessmentModelId=>({assessmentModelId,assignedById:administratorId}))} } });

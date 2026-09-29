@@ -1,4 +1,4 @@
-import { ForbiddenException } from "@nestjs/common";
+import { ConflictException, ForbiddenException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import { DirectoryRepository } from "./directory.repository";
 
@@ -66,6 +66,37 @@ describe("DirectoryRepository assignment scope", () => {
 
     await expect(repository.assignPerson("person-2", "role-1", "team-2", "user-1", ["team-1"]))
       .rejects.toThrow("El equipo no pertenece a tu alcance autorizado");
+  });
+
+  it("returns the existing assignment details when person, role and team are duplicated", async () => {
+    const prisma = {
+      person: { findUnique: vi.fn().mockResolvedValue({ id: "person-1", status: { code: "ACTIVO" } }) },
+      role: { findUnique: vi.fn().mockResolvedValue({ id: "role-1", status: { code: "ACTIVO" } }) },
+      team: { findUnique: vi.fn().mockResolvedValue({ id: "team-1", status: { code: "ACTIVO" } }) },
+      catalogValue: { findFirst: vi.fn().mockResolvedValue({ id: "catalog-value-1" }) },
+      assessmentModel: { findMany: vi.fn().mockResolvedValue([{ id: "model-1", name: "Modelo publicado" }]) },
+      personRole: { findUnique: vi.fn().mockResolvedValue({
+        id: "assignment-1",
+        person: { names: "Persona Existente" },
+        role: { name: "DUEÑO DE PRODUCTO" },
+        team: { sourceId: "1", name: "Agilidad en Acción" },
+      }) },
+    };
+    const repository = new DirectoryRepository(prisma as never);
+
+    try {
+      await repository.assignPerson("person-1", "role-1", "team-1", "admin-1", null, { withoutDevelopmentPath: false, modelIds: ["model-1"] });
+      throw new Error("La operación debió rechazar el duplicado");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getResponse()).toEqual(expect.objectContaining({
+        message: "La persona ya tiene ese rol en el equipo",
+        existingAssignmentId: "assignment-1",
+        personName: "Persona Existente",
+        roleName: "DUEÑO DE PRODUCTO",
+        teamName: "Agilidad en Acción",
+      }));
+    }
   });
 
   it("filters the people directory independently by management and division", async () => {
