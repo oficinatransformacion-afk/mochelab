@@ -74,6 +74,47 @@ function onCourseFormSubmit(event) {
 }
 ```
 
+## Variante: Apps Script asociado a la hoja de respuestas
+
+Si el Apps Script actual está asociado al Google Sheet que recibe las respuestas,
+use `docs/google-apps-script/MochelabCourseResultFromSheet.gs`. Esta variante consume
+`event.namedValues` y requiere un activador con estas opciones:
+
+- función: `enviarResultadoCursoAMochelab`;
+- fuente del evento: **Desde una hoja de cálculo**;
+- tipo de evento: **Al enviar formulario**.
+
+Antes de instalarlo, ajuste en `MOCHELAB_COURSE_FORM`:
+
+- `courseCode`: valor exacto de `Course.sourceId` en Mochelab;
+- `emailHeader`: encabezado exacto de la columna de correo;
+- `scoreHeader`: encabezado exacto de la columna de puntuación;
+- `formMaximumScore`: puntaje máximo del cuestionario; el script lo convierte a una nota sobre 20.
+
+El script crea una pestaña `Mochelab_Queue`. Cada respuesta se registra primero en
+esa cola y luego se envía. Si la API está dormida o responde con `408`, `425`, `429`
+o `5xx`, se crea un activador temporal para reintentar. Usa espera incremental,
+realiza como máximo cinco intentos y elimina el activador cuando ya no quedan
+pendientes. Los errores funcionales `4xx` quedan como `ERROR_DEFINITIVO` para revisión.
+
+Cada respuesta envía un `submissionId` formado por el ID del Spreadsheet, el ID de
+la pestaña y el número de fila. La API registra un recibo idempotente: repetir ese
+identificador devuelve el resultado anterior sin volver a actualizar `PersonaCurso`.
+No instale un activador periódico fijo en cada uno de los 40 archivos; el activador
+temporal solo existe mientras haya reintentos pendientes.
+
+Configure esta propiedad de secuencia de comandos:
+
+```text
+MOCHELAB_INTEGRATION_KEY=<misma clave productiva configurada en mochelab-api>
+```
+
+Esta variante está restringida a la API de PRODUCCIÓN
+`https://mochelab-api.onrender.com`. No debe instalarse ni ejecutarse en LOCAL o
+PRUEBAS. Las validaciones previas se realizan sin enviar respuestas reales. La primera
+ejecución del formulario modifica `mochelab_prod`, por lo que requiere autorización
+explícita para PRODUCCIÓN y debe hacerse con un único caso controlado.
+
 ## Respuesta exitosa
 
 ```json
