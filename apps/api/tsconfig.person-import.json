@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "incremental": false,
+    "outDir": "./dist-person-import",
+    "sourceMap": false
+  },
+  "include": [
+    "prisma/import-persons-xlsx-local.ts",
+    "src/database/environment-guard.ts",
+    "src/database/postgres-options.ts"
+  ]
+}
