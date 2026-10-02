@@ -62,7 +62,9 @@ export class AccessService {
   }
   async getPersonId(profile:ProfileCode,email?:string):Promise<string|null>{
     if(!this.prisma)return null;
-    if(profile==="ADMIN"||profile==="SYSTEM")return null;
+    // Facilitators operate through their explicitly granted team scope; unlike
+    // collaborators, they do not need to represent a person in the directory.
+    if(profile==="ADMIN"||profile==="SYSTEM"||profile==="FACILITADOR")return null;
     const normalized=email?.trim().toLowerCase();
     if(!normalized)throw new ForbiddenException("Falta identificar la cuenta de desarrollo");
     const user=await this.prisma.user.findUnique({where:{email:normalized},include:{profile:true,status:true}});
