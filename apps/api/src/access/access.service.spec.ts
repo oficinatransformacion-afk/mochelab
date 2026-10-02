@@ -87,8 +87,9 @@ describe("AccessService", () => {
     await expect(scoped.getTeamScope("SYSTEM","system@example.com")).resolves.toBeNull();
   });
 
-  it("does not require a linked person for Admin or System", async () => {
+  it("does not require a linked person for Facilitador, Admin or System", async () => {
     const scoped=new AccessService({} as never);
+    await expect(scoped.getPersonId("FACILITADOR","facilitador@example.com")).resolves.toBeNull();
     await expect(scoped.getPersonId("ADMIN","admin@example.com")).resolves.toBeNull();
     await expect(scoped.getPersonId("SYSTEM","system@example.com")).resolves.toBeNull();
   });
