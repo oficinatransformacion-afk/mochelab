@@ -258,7 +258,7 @@ async function main() {
         }
       }
       await tx.audit.create({ data: { occurredAt: new Date(), actorLegacy: "PROCESS_REPOSITORY_IMPORT", action: "BULK_IMPORT", entity: "PROCESS_REPOSITORY", recordId: sourceHash.slice(0, 80), newValue: { sourceFile: basename(sourcePath), sourceHash, companyCode: company.code, environment, ...totals, reportPath }, result: "OK", origin: developmentMode ? "DEVELOPMENT_SCRIPT" : "LOCAL_SCRIPT" } });
-    });
+    }, { maxWait: 10_000, timeout: 120_000 });
     console.log(JSON.stringify({ ...report, dryRun: false, applied: true, reportPath }, null, 2));
   } finally {
     await prisma.$disconnect();
