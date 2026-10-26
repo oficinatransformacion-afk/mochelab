@@ -27,6 +27,7 @@ const CommunicationsPage = lazy(() => import("./communications/CommunicationsPag
 const DataQualityPage = lazy(() => import("./dashboard/DataQualityPage").then(module => ({ default: module.DataQualityPage })));
 const LoginPage = lazy(() => import("./access/LoginPage").then(module => ({ default: module.LoginPage })));
 const ChangePasswordPage = lazy(() => import("./access/ChangePasswordPage").then(module => ({ default: module.ChangePasswordPage })));
+const ProcessesPage = lazy(() => import("./processes/ProcessesPage").then(module => ({ default: module.ProcessesPage })));
 import { hasDemoSession } from "./access/demoSession";
 import { useCapabilities } from "./access/CapabilitiesContext";
 import { isAdministratorPath,moduleForPath } from "./access/routeAccess";
@@ -66,6 +67,7 @@ function AppContent() {
   if (window.location.pathname === "/portafolio") return <InitiativesPage />;
   if (window.location.pathname === "/configuracion/usuarios") return <PermissionsPage />;
   if (window.location.pathname === "/configuracion/catalogos") return <CatalogsPage />;
+  if (window.location.pathname === "/configuracion/procesos") return <ProcessesPage />;
   if (window.location.pathname === "/configuracion/cuentas") return <UsersPage />;
   if (window.location.pathname === "/configuracion/auditoria") return <AuditPage />;
   if (window.location.pathname === "/objetivos/metas") return <TargetsPage />;

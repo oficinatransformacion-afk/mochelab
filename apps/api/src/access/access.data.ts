@@ -15,6 +15,7 @@ export const MODULES: ModuleDefinition[] = [
   { code: "OBJETIVOS", name: "Objetivos", route: "/objetivos", icon: "target", sortOrder: 60 },
   { code: "METAS", name: "Metas", route: "/objetivos/metas", icon: "bar-chart-3", sortOrder: 65 },
   { code: "PORTAFOLIO", name: "Portafolio", route: "/portafolio", icon: "briefcase-business", sortOrder: 70 },
+  { code: "PROCESOS", name: "Procesos", route: "/configuracion/procesos", icon: "workflow", sortOrder: 75 },
   { code: "CATALOGOS", name: "Catálogos", route: "/configuracion/catalogos", icon: "list", sortOrder: 80 },
   { code: "USUARIOS", name: "Usuarios", route: "/configuracion/usuarios", icon: "user-cog", sortOrder: 90 },
   { code: "MIGRACIONES", name: "Migraciones", route: "/configuracion/migraciones", icon: "database", sortOrder: 100 },

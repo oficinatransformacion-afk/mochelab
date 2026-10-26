@@ -25,6 +25,7 @@ export const ModuleCodeSchema = z.enum([
   "OBJETIVOS",
   "METAS",
   "PORTAFOLIO",
+  "PROCESOS",
   "CATALOGOS",
   "USUARIOS",
   "MIGRACIONES",

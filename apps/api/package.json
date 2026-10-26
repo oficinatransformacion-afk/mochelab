@@ -21,6 +21,8 @@
     "db:seed:visualization": "tsx prisma/seed-visualization.ts",
     "db:map:person-structure": "tsc -p tsconfig.seed-local.json && node dist-seed-local/prisma/map-person-structure.js",
     "db:import:persons": "tsc -p tsconfig.person-import.json && node dist-person-import/prisma/import-persons-xlsx-local.js",
+    "db:import:processes-local": "tsx prisma/import-process-repository-local.ts",
+    "db:import:processes-development": "tsx prisma/import-process-repository-local.ts --confirm-development",
     "migration:import": "tsc -p tsconfig.migration.json && node dist-migration/prisma/import-legacy.js"
   },
   "dependencies": {

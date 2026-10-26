@@ -525,7 +525,7 @@ async function applyImport(
     ["INICIO", "Inicio", "/", "home", 10], ["PERSONAS", "Personas", "/personas", "users", 20],
     ["ASIGNACIONES", "Asignaciones", "/asignaciones", "clipboard-list", 25], ["EQUIPOS", "Equipos", "/equipos", "users-round", 30],
     ["CURSOS", "Cursos", "/cursos", "book-open", 40], ["MADUREZ", "Madurez", "/madurez", "gauge", 50],
-    ["OBJETIVOS", "Objetivos", "/objetivos", "target", 60], ["METAS", "Metas", "/objetivos/metas", "bar-chart-3", 65], ["PORTAFOLIO", "Portafolio", "/portafolio", "briefcase-business", 70],
+    ["OBJETIVOS", "Objetivos", "/objetivos", "target", 60], ["METAS", "Metas", "/objetivos/metas", "bar-chart-3", 65], ["PORTAFOLIO", "Portafolio", "/portafolio", "briefcase-business", 70], ["PROCESOS", "Procesos", "/configuracion/procesos", "workflow", 75],
     ["CATALOGOS", "Catálogos", "/configuracion/catalogos", "list", 80], ["USUARIOS", "Usuarios", "/configuracion/usuarios", "user-cog", 90],
     ["MIGRACIONES", "Migraciones", "/configuracion/migraciones", "database", 100], ["AUDITORIA", "Auditoría", "/configuracion/auditoria", "history", 110],
   ] as const;
