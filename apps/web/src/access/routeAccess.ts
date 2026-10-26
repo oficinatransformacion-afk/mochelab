@@ -9,6 +9,7 @@ export function moduleForPath(path:string):ModuleCode|null{
   if(path==="/objetivos/metas")return"METAS";
   if(path==="/objetivos")return"OBJETIVOS";
   if(path==="/portafolio")return"PORTAFOLIO";
+  if(path==="/configuracion/procesos")return"PROCESOS";
   if(path.startsWith("/madurez"))return"MADUREZ";
   if(path==="/configuracion/catalogos"||path==="/configuracion/maestros")return"CATALOGOS";
   if(path==="/configuracion/usuarios"||path==="/configuracion/cuentas"||path==="/configuracion/comunicaciones"||path==="/comunicaciones")return"USUARIOS";

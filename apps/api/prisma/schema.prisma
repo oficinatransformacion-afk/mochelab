@@ -11,6 +11,11 @@ enum InitiativeResponsibilityType {
   DEVELOPER
 }
 
+enum InitiativeSubprocessType {
+  PRIMARY
+  RELATED
+}
+
 enum DevelopmentPathMode {
   STANDARD
   EXEMPT
@@ -138,6 +143,7 @@ model Company {
   active         Boolean      @default(true)
   people         Person[]
   initiatives    Initiative[]
+  macroprocesses Macroprocess[]
   orgUnits       OrganizationalUnit[]
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -212,6 +218,9 @@ model Person {
   maturityAssessments   RoleSelfAssessment[]  @relation("PersonMaturityAssessments")
   user                  User?
   masteryTrainingRecipient RoleMasteryQualification[] @relation("MasteryTrainingRecipient")
+  macroprocessResponsibilities Macroprocess[]     @relation("MacroprocessResponsible")
+  processResponsibilities      BusinessProcess[] @relation("ProcessResponsible")
+  subprocessResponsibilities   Subprocess[]       @relation("SubprocessResponsible")
   createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -887,6 +896,7 @@ model Initiative {
   improvementSupervisor         CatalogValue? @relation("InitiativeImprovementSupervisor", fields: [improvementSupervisorId], references: [id])
   objectiveLink                 Objective     @relation(fields: [objectiveId], references: [id])
   responsibilities               InitiativeResponsible[]
+  subprocesses                   InitiativeSubprocess[]
   createdAt                     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -912,6 +922,90 @@ model InitiativeResponsible {
   @@index([initiativeId, responsibilityType])
   @@index([personRoleId])
   @@map("initiative_responsible")
+}
+
+model Macroprocess {
+  id                  String            @id @default(uuid()) @db.Uuid
+  companyId           String            @map("company_id") @db.Uuid
+  code                String            @db.VarChar(30)
+  name                String            @db.VarChar(240)
+  description         String?
+  responsiblePersonId String?           @map("responsible_person_id") @db.Uuid
+  active              Boolean           @default(true)
+  sortOrder           Int               @default(0) @map("sort_order")
+  sourceRow           Int?              @map("source_row")
+  company             Company           @relation(fields: [companyId], references: [id])
+  responsiblePerson   Person?           @relation("MacroprocessResponsible", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
+  processes           BusinessProcess[]
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([companyId, code])
+  @@index([companyId, active, sortOrder])
+  @@index([responsiblePersonId])
+  @@map("macroprocess")
+}
+
+model BusinessProcess {
+  id                  String         @id @default(uuid()) @db.Uuid
+  macroprocessId      String         @map("macroprocess_id") @db.Uuid
+  code                String         @db.VarChar(30)
+  name                String         @db.VarChar(240)
+  description         String?
+  responsiblePersonId String?        @map("responsible_person_id") @db.Uuid
+  active              Boolean        @default(true)
+  sortOrder           Int            @default(0) @map("sort_order")
+  sourceRow           Int?           @map("source_row")
+  macroprocess        Macroprocess   @relation(fields: [macroprocessId], references: [id])
+  responsiblePerson   Person?        @relation("ProcessResponsible", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
+  subprocesses        Subprocess[]
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([macroprocessId, code])
+  @@index([macroprocessId, active, sortOrder])
+  @@index([responsiblePersonId])
+  @@map("business_process")
+}
+
+model Subprocess {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  businessProcessId   String                 @map("business_process_id") @db.Uuid
+  code                String                 @db.VarChar(40)
+  name                String                 @db.VarChar(300)
+  description         String?
+  responsiblePersonId String?                @map("responsible_person_id") @db.Uuid
+  active              Boolean                @default(false)
+  sortOrder           Int                    @default(0) @map("sort_order")
+  sourceRow           Int?                   @map("source_row")
+  businessProcess     BusinessProcess        @relation(fields: [businessProcessId], references: [id])
+  responsiblePerson   Person?                @relation("SubprocessResponsible", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
+  initiatives         InitiativeSubprocess[]
+  createdAt           DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([businessProcessId, code])
+  @@index([businessProcessId, active, sortOrder])
+  @@index([responsiblePersonId])
+  @@map("subprocess")
+}
+
+model InitiativeSubprocess {
+  id               String                   @id @default(uuid()) @db.Uuid
+  initiativeId     String                   @map("initiative_id") @db.Uuid
+  subprocessId     String                   @map("subprocess_id") @db.Uuid
+  relationshipType InitiativeSubprocessType @default(RELATED) @map("relationship_type")
+  observations     String?
+  createdBy        String?                  @map("created_by") @db.Uuid
+  initiative       Initiative               @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  subprocess       Subprocess               @relation(fields: [subprocessId], references: [id])
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([initiativeId, subprocessId])
+  @@index([initiativeId, relationshipType])
+  @@index([subprocessId])
+  @@map("initiative_subprocess")
 }
 
 model IndicatorTarget {

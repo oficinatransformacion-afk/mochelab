@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import {
   Award, BarChart3, BriefcaseBusiness, Building2, CalendarRange,
   Database, FileCog, Gauge, GraduationCap, Home, ListChecks,
-  KeyRound, LogOut, Mail, Map, Network, PanelLeftClose, PanelLeftOpen, Settings2, ShieldCheck, Target, Users, UsersRound,
+  KeyRound, LogOut, Mail, Map, Network, PanelLeftClose, PanelLeftOpen, Settings2, ShieldCheck, Target, Users, UsersRound, Workflow,
 } from "lucide-react";
 import { demoHeaders } from "../directory/DirectoryShell";
 import { endDemoSession } from "../access/demoSession";
@@ -26,7 +26,7 @@ const groups: { label: string; links: Link[]; profiles?: Profile[] }[] = [
     { label: "Objetivos y KR", href: "/objetivos", icon: Target, module: "OBJETIVOS" }, { label: "Portafolio", href: "/portafolio", icon: BriefcaseBusiness, module: "PORTAFOLIO" }, { label: "Metas", href: "/objetivos/metas", icon: BarChart3, module: "METAS" },
   ] },
   { label: "Administración", profiles: ["ADMIN","SYSTEM"], links: [
-    { label: "Maestros", href: "/configuracion/maestros", icon: Database, module: "CATALOGOS" }, { label: "Mallas por rol", href: "/configuracion/mallas", icon: Map, module: "CURSOS" }, { label: "Catálogos", href: "/configuracion/catalogos", icon: Settings2, module: "CATALOGOS" },
+    { label: "Maestros", href: "/configuracion/maestros", icon: Database, module: "CATALOGOS" }, { label: "Procesos", href: "/configuracion/procesos", icon: Workflow, module: "PROCESOS" }, { label: "Mallas por rol", href: "/configuracion/mallas", icon: Map, module: "CURSOS" }, { label: "Catálogos", href: "/configuracion/catalogos", icon: Settings2, module: "CATALOGOS" },
     { label: "Permisos por perfil", href: "/configuracion/usuarios", icon: ShieldCheck, module: "USUARIOS" }, { label: "Cuentas y equipos", href: "/configuracion/cuentas", icon: Building2, module: "USUARIOS" }, { label: "Cola de comunicaciones", href: "/comunicaciones", icon: Mail, module: "USUARIOS" }, { label: "Plantillas de comunicaciones", href: "/configuracion/comunicaciones", icon: FileCog, module: "USUARIOS" },
     { label: "Auditoría", href: "/configuracion/auditoria", icon: FileCog, module: "AUDITORIA" }, { label: "Calidad de datos", href: "/calidad-datos", icon: Network, module: "AUDITORIA" }, { label: "Procesos", href: "/configuracion/jobs", icon: CalendarRange, module: "MIGRACIONES" },
   ] },
