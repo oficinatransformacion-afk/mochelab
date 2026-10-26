@@ -80,6 +80,9 @@ const pad = (value: number) => String(value).padStart(3, "0");
 const responsibleAliases = new Map<string, string>([
   ["HELLEN CCAUIN", "CCAHUIN SANCHEZ HELEN DESCIREE"],
   ["WILDER GONZALES", "GONZALEZ TOLEDO WILDER LEONEL"],
+  ["PEDRO VILLANUEVA", "VILLANUEVA CRUZ PEDRO JOSE"],
+  ["RAUL SALDANA", "SALDANA CABRERA RAUL FERNANDO"],
+  ["FERNANDO SALAZAR", "SALAZAR CHECA FERNANDO ENRIQUE"],
 ]);
 
 function loadRows(): SourceRow[] {
@@ -123,6 +126,8 @@ function buildPersonMatcher(people: PersonReference[]) {
     if (exactCandidates.length > 1) {
       const activeCandidates = exactCandidates.filter((candidate) => candidate.statusCode === "ACTIVO");
       if (activeCandidates.length === 1) return { status: "MATCHED", person: activeCandidates[0], method: key === sourceKey ? "EXACT" : "ALIAS" };
+      const canonicalDniCandidates = activeCandidates.filter((candidate) => /^\d{8}$/.test(candidate.dni));
+      if (canonicalDniCandidates.length === 1) return { status: "MATCHED", person: canonicalDniCandidates[0], method: key === sourceKey ? "EXACT" : "ALIAS" };
       return { status: "AMBIGUOUS", candidates: exactCandidates };
     }
     const tokens = [...new Set(key.split(" ").filter((token) => token.length >= 3))];
