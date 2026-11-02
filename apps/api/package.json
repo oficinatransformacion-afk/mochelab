@@ -23,6 +23,7 @@
     "db:import:persons": "tsc -p tsconfig.person-import.json && node dist-person-import/prisma/import-persons-xlsx-local.js",
     "db:import:processes-local": "tsx prisma/import-process-repository-local.ts",
     "db:import:processes-development": "tsx prisma/import-process-repository-local.ts --confirm-development",
+    "db:import:processes-production": "tsx prisma/import-process-repository-local.ts --confirm-production",
     "migration:import": "tsc -p tsconfig.migration.json && node dist-migration/prisma/import-legacy.js"
   },
   "dependencies": {

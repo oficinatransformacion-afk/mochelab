@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { statSync } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { config } from "dotenv";
@@ -44,27 +45,35 @@ const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const confirmLocal = args.includes("--confirm-local");
 const confirmDevelopment = args.includes("--confirm-development");
-if (confirmLocal && confirmDevelopment) throw new Error("Seleccione solo LOCAL o PRUEBAS");
-if (args.includes("--confirm-production")) throw new Error("Este importador no admite PRODUCCIÓN");
+const confirmProduction = args.includes("--confirm-production");
+if ([confirmLocal, confirmDevelopment, confirmProduction].filter(Boolean).length > 1) throw new Error("Seleccione solo LOCAL, PRUEBAS o PRODUCCIÓN");
 const developmentMode = confirmDevelopment;
+const productionMode = confirmProduction;
 const sourceArgument = args.find((argument) => !argument.startsWith("--"));
 if (!sourceArgument) {
-  throw new Error("Uso: pnpm db:import:processes-local <archivo.xlsx> [--apply --confirm-local|--confirm-development] [--company-code=CODIGO]");
+  throw new Error("Uso: pnpm db:import:processes-local <archivo.xlsx> [--apply --confirm-local|--confirm-development|--confirm-production] [--backup-file=RUTA] [--company-code=CODIGO]");
 }
 const companyCode = args.find((argument) => argument.startsWith("--company-code="))?.slice("--company-code=".length) || "DANPER_TRUJILLO_SAC";
 
-config({ path: resolve(process.cwd(), developmentMode ? "../../.env" : "../../.env.local"), quiet: true });
-const configuredDatabaseUrl = process.env.DATABASE_URL;
-if (!configuredDatabaseUrl) throw new Error(`DATABASE_URL no configurada en ${developmentMode ? ".env" : ".env.local"}`);
+config({ path: resolve(process.cwd(), developmentMode || productionMode ? "../../.env" : "../../.env.local"), quiet: true });
+const configuredDatabaseUrl = productionMode ? process.env.MOCHELAB_PROD_DATABASE_URL : process.env.DATABASE_URL;
+if (!configuredDatabaseUrl) throw new Error(productionMode ? "MOCHELAB_PROD_DATABASE_URL no configurada" : `DATABASE_URL no configurada en ${developmentMode ? ".env" : ".env.local"}`);
 const targetUrl = new URL(configuredDatabaseUrl);
 if (developmentMode) targetUrl.pathname = "/mochelab_dev";
 const databaseUrl = targetUrl.toString();
-const databaseName = assertSafeDatabaseWrite(databaseUrl, developmentMode ? "development-write" : "legacy-import");
-const expectedDatabase = developmentMode ? "mochelab_dev" : "mochelab_local";
-const environment = developmentMode ? "PRUEBAS" : "LOCAL";
+const databaseName = assertSafeDatabaseWrite(databaseUrl, "legacy-import");
+const expectedDatabase = productionMode ? "mochelab_prod" : developmentMode ? "mochelab_dev" : "mochelab_local";
+const environment = productionMode ? "PRODUCCIÓN" : developmentMode ? "PRUEBAS" : "LOCAL";
 if (databaseName !== expectedDatabase) throw new Error(`BLOQUEADO: se esperaba ${expectedDatabase}, no ${databaseName}`);
 if (apply && developmentMode && !confirmDevelopment) throw new Error("BLOQUEADO: la escritura en PRUEBAS requiere --apply --confirm-development");
-if (apply && !developmentMode && !confirmLocal) throw new Error("BLOQUEADO: la escritura LOCAL requiere --apply --confirm-local");
+if (apply && productionMode) {
+  const backupPath = args.find((argument) => argument.startsWith("--backup-file="))?.slice("--backup-file=".length);
+  if (!backupPath) throw new Error("BLOQUEADO: PRODUCCIÓN requiere --backup-file=<respaldo verificado>");
+  let backup;
+  try { backup = statSync(resolve(backupPath)); } catch { backup = null; }
+  if (!backup?.isFile() || backup.size === 0) throw new Error("BLOQUEADO: el respaldo de PRODUCCIÓN no existe o está vacío");
+}
+if (apply && !developmentMode && !productionMode && !confirmLocal) throw new Error("BLOQUEADO: la escritura LOCAL requiere --apply --confirm-local");
 
 const sourcePath = resolve(sourceArgument);
 const reportsDir = resolve(process.cwd(), "../../reports");
@@ -257,7 +266,7 @@ async function main() {
           }
         }
       }
-      await tx.audit.create({ data: { occurredAt: new Date(), actorLegacy: "PROCESS_REPOSITORY_IMPORT", action: "BULK_IMPORT", entity: "PROCESS_REPOSITORY", recordId: sourceHash.slice(0, 80), newValue: { sourceFile: basename(sourcePath), sourceHash, companyCode: company.code, environment, ...totals, reportPath }, result: "OK", origin: developmentMode ? "DEVELOPMENT_SCRIPT" : "LOCAL_SCRIPT" } });
+      await tx.audit.create({ data: { occurredAt: new Date(), actorLegacy: "PROCESS_REPOSITORY_IMPORT", action: "BULK_IMPORT", entity: "PROCESS_REPOSITORY", recordId: sourceHash.slice(0, 80), newValue: { sourceFile: basename(sourcePath), sourceHash, companyCode: company.code, environment, ...totals, reportPath }, result: "OK", origin: productionMode ? "PRODUCTION_SCRIPT" : developmentMode ? "DEVELOPMENT_SCRIPT" : "LOCAL_SCRIPT" } });
     }, { maxWait: 10_000, timeout: 120_000 });
     console.log(JSON.stringify({ ...report, dryRun: false, applied: true, reportPath }, null, 2));
   } finally {
