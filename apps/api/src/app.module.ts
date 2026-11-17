@@ -17,6 +17,7 @@ import { ObjectivesController } from "./objectives/objectives.controller";
 import { ObjectivesRepository } from "./objectives/objectives.repository";
 import { InitiativesController } from "./initiatives/initiatives.controller";
 import { InitiativesRepository } from "./initiatives/initiatives.repository";
+import { InitiativesExportService } from "./initiatives/initiatives-export.service";
 import { CatalogsController } from "./catalogs/catalogs.controller";
 import { CatalogsRepository } from "./catalogs/catalogs.repository";
 import { UsersController } from "./users/users.controller";
@@ -57,6 +58,7 @@ import { ProcessesRepository } from "./processes/processes.repository";
     AcademyRepository,
     ObjectivesRepository,
     InitiativesRepository,
+    InitiativesExportService,
     CatalogsRepository,
     UsersRepository,
     AuditRepository,
