@@ -9,6 +9,7 @@ type ReportOptions = {
   personStatuses: string[];
   managements: Option[];
   divisions: Option[];
+  occupationLevels: Option[];
   roles: Option[];
   teams: Option[];
   assignmentStatuses: Option[];
@@ -22,7 +23,7 @@ type ReportJob = {
   downloadUrl: string | null;
 };
 
-const emptyOptions: ReportOptions = { companies: [], personStatuses: [], managements: [], divisions: [], roles: [], teams: [], assignmentStatuses: [] };
+const emptyOptions: ReportOptions = { companies: [], personStatuses: [], managements: [], divisions: [], occupationLevels: [], roles: [], teams: [], assignmentStatuses: [] };
 
 export function PeopleReportsPage() {
   const [options, setOptions] = useState<ReportOptions>(emptyOptions);
@@ -30,6 +31,7 @@ export function PeopleReportsPage() {
   const [personStatusNames, setPersonStatusNames] = useState<string[]>([]);
   const [managementIds, setManagementIds] = useState<string[]>([]);
   const [divisionIds, setDivisionIds] = useState<string[]>([]);
+  const [occupationLevelIds, setOccupationLevelIds] = useState<string[]>([]);
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [assignmentStatusIds, setAssignmentStatusIds] = useState<string[]>([]);
@@ -43,7 +45,10 @@ export function PeopleReportsPage() {
   useEffect(() => {
     fetch(`${apiUrl}/api/people-reports/options`, { headers: demoHeaders })
       .then(async response => { if (!response.ok) throw new Error("No se pudieron cargar los filtros del reporte."); return response.json() as Promise<ReportOptions>; })
-      .then(setOptions)
+      .then(data => {
+        setOptions(data);
+        setOccupationLevelIds(data.occupationLevels.filter(option => option.code?.trim().toUpperCase() !== "OPERARIO").map(option => option.id));
+      })
       .catch(error => setMessage(error instanceof Error ? error.message : "Error inesperado"))
       .finally(() => setLoading(false));
   }, []);
@@ -74,7 +79,7 @@ export function PeopleReportsPage() {
       const response = await fetch(`${apiUrl}/api/people-reports/jobs`, {
         method: "POST",
         headers: { ...demoHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ companyNames, personStatusNames, managementIds, divisionIds, roleIds, teamIds, assignmentStatusIds, cutoffDate: cutoffDate || undefined, includeContact }),
+        body: JSON.stringify({ companyNames, personStatusNames, managementIds, divisionIds, occupationLevelIds, roleIds, teamIds, assignmentStatusIds, cutoffDate: cutoffDate || undefined, includeContact }),
       });
       const body = await response.json().catch(() => ({})) as ReportJob & { message?: string };
       if (!response.ok) throw new Error(body.message ?? "No se pudo iniciar la generación del reporte.");
@@ -119,12 +124,15 @@ export function PeopleReportsPage() {
         <MultiSelect label="Estado del empleado" emptyLabel="Todos los estados" value={personStatusNames} onChange={setPersonStatusNames} options={options.personStatuses.map(value => ({ id: value, label: value }))}/>
         <MultiSelect label="Gerencia" emptyLabel="Todas las gerencias" value={managementIds} onChange={setManagementIds} options={options.managements}/>
         <MultiSelect label="División" emptyLabel="Todas las divisiones" value={divisionIds} onChange={setDivisionIds} options={options.divisions}/>
+        <div><MultiSelect label="Nivel ocupacional" emptyLabel="Todos los niveles ocupacionales" value={occupationLevelIds} onChange={setOccupationLevelIds} options={options.occupationLevels}/><small className="mt-2 block text-slate-500">Por defecto se incluyen todos excepto OPERARIO.</small></div>
         <MultiSelect label="Rol" emptyLabel="Todos los roles" value={roleIds} onChange={setRoleIds} options={options.roles}/>
         <MultiSelect label="Equipo" emptyLabel="Todos los equipos" value={teamIds} onChange={setTeamIds} options={options.teams}/>
         <MultiSelect label="Estado de asignación" emptyLabel="Todos los estados" value={assignmentStatusIds} onChange={setAssignmentStatusIds} options={options.assignmentStatuses}/>
         <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">Fecha de corte <span className="font-normal text-slate-400">(opcional)</span></span><input type="date" value={cutoffDate} onChange={event => setCutoffDate(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 outline-none focus:border-[#d71920] focus:ring-2 focus:ring-red-100"/><small className="mt-2 block text-slate-500">Déjala vacía para exportar todo el histórico.</small></label>
         <label className="flex min-h-12 items-center gap-3 self-start rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:mt-7"><input type="checkbox" checked={includeContact} onChange={event => setIncludeContact(event.target.checked)} className="h-5 w-5 accent-[#d71920]"/><span><strong className="block text-sm">Incluir correo y teléfono</strong><small className="text-slate-500">Agrega datos de contacto al archivo.</small></span></label>
       </div>
+
+      {!loading && (occupationLevelIds.length === 0 || options.occupationLevels.some(option => option.code?.trim().toUpperCase() === "OPERARIO" && occupationLevelIds.includes(option.id))) && <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">Al incluir OPERARIO, el reporte puede contener decenas de miles de personas y tardar considerablemente más en generarse.</p>}
 
       <div className="mt-8 rounded-2xl bg-slate-50 p-5">
         <p className="font-extrabold text-slate-700">El archivo incluirá</p>

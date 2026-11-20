@@ -1,8 +1,45 @@
 import * as XLSX from "xlsx";
 import { describe, expect, it, vi } from "vitest";
-import { DirectoryReportService } from "./directory-report.service";
+import { DirectoryReportService, UNSPECIFIED_OCCUPATION_LEVEL_ID } from "./directory-report.service";
 
 describe("DirectoryReportService", () => {
+  it("publica los niveles ocupacionales disponibles y la opción sin informar", async () => {
+    const prisma = {
+      person: { findMany: vi.fn().mockResolvedValue([
+        { company: { name: "DANPER" }, management: null, division: null, status: { name: "ACTIVO" }, occupationLevel: { id: "level-1", code: "EMPLEADO", name: "EMPLEADO" } },
+        { company: { name: "DANPER" }, management: null, division: null, status: { name: "ACTIVO" }, occupationLevel: { id: "level-2", code: "OPERARIO", name: "OPERARIO" } },
+        { company: { name: "DANPER" }, management: null, division: null, status: { name: "ACTIVO" }, occupationLevel: null },
+      ]) },
+      role: { findMany: vi.fn().mockResolvedValue([]) },
+      team: { findMany: vi.fn().mockResolvedValue([]) },
+      catalogValue: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+
+    const result = await new DirectoryReportService(prisma as never).options(null);
+
+    expect(result.occupationLevels).toEqual([
+      { id: "level-1", code: "EMPLEADO", label: "EMPLEADO" },
+      { id: "level-2", code: "OPERARIO", label: "OPERARIO" },
+      { id: UNSPECIFIED_OCCUPATION_LEVEL_ID, code: "SIN_INFORMAR", label: "Sin nivel ocupacional informado" },
+    ]);
+  });
+
+  it("filtra por niveles ocupacionales y conserva a las personas sin nivel cuando se seleccionan", async () => {
+    const prisma = {
+      person: { findMany: vi.fn().mockResolvedValue([]) },
+      audit: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const service = new DirectoryReportService(prisma as never);
+
+    await service.export({ occupationLevelIds: ["level-1", UNSPECIFIED_OCCUPATION_LEVEL_ID] }, null, null, "local.test@example.invalid");
+
+    expect(prisma.person.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: [{ occupationLevelId: { in: ["level-1"] } }, { occupationLevelId: null }],
+      }),
+    }));
+  });
+
   it("genera las cinco hojas acordadas", async () => {
     const prisma = {
       person: { findMany: vi.fn().mockResolvedValue([]) },

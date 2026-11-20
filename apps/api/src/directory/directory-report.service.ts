@@ -11,9 +11,12 @@ export type DirectoryReportFilters = {
   roleIds?: string[];
   teamIds?: string[];
   assignmentStatusIds?: string[];
+  occupationLevelIds?: string[];
   cutoffDate?: string;
   includeContact?: boolean;
 };
+
+export const UNSPECIFIED_OCCUPATION_LEVEL_ID = "__UNSPECIFIED__";
 
 const completedCourseCodes = ["TERMINADO", "APROBADO", "COMPLETADO"];
 const strings = (value: unknown) => Array.isArray(value) ? [...new Set(value.filter(item => typeof item === "string" && item.trim()).map(String))] : [];
@@ -67,7 +70,7 @@ export class DirectoryReportService {
   async options(teamScope: string[] | null) {
     const personScope = teamScope === null ? undefined : { assignments: { some: { teamId: { in: teamScope } } } };
     const [people, roles, teams, assignmentStatuses] = await Promise.all([
-      this.prisma.person.findMany({ where: personScope, select: { company: { select: { name: true } }, management: { select: { id: true, name: true } }, division: { select: { id: true, name: true } }, status: { select: { name: true } } } }),
+      this.prisma.person.findMany({ where: personScope, select: { company: { select: { name: true } }, management: { select: { id: true, name: true } }, division: { select: { id: true, name: true } }, status: { select: { name: true } }, occupationLevel: { select: { id: true, code: true, name: true } } } }),
       this.prisma.role.findMany({ where: { assignments: { some: { teamId: teamScope === null ? undefined : { in: teamScope } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       this.prisma.team.findMany({ where: { id: teamScope === null ? undefined : { in: teamScope } }, select: { id: true, sourceId: true, name: true }, orderBy: { sourceId: "asc" } }),
       this.prisma.catalogValue.findMany({ where: { active: true, catalog: { code: "ESTADO_ASIGNACION" } }, select: { id: true, code: true, name: true }, orderBy: { sortOrder: "asc" } }),
@@ -79,6 +82,10 @@ export class DirectoryReportService {
       personStatuses: unique(people.map(item => item.status.name)),
       managements: uniqueValues(people.map(item => item.management)),
       divisions: uniqueValues(people.map(item => item.division)),
+      occupationLevels: [
+        ...[...new Map(people.map(item => item.occupationLevel).filter((item): item is { id: string; code: string; name: string } => Boolean(item)).map(item => [item.id, { id: item.id, code: item.code, label: item.name }])).values()].sort((a, b) => a.label.localeCompare(b.label, "es")),
+        ...(people.some(item => !item.occupationLevel) ? [{ id: UNSPECIFIED_OCCUPATION_LEVEL_ID, code: "SIN_INFORMAR", label: "Sin nivel ocupacional informado" }] : []),
+      ],
       roles: roles.map(item => ({ id: item.id, label: item.name })),
       teams: teams.map(item => ({ id: item.id, label: `${item.sourceId} · ${item.name}` })),
       assignmentStatuses: assignmentStatuses.map(item => ({ id: item.id, code: item.code, label: item.name })),
@@ -88,7 +95,16 @@ export class DirectoryReportService {
   async export(rawFilters: DirectoryReportFilters, teamScope: string[] | null, userId: string | null, actor: string) {
     const filters = rawFilters ?? {};
     const cutoff = parseCutoff(filters.cutoffDate);
-    const companyNames = strings(filters.companyNames), personStatusNames = strings(filters.personStatusNames), managementIds = strings(filters.managementIds), divisionIds = strings(filters.divisionIds), roleIds = strings(filters.roleIds), requestedTeams = strings(filters.teamIds), assignmentStatusIds = strings(filters.assignmentStatusIds);
+    const companyNames = strings(filters.companyNames), personStatusNames = strings(filters.personStatusNames), managementIds = strings(filters.managementIds), divisionIds = strings(filters.divisionIds), occupationLevelIds = strings(filters.occupationLevelIds), roleIds = strings(filters.roleIds), requestedTeams = strings(filters.teamIds), assignmentStatusIds = strings(filters.assignmentStatusIds);
+    const includeUnspecifiedOccupationLevel = occupationLevelIds.includes(UNSPECIFIED_OCCUPATION_LEVEL_ID);
+    const selectedOccupationLevelIds = occupationLevelIds.filter(id => id !== UNSPECIFIED_OCCUPATION_LEVEL_ID);
+    const occupationLevelWhere = occupationLevelIds.length
+      ? includeUnspecifiedOccupationLevel && selectedOccupationLevelIds.length
+        ? { OR: [{ occupationLevelId: { in: selectedOccupationLevelIds } }, { occupationLevelId: null }] }
+        : includeUnspecifiedOccupationLevel
+          ? { occupationLevelId: null }
+          : { occupationLevelId: { in: selectedOccupationLevelIds } }
+      : {};
     const allowedTeams = teamScope === null ? requestedTeams : requestedTeams.length ? requestedTeams.filter(id => teamScope.includes(id)) : teamScope;
     const impossibleScope = teamScope !== null && requestedTeams.length > 0 && allowedTeams.length === 0;
     const assignmentWhere: any = {
@@ -105,6 +121,7 @@ export class DirectoryReportService {
       status: personStatusNames.length ? { name: { in: personStatusNames } } : undefined,
       managementId: managementIds.length ? { in: managementIds } : undefined,
       divisionId: divisionIds.length ? { in: divisionIds } : undefined,
+      ...occupationLevelWhere,
       AND: [
         ...(teamScope === null ? [] : [{ assignments: { some: { teamId: { in: teamScope } } } }]),
         ...(hasAssignmentFilters ? [{ assignments: { some: assignmentWhere } }] : []),
