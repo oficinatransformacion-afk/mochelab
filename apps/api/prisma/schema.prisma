@@ -4,6 +4,7 @@ generator client {
 
 enum InitiativeResponsibilityType {
   PRODUCT_OWNER
+  SPONSOR
   ATF
   MANAGER
   IMPROVEMENT_SUPERVISOR
