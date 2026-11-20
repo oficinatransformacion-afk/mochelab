@@ -3,10 +3,11 @@ import { AdminOnly, RequirePermission } from "../access/access.decorators";
 import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 import { DirectoryRepository } from "./directory.repository";
 import { DirectoryReportService, type DirectoryReportFilters } from "./directory-report.service";
+import { DirectoryReportJobService } from "./directory-report-job.service";
 
 @Controller()
 export class DirectoryController {
-  constructor(private readonly repository: DirectoryRepository,private readonly access:AccessService,private readonly reports:DirectoryReportService) {}
+  constructor(private readonly repository: DirectoryRepository,private readonly access:AccessService,private readonly reports:DirectoryReportService,private readonly reportJobs:DirectoryReportJobService) {}
 
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profileCode(profile),email)}
   private ids(value?:string){return value?.split(",").map(item=>item.trim()).filter(Boolean)??[]}
@@ -25,8 +26,14 @@ export class DirectoryController {
   @Get("people-reports/options") @RequirePermission("PERSONAS","view")
   async peopleReportOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.reports.options(await this.scope(profile,email))}
 
-  @Post("people-reports/export") @RequirePermission("PERSONAS","view")
-  async exportPeopleReport(@Body() body:DirectoryReportFilters,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profileCode(profile);const[scope,userId]=await Promise.all([this.access.getTeamScope(identity,email),this.access.getUserId(identity,email)]);const result=await this.reports.export(body??{},scope,userId,email??"");return new StreamableFile(result.buffer,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",disposition:`attachment; filename="${result.filename}"`})}
+  @Post("people-reports/jobs") @RequirePermission("PERSONAS","view")
+  async createPeopleReport(@Body() body:DirectoryReportFilters,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profileCode(profile);const[scope,userId]=await Promise.all([this.access.getTeamScope(identity,email),this.access.getUserId(identity,email)]);return this.reportJobs.create({filters:body??{},teamScope:scope,userId,actor:email??""})}
+
+  @Get("people-reports/jobs/:id") @RequirePermission("PERSONAS","view")
+  async peopleReportStatus(@Param("id") id:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.reportJobs.status(id,await this.access.getUserId(profileCode(profile),email))}
+
+  @Get("people-reports/jobs/:id/download") @RequirePermission("PERSONAS","view")
+  async downloadPeopleReport(@Param("id") id:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const result=await this.reportJobs.download(id,await this.access.getUserId(profileCode(profile),email));return new StreamableFile(result.stream,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",disposition:`attachment; filename="${result.filename}"`})}
 
   @Get("people/:id/profile")
   @RequirePermission("PERSONAS","view")
