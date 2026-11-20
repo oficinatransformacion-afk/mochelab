@@ -2,7 +2,7 @@ import type { ModuleCode } from "@mochelab/shared";
 
 export function moduleForPath(path:string):ModuleCode|null{
   if(path==="/")return"INICIO";
-  if(path==="/personas"||/^\/personas\/[^/]+$/.test(path))return"PERSONAS";
+  if(path==="/personas"||path==="/personas/reportes"||/^\/personas\/[^/]+$/.test(path))return"PERSONAS";
   if(path==="/asignaciones")return"ASIGNACIONES";
   if(path==="/equipos")return"EQUIPOS";
   if(["/roles","/configuracion/mallas","/cursos/catalogo","/cursos","/cursos/avance","/rutas"].includes(path))return"CURSOS";

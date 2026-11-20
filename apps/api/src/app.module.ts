@@ -11,6 +11,7 @@ import { AccessGuard } from "./access/access.guard";
 import { MaturityController, SelfAssessmentController } from "./maturity/maturity.controller";
 import { DirectoryController } from "./directory/directory.controller";
 import { DirectoryRepository } from "./directory/directory.repository";
+import { DirectoryReportService } from "./directory/directory-report.service";
 import { AcademyController } from "./academy/academy.controller";
 import { AcademyRepository } from "./academy/academy.repository";
 import { ObjectivesController } from "./objectives/objectives.controller";
@@ -55,6 +56,7 @@ import { ProcessesRepository } from "./processes/processes.repository";
     MaturityPeriodService,
     MaturityRepository,
     DirectoryRepository,
+    DirectoryReportService,
     AcademyRepository,
     ObjectivesRepository,
     InitiativesRepository,

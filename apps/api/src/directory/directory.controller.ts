@@ -1,11 +1,12 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Patch, Post, Query, StreamableFile } from "@nestjs/common";
 import { AdminOnly, RequirePermission } from "../access/access.decorators";
 import { AccessService,profileCode,type ProfileCode } from "../access/access.service";
 import { DirectoryRepository } from "./directory.repository";
+import { DirectoryReportService, type DirectoryReportFilters } from "./directory-report.service";
 
 @Controller()
 export class DirectoryController {
-  constructor(private readonly repository: DirectoryRepository,private readonly access:AccessService) {}
+  constructor(private readonly repository: DirectoryRepository,private readonly access:AccessService,private readonly reports:DirectoryReportService) {}
 
   private scope(profile:string|undefined,email:string|undefined){return this.access.getTeamScope(profileCode(profile),email)}
   private ids(value?:string){return value?.split(",").map(item=>item.trim()).filter(Boolean)??[]}
@@ -20,6 +21,12 @@ export class DirectoryController {
 
   @Get("people-filter-options") @RequirePermission("PERSONAS","view")
   async peopleFilterOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.repository.peopleFilterOptions(await this.scope(profile,email))}
+
+  @Get("people-reports/options") @RequirePermission("PERSONAS","view")
+  async peopleReportOptions(@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){return this.reports.options(await this.scope(profile,email))}
+
+  @Post("people-reports/export") @RequirePermission("PERSONAS","view")
+  async exportPeopleReport(@Body() body:DirectoryReportFilters,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string){const identity=profileCode(profile);const[scope,userId]=await Promise.all([this.access.getTeamScope(identity,email),this.access.getUserId(identity,email)]);const result=await this.reports.export(body??{},scope,userId,email??"");return new StreamableFile(result.buffer,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",disposition:`attachment; filename="${result.filename}"`})}
 
   @Get("people/:id/profile")
   @RequirePermission("PERSONAS","view")

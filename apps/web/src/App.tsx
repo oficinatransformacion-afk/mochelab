@@ -6,6 +6,7 @@ const CalibrationQueuePage = lazy(() => import("./maturity/CalibrationQueuePage"
 const MaturityConfigurationPage = lazy(() => import("./maturity/MaturityConfigurationPage").then(module => ({ default: module.MaturityConfigurationPage })));
 const MaturityPeriodsPage = lazy(() => import("./maturity/MaturityPeriodsPage").then(module => ({ default: module.MaturityPeriodsPage })));
 const PeoplePage = lazy(() => import("./directory/PeoplePage").then(module => ({ default: module.PeoplePage })));
+const PeopleReportsPage = lazy(() => import("./directory/PeopleReportsPage").then(module => ({ default: module.PeopleReportsPage })));
 const TeamsPage = lazy(() => import("./directory/TeamsPage").then(module => ({ default: module.TeamsPage })));
 const AcademyPage = lazy(() => import("./academy/AcademyPage").then(module => ({ default: module.AcademyPage })));
 const ObjectivesPage = lazy(() => import("./objectives/ObjectivesPage").then(module => ({ default: module.ObjectivesPage })));
@@ -49,6 +50,7 @@ function AppContent() {
   if(!administrator&&administratorRoute)return <StatePage title="Acceso restringido" detail="Tu perfil no tiene autorización para ingresar a esta sección."/>;
   const requiredModule=moduleForPath(window.location.pathname);
   if(requiredModule&&!access?.modules.some(item=>item.code===requiredModule&&item.canView))return <StatePage title="Acceso restringido" detail="No tienes permiso para consultar este módulo."/>;
+  if (window.location.pathname === "/personas/reportes") return <PeopleReportsPage />;
   const profileMatch=window.location.pathname.match(/^\/personas\/([^/]+)$/);
   if(profileMatch)return <PersonProfilePage personId={profileMatch[1]} />;
   if (window.location.pathname === "/personas") return <PeoplePage />;
