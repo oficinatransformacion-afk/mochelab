@@ -13,6 +13,14 @@ type ReportOptions = {
   teams: Option[];
   assignmentStatuses: Option[];
 };
+type ReportJob = {
+  id: string;
+  status: "QUEUED" | "PROCESSING" | "READY" | "FAILED";
+  progress: number;
+  filename: string | null;
+  error: string | null;
+  downloadUrl: string | null;
+};
 
 const emptyOptions: ReportOptions = { companies: [], personStatuses: [], managements: [], divisions: [], roles: [], teams: [], assignmentStatuses: [] };
 
@@ -29,6 +37,7 @@ export function PeopleReportsPage() {
   const [includeContact, setIncludeContact] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [job, setJob] = useState<ReportJob | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -39,22 +48,57 @@ export function PeopleReportsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!job || !["QUEUED", "PROCESSING"].includes(job.status)) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/people-reports/jobs/${job.id}`, { headers: demoHeaders, signal: controller.signal });
+        const body = await response.json().catch(() => ({})) as ReportJob & { message?: string };
+        if (!response.ok) throw new Error(body.message ?? "No se pudo consultar el avance del reporte.");
+        setJob(body);
+        if (body.status === "READY") setMessage("El reporte está listo para descargar.");
+        if (body.status === "FAILED") setMessage(body.error ?? "No se pudo generar el reporte.");
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setJob(null);
+        setMessage(error instanceof Error ? error.message : "No se pudo consultar el avance del reporte.");
+      }
+    }, 1500);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [job]);
+
   async function exportReport() {
     setExporting(true); setMessage("");
     try {
-      const response = await fetch(`${apiUrl}/api/people-reports/export`, {
+      const response = await fetch(`${apiUrl}/api/people-reports/jobs`, {
         method: "POST",
         headers: { ...demoHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ companyNames, personStatusNames, managementIds, divisionIds, roleIds, teamIds, assignmentStatusIds, cutoffDate: cutoffDate || undefined, includeContact }),
       });
-      if (!response.ok) { const body = await response.json().catch(() => ({})) as { message?: string }; throw new Error(body.message ?? "No se pudo generar el reporte."); }
+      const body = await response.json().catch(() => ({})) as ReportJob & { message?: string };
+      if (!response.ok) throw new Error(body.message ?? "No se pudo iniciar la generación del reporte.");
+      setJob(body);
+      setMessage("El reporte se está generando en segundo plano. Puedes mantener esta pantalla abierta.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error inesperado");
+    } finally { setExporting(false); }
+  }
+
+  async function downloadReport() {
+    if (!job?.downloadUrl) return;
+    setExporting(true); setMessage("");
+    try {
+      const response = await fetch(`${apiUrl}${job.downloadUrl}`, { headers: demoHeaders });
+      if (!response.ok) { const body = await response.json().catch(() => ({})) as { message?: string }; throw new Error(body.message ?? "No se pudo descargar el reporte."); }
       const blob = await response.blob();
       const match = response.headers.get("content-disposition")?.match(/filename="?([^";]+)"?/i);
       const anchor = document.createElement("a");
       anchor.href = URL.createObjectURL(blob);
-      anchor.download = match?.[1] ?? `participacion_resumen_${new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" })}.xlsx`;
+      anchor.download = match?.[1] ?? job.filename ?? `participacion_resumen_${new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" })}.xlsx`;
       anchor.click();
       URL.revokeObjectURL(anchor.href);
+      setJob(null);
       setMessage("Reporte exportado correctamente.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error inesperado");
@@ -85,9 +129,10 @@ export function PeopleReportsPage() {
       <div className="mt-8 rounded-2xl bg-slate-50 p-5">
         <p className="font-extrabold text-slate-700">El archivo incluirá</p>
         <div className="mt-3 flex flex-wrap gap-2">{["Resumen", "Base de empleados", "Detalle persona–rol", "Participación organizacional", "Metodología"].map(item => <span key={item} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">{item}</span>)}</div>
-        <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-500">Con todos los filtros en “Todos” y la fecha vacía se exporta el histórico completo permitido.</p><button type="button" disabled={loading || exporting} onClick={() => void exportReport()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e31b23] px-6 py-3 font-extrabold text-white shadow-sm transition hover:bg-[#c9141b] disabled:cursor-not-allowed disabled:bg-slate-300"><Download size={19}/>{exporting ? "Exportando…" : "Exportar Excel"}</button></div>
+        {job && ["QUEUED", "PROCESSING"].includes(job.status) && <div className="mt-5 border-t border-slate-200 pt-5"><div className="mb-2 flex items-center justify-between text-sm font-bold text-slate-700"><span>{job.status === "QUEUED" ? "Reporte en cola" : "Generando el Excel"}</span><span>{job.progress}%</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#e31b23] transition-all" style={{ width: `${job.progress}%` }}/></div></div>}
+        <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-500">Con todos los filtros en “Todos” y la fecha vacía se exporta el histórico completo permitido.</p><button type="button" disabled={loading || exporting || Boolean(job && ["QUEUED", "PROCESSING"].includes(job.status))} onClick={() => void (job?.status === "READY" ? downloadReport() : exportReport())} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e31b23] px-6 py-3 font-extrabold text-white shadow-sm transition hover:bg-[#c9141b] disabled:cursor-not-allowed disabled:bg-slate-300"><Download size={19}/>{exporting ? "Procesando…" : job?.status === "READY" ? "Descargar Excel" : job?.status === "FAILED" ? "Reintentar exportación" : job ? "Generando…" : "Exportar Excel"}</button></div>
       </div>
-      {message && <p className={`mt-5 rounded-xl p-4 font-semibold ${message.includes("correctamente") ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>{message}</p>}
+      {message && <p className={`mt-5 rounded-xl p-4 font-semibold ${message.includes("correctamente") || message.includes("listo") ? "bg-emerald-50 text-emerald-800" : message.includes("generando") ? "bg-blue-50 text-blue-800" : "bg-rose-50 text-rose-800"}`}>{message}</p>}
     </section>
   </DirectoryShell>;
 }
