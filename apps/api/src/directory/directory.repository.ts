@@ -24,6 +24,7 @@ export class DirectoryRepository {
       phone:person.phone,
       position:person.position,
       occupationLevelId:person.occupationLevelId,
+      occupationLevel:person.occupationLevel?.name ?? null,
       businessPartnerId:person.businessPartnerId,
       status: person.status.name,
       statusId:person.statusId,
@@ -66,21 +67,25 @@ export class DirectoryRepository {
     return this.mapPeople(people);
   }
 
-  async listPeoplePage(filters:{search?:string;companies?:string[];managements?:string[];divisions?:string[];statuses?:string[];assignment?:string[];page?:number;pageSize?:number;personId?:string},teamIds:string[]|null=null){
+  async listPeoplePage(filters:{search?:string;companies?:string[];companyIds?:string[];managements?:string[];divisions?:string[];statuses?:string[];statusIds?:string[];occupationLevels?:string[];occupationScope?:string;assignment?:string[];page?:number;pageSize?:number;personId?:string},teamIds:string[]|null=null){
     const term=filters.search?.trim();const page=Math.max(1,filters.page??1);const pageSize=Math.min(100,Math.max(1,filters.pageSize??20));
     const assignmentConditions:any[]=[];
     if(filters.assignment?.length===1&&filters.assignment[0]==="CON_ROL")assignmentConditions.push({assignments:{some:{}}});
     if(filters.assignment?.length===1&&filters.assignment[0]==="SIN_ROL")assignmentConditions.push({assignments:{none:{}}});
     const where:any={
       id:filters.personId,
-      company:filters.companies?.length?{name:{in:filters.companies}}:undefined,
+      companyId:filters.companyIds?.length?{in:filters.companyIds}:undefined,
+      company:!filters.companyIds?.length&&filters.companies?.length?{name:{in:filters.companies}}:undefined,
       managementId:filters.managements?.length?{in:filters.managements}:undefined,
       divisionId:filters.divisions?.length?{in:filters.divisions}:undefined,
-      status:filters.statuses?.length?{name:{in:filters.statuses}}:undefined,
+      statusId:filters.statusIds?.length?{in:filters.statusIds}:undefined,
+      status:!filters.statusIds?.length&&filters.statuses?.length?{name:{in:filters.statuses}}:undefined,
+      occupationLevelId:filters.occupationLevels?.length?{in:filters.occupationLevels}:undefined,
+      occupationLevel:filters.occupationScope==="NON_OPERATOR"?{code:{not:"OPERARIO"}}:filters.occupationScope==="OPERATOR"?{code:"OPERARIO"}:undefined,
       AND:[...(teamIds===null?[]:[{assignments:{some:{teamId:{in:teamIds}}}}]),...assignmentConditions],
-      OR:term?[{dni:{contains:term,mode:"insensitive"}},{names:{contains:term,mode:"insensitive"}},{email:{contains:term,mode:"insensitive"}},{company:{name:{contains:term,mode:"insensitive"}}}]:undefined,
+      OR:term?[{dni:{contains:term,mode:"insensitive"}},{names:{contains:term,mode:"insensitive"}},{email:{contains:term,mode:"insensitive"}},{position:{contains:term,mode:"insensitive"}},{company:{name:{contains:term,mode:"insensitive"}}}]:undefined,
     };
-    const include={company:true,organizationalUnit:true,status:true,assignments:{where:teamIds===null?undefined:{teamId:{in:teamIds}},include:{role:true,status:true,onboardingStatus:true,team:{include:{program:true}}}}} as const;
+    const include={company:true,organizationalUnit:true,occupationLevel:true,status:true,assignments:{where:teamIds===null?undefined:{teamId:{in:teamIds}},include:{role:true,status:true,onboardingStatus:true,team:{include:{program:true}}}}} as const;
     const[total,people]=await Promise.all([this.prisma.person.count({where}),this.prisma.person.findMany({where,include,orderBy:[{names:"asc"},{dni:"asc"}],skip:(page-1)*pageSize,take:pageSize})]);
     return{items:this.mapPeople(people),total,page,pageSize,pages:Math.max(1,Math.ceil(total/pageSize))};
   }
