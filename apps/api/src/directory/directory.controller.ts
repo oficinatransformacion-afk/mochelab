@@ -14,10 +14,10 @@ export class DirectoryController {
 
   @Get("people")
   @RequirePermission("PERSONAS","view")
-  async listPeople(@Query("search") search?: string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Query("companies") companies?:string,@Query("managements") managements?:string,@Query("divisions") divisions?:string,@Query("statuses") statuses?:string,@Query("assignment") assignment?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
+  async listPeople(@Query("search") search?: string,@Query("page") page?:string,@Query("pageSize") pageSize?:string,@Query("companies") companies?:string,@Query("companyIds") companyIds?:string,@Query("managements") managements?:string,@Query("divisions") divisions?:string,@Query("statuses") statuses?:string,@Query("statusIds") statusIds?:string,@Query("occupationLevels") occupationLevels?:string,@Query("occupationScope") occupationScope?:string,@Query("assignment") assignment?:string,@Headers("x-mochelab-demo-profile") profile?:string,@Headers("x-mochelab-demo-user-email") email?:string) {
     const identity=profileCode(profile),[scope,personId]=await Promise.all([this.scope(profile,email),this.access.getPersonId(identity,email)]),self=identity==="COLABORADOR"?personId??undefined:undefined;
     if(!page)return this.repository.listPeople(search,scope,self);
-    return this.repository.listPeoplePage({search,companies:this.ids(companies),managements:this.ids(managements),divisions:this.ids(divisions),statuses:this.ids(statuses),assignment:this.ids(assignment),page:Number(page),pageSize:Number(pageSize)||20,personId:self},scope);
+    return this.repository.listPeoplePage({search,companies:this.ids(companies),companyIds:this.ids(companyIds),managements:this.ids(managements),divisions:this.ids(divisions),statuses:this.ids(statuses),statusIds:this.ids(statusIds),occupationLevels:this.ids(occupationLevels),occupationScope,assignment:this.ids(assignment),page:Number(page),pageSize:Number(pageSize)||20,personId:self},scope);
   }
 
   @Get("people-filter-options") @RequirePermission("PERSONAS","view")

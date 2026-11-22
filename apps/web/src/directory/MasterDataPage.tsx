@@ -24,6 +24,7 @@ type Person = {
   company: string;
   companyId: string;
   occupationLevelId: string | null;
+  occupationLevel: string | null;
   organizationalUnitId: string | null;
   managementId: string | null;
   subManagementId: string | null;
@@ -91,12 +92,22 @@ export function MasterDataPage() {
     [editing, setEditing] = useState<string | null>(null),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [query, setQuery] = useState("");
+    [query, setQuery] = useState(""),
+    [peoplePage, setPeoplePage] = useState(1),
+    [peoplePageSize, setPeoplePageSize] = useState(50),
+    [peopleTotal, setPeopleTotal] = useState(0),
+    [peoplePages, setPeoplePages] = useState(1),
+    [peopleReload, setPeopleReload] = useState(0),
+    [companyFilter, setCompanyFilter] = useState(""),
+    [statusFilter, setStatusFilter] = useState("ACTIVO"),
+    [occupationScope, setOccupationScope] = useState("NON_OPERATOR"),
+    [managementFilter, setManagementFilter] = useState(""),
+    [divisionFilter, setDivisionFilter] = useState(""),
+    [assignmentFilter, setAssignmentFilter] = useState("");
   async function load() {
     setBusy(true);
     const responses = await Promise.all([
       fetch(apiUrl + "/api/directory-admin/options", { headers: demoHeaders }),
-      fetch(apiUrl + "/api/people", { headers: demoHeaders }),
       fetch(apiUrl + "/api/teams", { headers: demoHeaders }),
       fetch(apiUrl + "/api/academy/roles", { headers: demoHeaders }),
       fetch(apiUrl + "/api/academy/courses", { headers: demoHeaders }),
@@ -109,15 +120,45 @@ export function MasterDataPage() {
       return;
     }
     setOptions(await responses[0].json());
-    setPeople(await responses[1].json());
-    setTeams(await responses[2].json());
-    setRoles(await responses[3].json());
-    setCourses(await responses[4].json());
+    setTeams(await responses[1].json());
+    setRoles(await responses[2].json());
+    setCourses(await responses[3].json());
     setBusy(false);
   }
   useEffect(() => {
     void load();
   }, []);
+  useEffect(() => {
+    if (kind !== "personas") return;
+    const timer = window.setTimeout(async () => {
+      setBusy(true);
+      const params = new URLSearchParams({
+        page: String(peoplePage),
+        pageSize: String(peoplePageSize),
+        search: query,
+        occupationScope,
+      });
+      if (companyFilter) params.set("companyIds", companyFilter);
+      if (statusFilter) params.set("statuses", statusFilter);
+      if (managementFilter) params.set("managements", managementFilter);
+      if (divisionFilter) params.set("divisions", divisionFilter);
+      if (assignmentFilter) params.set("assignment", assignmentFilter);
+      try {
+        const response = await fetch(`${apiUrl}/api/people?${params}`, { headers: demoHeaders });
+        if (!response.ok) throw new Error("No se pudo consultar el maestro de personas");
+        const data = await response.json() as {items:Person[];total:number;pages:number};
+        setPeople(data.items);
+        setPeopleTotal(data.total);
+        setPeoplePages(data.pages);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "No se pudo consultar el maestro de personas");
+      } finally {
+        setBusy(false);
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [kind, query, peoplePage, peoplePageSize, peopleReload, companyFilter, statusFilter, occupationScope, managementFilter, divisionFilter, assignmentFilter]);
+  useEffect(() => setPeoplePage(1), [query, peoplePageSize, companyFilter, statusFilter, occupationScope, managementFilter, divisionFilter, assignmentFilter]);
   function start(next: Kind) {
     setKind(next);
     setEditing(null);
@@ -211,6 +252,7 @@ export function MasterDataPage() {
     setMessage(editing ? "Registro actualizado." : "Registro creado.");
     setEditing(null);
     await load();
+    if (kind === "personas") { setPeoplePage(1); setPeopleReload(value=>value+1); }
   }
   const rows = (
     kind === "personas"
@@ -220,9 +262,7 @@ export function MasterDataPage() {
         : kind === "roles"
           ? roles
           : courses
-  ).filter((row) =>
-    JSON.stringify(row).toLowerCase().includes(query.toLowerCase()),
-  );
+  ).filter((row) => kind === "personas" || JSON.stringify(row).toLowerCase().includes(query.toLowerCase()));
   const optional = [
     "email",
     "phone",
@@ -450,32 +490,48 @@ export function MasterDataPage() {
           </p>
         )}
         <section className="mt-6 overflow-hidden rounded-2xl border bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-            <b>{rows.length} registro(s)</b>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
+            <b>{kind === "personas" ? (peopleTotal ? `${(peoplePage - 1) * peoplePageSize + 1}–${Math.min(peoplePage * peoplePageSize, peopleTotal)} de ${peopleTotal} personas` : "0 personas") : `${rows.length} registro(s)`}</b>
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar en el maestro"
-              className="w-full rounded-xl border px-4 py-2 sm:w-80"
+              placeholder={kind === "personas" ? "Buscar por nombre, DNI, correo o puesto" : "Buscar en el maestro"}
+              className="w-full rounded-xl border px-4 py-2.5 sm:w-[28rem]"
             />
           </div>
-          <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] bg-slate-50 sm:grid px-5 py-3 text-sm font-bold text-slate-500">
-            <span>Registro</span>
-            <span>Estado / detalle</span>
+          {kind === "personas" && options && <div className="grid gap-3 border-b bg-slate-50 p-5 sm:grid-cols-2 xl:grid-cols-6">
+            <FilterSelect label="Empresa" value={companyFilter} onChange={setCompanyFilter} empty="Todas las empresas" options={options.companies}/>
+            <FilterSelect label="Estado" value={statusFilter} onChange={setStatusFilter} empty="Todos los estados" options={options.catalogs.ESTADO_PERSONA || []} useCode/>
+            <label className="text-sm font-bold">Nivel ocupacional<select value={occupationScope} onChange={event=>setOccupationScope(event.target.value)} className="mt-2 w-full rounded-xl border bg-white px-3 py-2.5 font-normal"><option value="NON_OPERATOR">No operarios</option><option value="OPERATOR">Solo operarios</option><option value="ALL">Todos</option></select></label>
+            <FilterSelect label="Gerencia" value={managementFilter} onChange={setManagementFilter} empty="Todas" options={options.catalogs.GERENCIA || []}/>
+            <FilterSelect label="División" value={divisionFilter} onChange={setDivisionFilter} empty="Todas" options={options.catalogs.DIVISION || []}/>
+            <label className="text-sm font-bold">Asignación<select value={assignmentFilter} onChange={event=>setAssignmentFilter(event.target.value)} className="mt-2 w-full rounded-xl border bg-white px-3 py-2.5 font-normal"><option value="">Con y sin rol</option><option value="CON_ROL">Con rol asignado</option><option value="SIN_ROL">Sin rol asignado</option></select></label>
+            <div className="flex items-center justify-between gap-4 sm:col-span-2 xl:col-span-6">
+              <p className="text-xs text-slate-500">La búsqueda consulta toda la base de datos.</p>
+              <button type="button" onClick={()=>{setQuery("");setCompanyFilter("");setStatusFilter("ACTIVO");setOccupationScope("NON_OPERATOR");setManagementFilter("");setDivisionFilter("");setAssignmentFilter("")}} className="text-sm font-bold text-red-700">Limpiar filtros</button>
+            </div>
+          </div>}
+          <div className={`hidden bg-slate-50 px-5 py-3 text-sm font-bold text-slate-500 sm:grid ${kind === "personas" ? "grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,.6fr)_auto]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"}`}>
+            <span>{kind === "personas" ? "Persona" : "Registro"}</span>
+            {kind === "personas" && <span>Empresa</span>}
+            {kind === "personas" && <span>Nivel ocupacional</span>}
+            <span>{kind === "personas" ? "Estado" : "Estado / detalle"}</span>
             <span>Acción</span>
           </div>
           {rows.map((row) => (
             <div
               key={row.id}
-              className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center border-t px-5 py-4"
+              className={`grid grid-cols-1 gap-2 border-t px-5 py-4 sm:items-center ${kind === "personas" ? "sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,.8fr)_minmax(0,.6fr)_auto]" : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"}`}
             >
               <div>
                 <b>{"names" in row ? row.names : row.name}</b>
                 <p className="text-sm text-slate-500">
-                  {"dni" in row ? `${row.dni} · ${row.company}` : row.sourceId}
+                  {"dni" in row ? `DNI ${row.dni}${row.email ? ` · ${row.email}` : ""}` : row.sourceId}
                 </p>
               </div>
+              {"dni" in row && <span>{row.company}</span>}
+              {"dni" in row && <span>{row.occupationLevel || "Sin nivel"}</span>}
               <span>
                 {row.status}
                 {"peopleCount" in row
@@ -494,10 +550,18 @@ export function MasterDataPage() {
               </button>
             </div>
           ))}
+          {kind === "personas" && <div className="flex flex-wrap items-center justify-between gap-3 border-t p-5">
+            <select value={peoplePageSize} onChange={event=>setPeoplePageSize(Number(event.target.value))} className="rounded-xl border bg-white px-3 py-2 text-sm"><option value={25}>25 por página</option><option value={50}>50 por página</option><option value={100}>100 por página</option></select>
+            <div className="flex items-center gap-3"><button disabled={peoplePage===1||busy} onClick={()=>setPeoplePage(value=>value-1)} className="rounded-lg border px-3 py-2 text-sm font-bold disabled:opacity-40">Anterior</button><span className="text-sm font-bold">Página {peoplePage} de {peoplePages}</span><button disabled={peoplePage===peoplePages||busy} onClick={()=>setPeoplePage(value=>value+1)} className="rounded-lg border px-3 py-2 text-sm font-bold disabled:opacity-40">Siguiente</button></div>
+          </div>}
         </section>
       </div>
     </main>
   );
+}
+
+function FilterSelect({label,value,onChange,empty,options,useCode=false}:{label:string;value:string;onChange:(value:string)=>void;empty:string;options:O[];useCode?:boolean}){
+  return <label className="text-sm font-bold">{label}<select value={value} onChange={event=>onChange(event.target.value)} className="mt-2 w-full rounded-xl border bg-white px-3 py-2.5 font-normal"><option value="">{empty}</option>{options.map(option=><option key={option.id} value={useCode?option.code:option.id}>{option.name}</option>)}</select></label>;
 }
 
 function FormGroup({
