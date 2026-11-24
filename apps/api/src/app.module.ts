@@ -17,6 +17,8 @@ import { AcademyController } from "./academy/academy.controller";
 import { AcademyRepository } from "./academy/academy.repository";
 import { ObjectivesController } from "./objectives/objectives.controller";
 import { ObjectivesRepository } from "./objectives/objectives.repository";
+import { AnnualObjectivesController } from "./objectives/annual-objectives.controller";
+import { AnnualObjectivesRepository } from "./objectives/annual-objectives.repository";
 import { InitiativesController } from "./initiatives/initiatives.controller";
 import { InitiativesRepository } from "./initiatives/initiatives.repository";
 import { InitiativesExportService } from "./initiatives/initiatives-export.service";
@@ -50,7 +52,7 @@ import { ProcessesRepository } from "./processes/processes.repository";
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [HealthController, AuthController, GoogleFormsIntegrationController, PortfolioExportController, AccessController, PermissionsController, MaturityController, SelfAssessmentController, DirectoryController, AcademyController, ObjectivesController, InitiativesController, CatalogsController, UsersController, AuditController, TargetsController, DashboardController, JobsController, CommunicationsController, DataQualityController, ProcessesController],
+  controllers: [HealthController, AuthController, GoogleFormsIntegrationController, PortfolioExportController, AccessController, PermissionsController, MaturityController, SelfAssessmentController, DirectoryController, AcademyController, ObjectivesController, AnnualObjectivesController, InitiativesController, CatalogsController, UsersController, AuditController, TargetsController, DashboardController, JobsController, CommunicationsController, DataQualityController, ProcessesController],
   providers: [
     AccessService,
     MaturityScoringService,
@@ -61,6 +63,7 @@ import { ProcessesRepository } from "./processes/processes.repository";
     DirectoryReportJobService,
     AcademyRepository,
     ObjectivesRepository,
+    AnnualObjectivesRepository,
     InitiativesRepository,
     InitiativesExportService,
     CatalogsRepository,

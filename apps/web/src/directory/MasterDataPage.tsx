@@ -37,6 +37,7 @@ type Team = {
   id: string;
   sourceId: string;
   name: string;
+  strategicType: "NEGOCIO" | "PROGRAMA";
   focusAreaId: string | null;
   status: string;
   statusId: string;
@@ -76,7 +77,7 @@ const blanks = {
     businessPartnerValueId: "",
     statusId: "",
   },
-  equipos: { sourceId: "", focusAreaId: "", name: "", statusId: "" },
+  equipos: { sourceId: "", strategicType: "PROGRAMA", focusAreaId: "", name: "", statusId: "" },
   roles: { sourceId: "", name: "", typeId: "", statusId: "" },
   cursos: { sourceId: "", name: "", moduleId: "", statusId: "" },
 };
@@ -198,6 +199,7 @@ export function MasterDataPage() {
       setForm({
         sourceId: x.sourceId,
         name: x.name,
+        strategicType: x.strategicType,
         focusAreaId: x.focusAreaId || "",
         statusId: x.statusId,
       });
@@ -397,6 +399,12 @@ export function MasterDataPage() {
                   label="Código"
                   value={form.sourceId}
                   onChange={(v) => set("sourceId", v)}
+                />
+                <Select
+                  label="Tipo de equipo"
+                  value={form.strategicType}
+                  options={[{id:"NEGOCIO",code:"NEGOCIO",name:"Negocio"},{id:"PROGRAMA",code:"PROGRAMA",name:"Programa"}]}
+                  onChange={(v) => set("strategicType", v)}
                 />
                 <Select
                   label="Área de enfoque"

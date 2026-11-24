@@ -163,6 +163,7 @@ export class DirectoryRepository {
       id: team.id,
       sourceId: team.sourceId,
       name:team.name,
+      strategicType:team.strategicType,
       focusAreaId:team.focusAreaId,
       focusArea: team.focusArea?.name ?? null,
       program: team.program?.name ?? team.name,
@@ -184,7 +185,7 @@ export class DirectoryRepository {
     const where:any={id:teamIds===null?undefined:{in:teamIds},assignments:roleNames.length?{some:{status:{code:"ACTIVO"},role:{name:{in:roleNames},status:{code:"ACTIVO"}}}}:undefined,OR:term?[{sourceId:{contains:term,mode:"insensitive"}},{name:{contains:term,mode:"insensitive"}},{program:{name:{contains:term,mode:"insensitive"}}},{unit:{name:{contains:term,mode:"insensitive"}}}]:undefined};
     const include={program:true,focusArea:true,unit:{include:{company:true}},status:true,assignments:{where:{status:{code:"ACTIVO"},role:{status:{code:"ACTIVO"},name:roleNames.length?{in:roleNames}:undefined}},include:{person:true,role:true}}} as const;
     const[total,teams]=await Promise.all([this.prisma.team.count({where}),this.prisma.team.findMany({where,include,orderBy:{sourceId:"asc"},skip:(page-1)*pageSize,take:pageSize})]);
-    const items=teams.map(team=>({id:team.id,sourceId:team.sourceId,name:team.name,focusAreaId:team.focusAreaId,focusArea:team.focusArea?.name??null,program:team.program?.name??team.name,programId:team.programId,unit:team.unit?.name??null,unitId:team.unitId,company:team.unit?.company?.name??null,status:team.status.name,statusId:team.statusId,members:team.assignments.map(assignment=>({name:assignment.person.names,role:assignment.role.name}))}));
+    const items=teams.map(team=>({id:team.id,sourceId:team.sourceId,name:team.name,strategicType:team.strategicType,focusAreaId:team.focusAreaId,focusArea:team.focusArea?.name??null,program:team.program?.name??team.name,programId:team.programId,unit:team.unit?.name??null,unitId:team.unitId,company:team.unit?.company?.name??null,status:team.status.name,statusId:team.statusId,members:team.assignments.map(assignment=>({name:assignment.person.names,role:assignment.role.name}))}));
     return{items,total,page,pageSize,pages:Math.max(1,Math.ceil(total/pageSize))};
   }
 
@@ -231,7 +232,9 @@ export class DirectoryRepository {
 
   async saveTeam(id:string|null,input:Record<string,unknown>,userId:string){
     const current=id?await this.prisma.team.findUnique({where:{id},include:{status:true}}):null;if(id&&!current)throw new NotFoundException("No se encontró el equipo");
-    const data={sourceId:this.text(input,"sourceId")!,name:this.text(input,"name")!,focusAreaId:this.text(input,"focusAreaId")!,statusId:this.text(input,"statusId")!};
+    const strategicType=this.text(input,"strategicType")!;
+    if(!["NEGOCIO","PROGRAMA"].includes(strategicType))throw new BadRequestException("Tipo de equipo inválido");
+    const data={sourceId:this.text(input,"sourceId")!,name:this.text(input,"name")!,strategicType:strategicType as "NEGOCIO"|"PROGRAMA",focusAreaId:this.text(input,"focusAreaId")!,statusId:this.text(input,"statusId")!};
     const [focusArea,status]=await Promise.all([this.prisma.catalogValue.findFirst({where:{id:data.focusAreaId,catalog:{code:"AREA_ENFOQUE"}}}),this.prisma.catalogValue.findFirst({where:{id:data.statusId,catalog:{code:"ESTADO_EQUIPO"}}})]);if(!focusArea||!status)throw new BadRequestException("Área de enfoque o estado inválido");
     if(current&&current.status.code==="ACTIVO"&&status.code!=="ACTIVO"&&await this.prisma.personRole.count({where:{teamId:id!,status:{code:"ACTIVO"}}}))throw new BadRequestException("No se puede desactivar un equipo con asignaciones activas");
     try{return await this.prisma.$transaction(async tx=>{const row=id?await tx.team.update({where:{id},data}):await tx.team.create({data});await tx.audit.create({data:{occurredAt:new Date(),userId,action:id?"UPDATE":"CREATE",entity:"TEAM",recordId:row.id,oldValue:current?this.snapshot(current):undefined,newValue:this.snapshot(row),result:"OK",origin:"WEB"}});return row})}catch(error:unknown){if(typeof error==="object"&&error&&"code" in error&&error.code==="P2002")throw new BadRequestException("Ya existe un equipo con ese código");throw error}
